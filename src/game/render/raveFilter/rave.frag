@@ -9,6 +9,7 @@ uniform highp vec4 uOutputFrame;
 // 0-1 envelopes, read off the audio clock every frame.
 uniform float uKick;
 uniform float uShot;
+uniform float uHit;
 
 // Pixi compiles filters for WebGL1 too (GLSL ES 1.0, no array
 // constructors), so the bloom taps are unrolled through this helper.
@@ -36,7 +37,7 @@ void main(void)
   vec2 fromCentre = uv / uvPerScreen - 0.5;
 
   // Chromatic aberration: channels split outwards, wider on the kick.
-  vec2 split = fromCentre * (0.002 + 0.012 * uKick) * uvPerScreen;
+  vec2 split = fromCentre * (0.002 + 0.012 * uKick + 0.012 * uHit) * uvPerScreen;
   vec3 color = vec3(
     texture(uTexture, uv + split).r,
     texture(uTexture, uv).g,
@@ -49,6 +50,9 @@ void main(void)
   vec3 glow =
     brightRing(uv, pixel * radius) + 0.6 * brightRing(uv, pixel * radius * 2.5);
   color += glow / 12.8 * (0.6 + 1.4 * uKick + 0.8 * uShot);
+
+  // Getting hit flashes the screen red.
+  color += vec3(0.3, 0.0, 0.07) * uHit;
 
   // Vignette that breathes open on the kick.
   float vignette = 1.0 - dot(fromCentre, fromCentre) * (1.1 - 0.5 * uKick);

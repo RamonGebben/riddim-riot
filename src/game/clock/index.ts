@@ -1,5 +1,4 @@
 import { getTransport } from 'tone';
-import type { Bus } from '../bus';
 import { toPosition, type Position } from '../grid';
 
 export interface Tick extends Position {
@@ -27,10 +26,11 @@ export interface Clock {
  */
 export const createClock = ({
   bpm,
-  bus,
+  onTick,
 }: {
   bpm: number;
-  bus: Bus<ClockEvents>;
+  /** Called per 1/16, ahead of the audio - usually emits on the bus. */
+  onTick: (tick: Tick) => void;
 }): Clock => {
   const transport = getTransport();
   transport.bpm.value = bpm;
@@ -41,7 +41,7 @@ export const createClock = ({
       // Derived from the transport position rather than counted, so a
       // dropped callback can never shift every later step.
       const step = Math.round(transport.getTicksAtTime(time) / ticksPerStep);
-      bus.emit('tick', { ...toPosition(step), step, time });
+      onTick({ ...toPosition(step), step, time });
     },
     '16n',
     0,
