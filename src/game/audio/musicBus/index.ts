@@ -5,14 +5,19 @@ export interface MusicBus {
   input: ToneAudioNode;
   /** The bus low-pass: ducked when the player is hit, opened on the drop. */
   filter: Filter;
+  /** Muffle everything at `time`, then open back up over `seconds`. */
+  duck: (time: number, seconds: number) => void;
   dispose: () => void;
 }
+
+const OPEN_HZ = 20000;
+const DUCKED_HZ = 280;
 
 export const createMusicBus = (): MusicBus => {
   const limiter = new Limiter(-1).toDestination();
   const filter = new Filter({
     type: 'lowpass',
-    frequency: 20000,
+    frequency: OPEN_HZ,
     rolloff: -24,
     Q: 0.7,
   }).connect(limiter);
@@ -21,6 +26,11 @@ export const createMusicBus = (): MusicBus => {
   return {
     input,
     filter,
+    duck: (time, seconds) => {
+      filter.frequency.cancelScheduledValues(time);
+      filter.frequency.setValueAtTime(DUCKED_HZ, time);
+      filter.frequency.exponentialRampToValueAtTime(OPEN_HZ, time + seconds);
+    },
     dispose: () => [input, filter, limiter].forEach(node => node.dispose()),
   };
 };
