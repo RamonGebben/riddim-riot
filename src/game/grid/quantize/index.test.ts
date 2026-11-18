@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { beatsToSteps, nextSlot } from '.';
+import { beatsToSteps, isOnGrid, nextSlot } from '.';
 
 describe('nextSlot', () => {
   it('keeps a step that is already on the grid', () => {
@@ -18,5 +18,18 @@ describe('beatsToSteps', () => {
   it('converts beats to 1/16 steps', () => {
     expect(beatsToSteps(2)).toBe(8);
     expect(beatsToSteps(0.5)).toBe(2);
+  });
+});
+
+describe('isOnGrid', () => {
+  it('accepts only steps on the division', () => {
+    expect([0, 1, 2, 3, 4].map(step => isOnGrid(step, '1/8'))).toEqual([
+      true,
+      false,
+      true,
+      false,
+      true,
+    ]);
+    expect(isOnGrid(7, '1/16')).toBe(true);
   });
 });

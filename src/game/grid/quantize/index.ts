@@ -10,6 +10,9 @@ export const STEPS_PER_DIVISION = {
   '1/16': 1,
 } satisfies Record<Division, number>;
 
+export const isOnGrid = (step: number, division: Division): boolean =>
+  step % STEPS_PER_DIVISION[division] === 0;
+
 /** The first step on `division`'s grid at or after `step`. */
 export const nextSlot = (step: number, division: Division): number => {
   const size = STEPS_PER_DIVISION[division];
