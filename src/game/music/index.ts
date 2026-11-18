@@ -1,3 +1,5 @@
+import type { Rng } from '../rng';
+
 export type ScaleName = 'minor' | 'phrygian';
 
 /** Semitones above the root for each degree. */
@@ -32,3 +34,31 @@ export const degreeToMidi = (
 };
 
 export const midiToHz = (midi: number): number => 440 * 2 ** ((midi - 69) / 12);
+
+/**
+ * Roots a level may sit in: low enough for weight, high enough that the
+ * kick tuned to octave 1 (41-55 Hz) still reads on small speakers.
+ */
+const ROOTS = [4, 5, 6, 7, 9];
+const NOTE_NAMES = [
+  'C',
+  'C#',
+  'D',
+  'D#',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'G#',
+  'A',
+  'A#',
+  'B',
+];
+
+export const rollKey = (rng: Rng): Key => ({
+  root: rng.pick(ROOTS),
+  scale: rng.pick<ScaleName>(['minor', 'phrygian']),
+});
+
+export const keyName = ({ root, scale }: Key): string =>
+  `${NOTE_NAMES[root]} ${scale}`;

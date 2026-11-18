@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { degreeToMidi, F_MINOR, midiToHz } from '.';
+import { createRng } from '../rng';
+import { degreeToMidi, F_MINOR, keyName, midiToHz, rollKey } from '.';
 
 describe('degreeToMidi', () => {
   it('puts degree 0 on the root', () => {
@@ -28,5 +29,21 @@ describe('midiToHz', () => {
   it('tunes A4 to 440', () => {
     expect(midiToHz(69)).toBe(440);
     expect(midiToHz(41)).toBeCloseTo(87.31, 1);
+  });
+});
+
+describe('rollKey', () => {
+  it('only rolls roots whose octave-1 kick sits between 40 and 56 Hz', () => {
+    Array.from({ length: 100 }, (_, seed) => rollKey(createRng(seed))).forEach(
+      key => {
+        const kick = midiToHz(degreeToMidi(key, 0, 1));
+        expect(kick).toBeGreaterThan(40);
+        expect(kick).toBeLessThan(56);
+      },
+    );
+  });
+
+  it('names keys', () => {
+    expect(keyName(F_MINOR)).toBe('F minor');
   });
 });
