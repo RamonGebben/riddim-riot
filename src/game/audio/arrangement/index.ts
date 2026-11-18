@@ -10,6 +10,9 @@ export interface Arrangement {
     section: Section,
     { time, bar }: { time: number; bar: number },
   ) => void;
+  /** Play a drop's hit or a riser on its own, for auditioning. */
+  drop: (time: number) => void;
+  riser: (time: number) => void;
   dispose: () => void;
 }
 
@@ -143,6 +146,8 @@ export const createArrangement = ({
       if (entering && section === 'drop') drop(time);
       current = section;
     },
+    drop,
+    riser: startRiser,
     dispose: () => nodes.forEach(node => node.dispose()),
   };
 };

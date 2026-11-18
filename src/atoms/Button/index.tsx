@@ -1,6 +1,12 @@
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 
-export const Button = styled.button`
+export type ButtonVariant = 'primary' | 'quiet';
+
+/**
+ * `primary` is the big call to action. `quiet` is a compact outlined button
+ * for dense tool UIs; with `aria-pressed` it reads as a toggle.
+ */
+export const Button = styled.button<{ $variant?: ButtonVariant }>`
   min-block-size: max(${({ theme }) => theme.minTarget()}, 2.5em);
   padding: ${({ theme }) => theme.spacing('xs')}
     ${({ theme }) => theme.spacing('l')};
@@ -24,7 +30,31 @@ export const Button = styled.button`
   }
 
   &:disabled {
-    cursor: progress;
-    opacity: 0.6;
+    cursor: not-allowed;
+    opacity: 0.5;
   }
+
+  ${({ $variant, theme }) =>
+    $variant === 'quiet' &&
+    css`
+      min-block-size: ${theme.minTarget()};
+      padding: ${theme.spacing('xxs')} ${theme.spacing('s')};
+      border: ${theme.borderWidth('s')} solid
+        ${theme.color('formBackground', 'emphasis')};
+      border-radius: ${theme.borderRadius('s')};
+      background: transparent;
+      color: ${theme.color('background', 'text')};
+      font-size: ${theme.fontSize('s')};
+      font-weight: ${theme.fontWeight('medium')};
+
+      &:hover {
+        background: ${theme.color('formBackground')};
+      }
+
+      &[aria-pressed='true'] {
+        border-color: ${theme.color('primary')};
+        background: ${theme.color('primary')};
+        color: ${theme.color('primary', 'text')};
+      }
+    `}
 `;

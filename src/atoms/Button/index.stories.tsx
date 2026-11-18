@@ -20,3 +20,11 @@ export const Default: Story = {
 export const Disabled: Story = {
   args: { disabled: true },
 };
+
+export const Quiet: Story = {
+  args: { $variant: 'quiet', children: 'Hold' },
+};
+
+export const QuietPressed: Story = {
+  args: { $variant: 'quiet', children: 'Hold', 'aria-pressed': true },
+};
