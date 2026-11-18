@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('start the music from the start screen', async ({ page }) => {
+test('start the music and fire the wobble gun', async ({ page }) => {
   const errors: Array<string> = [];
   page.on('pageerror', error => errors.push(error.message));
 
@@ -12,7 +12,15 @@ test('start the music from the start screen', async ({ page }) => {
   await expect(page.getByText('seed 42 · 140 BPM halftime')).toBeVisible();
 
   await page.getByRole('button', { name: 'Press to start' }).click();
-  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  const playArea = page.getByRole('main', { name: 'Play area' });
+  await expect(playArea).toBeVisible();
+
+  // Tap, then hold through a full magazine and its reload.
+  await playArea.click();
+  await page.mouse.move(400, 400);
+  await page.mouse.down();
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
 
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(
