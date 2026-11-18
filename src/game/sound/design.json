@@ -1,1 +1,111 @@
-{}
+{
+  "wobble": {
+    "envelope": {
+      "attack": 0.004,
+      "decay": 0.05,
+      "sustain": 1,
+      "release": 0.05
+    },
+    "voices": 3,
+    "spread": 30,
+    "sweepFloor": 160,
+    "phase": 270,
+    "rolloff": -24,
+    "subLevel": -6,
+    "subRelease": 0.05
+  },
+  "laser": {
+    "envelope": {
+      "attack": 0.002,
+      "decay": 0.12,
+      "sustain": 0.35,
+      "release": 0.05
+    },
+    "pitchDrop": 4,
+    "pitchDropSeconds": 0.07,
+    "shimmerDepth": 0.45,
+    "rolloff": -12
+  },
+  "weaponMix": {
+    "articulation": 0.9,
+    "driveWet": 0.6,
+    "holsterFadeSeconds": 0.35,
+    "subCutHz": 180,
+    "targetDb": -20
+  },
+  "parts": {
+    "manufacturers": {
+      "vandal": { "waveform": "sawtooth", "drive": 0.2 },
+      "lumen": { "waveform": "square", "drive": 0 }
+    },
+    "engines": {
+      "wobble": {
+        "octave": 2,
+        "degrees": [0, 0, 2, 3, 4, 6],
+        "cutoff": [1400, 3000],
+        "resonance": [3, 8]
+      },
+      "laser": {
+        "octave": 4,
+        "degrees": [0, 2, 4, 4, 6, 7],
+        "cutoff": [2200, 5200],
+        "resonance": [1, 4]
+      }
+    },
+    "crush": { "drive": [0.35, 0.65] },
+    "echo": { "feedback": [0.2, 0.4], "wet": [0.25, 0.4] }
+  },
+  "drums": {
+    "level": -4,
+    "kick": {
+      "pitchMultiple": 5,
+      "pitchSeconds": 0.045,
+      "decay": 0.45,
+      "level": 0
+    },
+    "snare": {
+      "noiseHz": 1800,
+      "noiseDecay": 0.2,
+      "noiseLevel": -6,
+      "bodyHz": 147,
+      "bodyDecay": 0.12,
+      "bodyLevel": -10,
+      "roomDecay": 1.4,
+      "roomWet": 0.22
+    },
+    "hat": { "hz": 7500, "decay": 0.04, "level": -14 },
+    "openHat": { "hz": 6000, "decay": 0.3, "level": -19 }
+  },
+  "impact": {
+    "level": -9,
+    "crunchHz": 1100,
+    "crunchQ": 1.2,
+    "crunchDecay": 0.12,
+    "crunchLevel": 2,
+    "thumpMultiple": 4,
+    "thumpSeconds": 0.06,
+    "thumpDecay": 0.22,
+    "thumpLevel": 0
+  },
+  "reload": {
+    "level": -8,
+    "clickHz": 3200,
+    "clickLevel": 6,
+    "rumbleFrom": 150,
+    "rumbleTo": 1400,
+    "rumbleLevel": 4
+  },
+  "arrangement": {
+    "level": -8,
+    "calmHz": 700,
+    "grooveHz": 3200,
+    "riserFrom": 400,
+    "riserTo": 9000,
+    "riserLevel": -4,
+    "crashHz": 3000,
+    "crashDecay": 1.6,
+    "crashLevel": -2,
+    "boomDecay": 1.1,
+    "boomLevel": 4
+  }
+}
