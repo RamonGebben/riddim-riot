@@ -2,7 +2,10 @@
 
 <!-- Add project-specific facts here. -->
 
-Browser twin-stick rhythm roguelite; the design is `design-brief-poc.md`.
+Browser twin-stick rhythm roguelite. The design is `design-brief-poc.md`; how
+the code fits together, what was measured and the roadmap are in
+`docs/architecture.md` - read it first when picking the work back up.
+Running and controls are in `README.md`.
 
 - **Game code lives in `src/game/<domain>/`** (`rng`, `bus`, `grid`, `clock`,
   `audio`, …), outside the atomic tiers. Each domain's `index.ts` is its only
