@@ -4,10 +4,8 @@ import {
   enemyPosition,
   HOP_SECONDS,
   isSpawned,
-  MAX_ENEMIES,
   planHop,
   spawnWave,
-  waveSize,
   type Enemy,
 } from '.';
 
@@ -45,17 +43,6 @@ describe('enemyPosition', () => {
       TILE / 2,
     );
     expect(enemyPosition(hopping, 1 + HOP_SECONDS)).toEqual({ x: TILE, y: 0 });
-  });
-});
-
-describe('waveSize', () => {
-  it('grows every two bars up to six', () => {
-    expect([0, 2, 4, 20].map(bar => waveSize(bar, 0))).toEqual([1, 2, 3, 6]);
-  });
-
-  it('never takes the arena past the cap', () => {
-    expect(waveSize(20, MAX_ENEMIES - 2)).toBe(2);
-    expect(waveSize(20, MAX_ENEMIES)).toBe(0);
   });
 });
 

@@ -1,6 +1,6 @@
 import { Application, Container } from 'pixi.js';
 import type { Level } from '../../level';
-import type { World } from '../../sim/world';
+import { isExitOpen, type World } from '../../sim/world';
 import { add, type Vec } from '../../vec';
 import { worldOffset } from '../camera';
 import { createEnemiesView } from '../enemiesView';
@@ -71,7 +71,7 @@ export const createStage = async (
     render: frame => {
       const offset = add(worldOffset(frame.camera, viewport()), frame.shake);
       layers.position.set(Math.round(offset.x), Math.round(offset.y));
-      levelView.update(frame);
+      levelView.update({ ...frame, exitOpen: isExitOpen(frame.world) });
       enemies.update(frame.world.enemies, frame.now);
       player.update({ ...frame, player: frame.world.player });
       fx.update({ ...frame, projectiles: frame.world.projectiles });

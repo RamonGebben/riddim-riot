@@ -12,10 +12,12 @@ import { createRng } from '../../rng';
 import type { Enemy } from '../enemy';
 import {
   createWorld,
+  isExitOpen,
   onBar,
   onBeat,
   PLAYER_MAX_HP,
   queueShot,
+  rulesFor,
   stepWorld,
   type World,
 } from '.';
@@ -61,17 +63,31 @@ describe('createWorld', () => {
 });
 
 describe('onBar', () => {
-  it('keeps the first bars quiet, then spawns growing waves', () => {
-    const world = createWorld(level);
+  it('runs waves on the song: intro, fight, clear, next wave', () => {
     const rng = createRng(1);
+    const world = createWorld(level);
     expect(onBar(world, { bar: 1, time: 1, rng }).enemies).toEqual([]);
-    const first = onBar(world, { bar: 2, time: 2, rng });
-    expect(first.enemies).toHaveLength(1);
-    expect(onBar(first, { bar: 6, time: 6, rng }).enemies).toHaveLength(4);
+    const fighting = onBar(world, { bar: 2, time: 2, rng });
+    expect(fighting.enemies).toHaveLength(3);
+    expect(fighting.waves.phase).toBe('fight');
+
+    const cleared = onBar(
+      { ...fighting, enemies: [] },
+      { bar: 5, time: 5, rng },
+    );
+    expect(cleared.waves).toMatchObject({ phase: 'cleared', cleared: 1 });
+    const next = onBar(cleared, { bar: 9, time: 9, rng });
+    expect(next.enemies).toHaveLength(5);
+  });
+
+  it('gives enemies more hit points on later levels', () => {
+    const world = createWorld(level, rulesFor({ level: 3 }));
+    const fighting = onBar(world, { bar: 1, time: 1, rng: createRng(1) });
+    fighting.enemies.forEach(enemy => expect(enemy.hp).toBe(3));
   });
 
   it('fills the level to the enemy cap in stress mode, from the first bar', () => {
-    const world = createWorld(level, { quietBars: 0, fill: true });
+    const world = createWorld(level, rulesFor({ level: 1, stress: true }));
     const filled = onBar(world, { bar: 0, time: 0, rng: createRng(1) });
     expect(filled.enemies).toHaveLength(30);
     expect(
@@ -211,6 +227,25 @@ describe('stepWorld', () => {
       now: 1,
     });
     expect(after.world).toBe(dead);
+  });
+
+  it('keeps the exit shut until enough waves are cleared', () => {
+    const onPad = {
+      ...createWorld(level),
+      player: { ...createWorld(level).player, position: level.exit },
+    };
+    const shut = stepWorld(onPad, { input: still, dt: 1 / 60, now: 1 });
+    expect(isExitOpen(onPad)).toBe(false);
+    expect(shut.world.status).toBe('playing');
+
+    const ready = {
+      ...onPad,
+      waves: { ...onPad.waves, cleared: onPad.rules.wavesToClear },
+    };
+    expect(isExitOpen(ready)).toBe(true);
+    expect(
+      stepWorld(ready, { input: still, dt: 1 / 60, now: 1 }).world.status,
+    ).toBe('cleared');
   });
 
   it('hits the player once, then gives a moment of invulnerability', () => {

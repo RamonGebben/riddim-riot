@@ -9,14 +9,14 @@ import {
   type TilePos,
 } from '../../level';
 import type { Rng } from '../../rng';
-import type { Vec } from '../../vec';
+import { length, subtract, type Vec } from '../../vec';
 import type { ProjectileSpec } from '../../weapons';
 import { resolveContacts, resolveHits } from '../combat';
 import {
+  ENEMY_HP,
   MAX_ENEMIES,
   planHop,
   spawnWave,
-  waveSize,
   type Enemy,
 } from '../enemy';
 import {
@@ -30,6 +30,7 @@ import {
   fireProjectile,
   type Projectile,
 } from '../projectile';
+import { advanceWaves, INITIAL_WAVES, waveSize, type Waves } from '../waves';
 
 /** A shot scheduled on the audio clock; it leaves the barrel at `time`. */
 export interface PendingShot {
@@ -39,17 +40,38 @@ export interface PendingShot {
   angle: number;
 }
 
-/** How the waves come. */
+/** How a level plays: its waves and how hard they hit. */
 export interface WaveRules {
+  /** 1-based level within the run; waves grow with it. */
+  level: number;
   /** Bars of breathing room before the first wave. */
   quietBars: number;
+  /** Waves to clear before the exit opens. */
+  wavesToClear: number;
+  enemyHp: number;
   /** Stress test: top the level up to the enemy cap every bar. */
   fill: boolean;
 }
 
-export const DEFAULT_RULES: WaveRules = { quietBars: 2, fill: false };
+/** Each level is a little longer and a little tougher than the last. */
+export const rulesFor = ({
+  level,
+  stress = false,
+}: {
+  level: number;
+  stress?: boolean;
+}): WaveRules => ({
+  level,
+  quietBars: stress ? 0 : level === 1 ? 2 : 1,
+  wavesToClear: 2 + level,
+  enemyHp: ENEMY_HP + 0.5 * (level - 1),
+  fill: stress,
+});
 
-export type WorldStatus = 'playing' | 'dead';
+export const DEFAULT_RULES: WaveRules = rulesFor({ level: 1 });
+
+/** `cleared`: the player took the exit. */
+export type WorldStatus = 'playing' | 'dead' | 'cleared';
 
 export interface World {
   level: Level;
@@ -59,6 +81,7 @@ export interface World {
   hp: number;
   maxHp: number;
   kills: number;
+  waves: Waves;
   enemies: Array<Enemy>;
   projectiles: Array<Projectile>;
   /** Shots scheduled on the audio clock that haven't sounded yet. */
@@ -69,6 +92,8 @@ export interface World {
 }
 
 const INVULNERABLE_SECONDS = 0.6;
+/** How close to the exit pad's centre counts as standing on it. */
+const EXIT_RADIUS = 40;
 export const PLAYER_MAX_HP = 5;
 /**
  * Waves appear this many tiles away, walking: off-screen, usually a room
@@ -89,6 +114,7 @@ export const createWorld = (
   hp,
   maxHp: PLAYER_MAX_HP,
   kills,
+  waves: INITIAL_WAVES,
   enemies: [],
   projectiles: [],
   pendingShots: [],
@@ -164,15 +190,13 @@ const spawnSpots = (world: World): Array<Vec> => {
   });
 };
 
-/** On every bar line: a wave, growing as the track goes on. */
-export const onBar = (
+export const isExitOpen = (world: World): boolean =>
+  world.waves.cleared >= world.rules.wavesToClear;
+
+const spawn = (
   world: World,
-  { bar, time, rng }: { bar: number; time: number; rng: Rng },
+  { count, time, rng }: { count: number; time: number; rng: Rng },
 ): World => {
-  const { quietBars, fill } = world.rules;
-  if (bar < quietBars) return world;
-  const alive = world.enemies.length;
-  const count = fill ? MAX_ENEMIES - alive : waveSize(bar - quietBars, alive);
   if (count === 0) return world;
   const wave = spawnWave({
     rng,
@@ -180,12 +204,40 @@ export const onBar = (
     firstId: world.nextId,
     candidates: spawnSpots(world),
     time,
+    hp: world.rules.enemyHp,
   });
   return {
     ...world,
     enemies: [...world.enemies, ...wave],
     nextId: world.nextId + wave.length,
   };
+};
+
+/**
+ * On every bar line: the wave lifecycle moves on (see `advanceWaves`), so
+ * waves arrive, clear and return on the song's structure.
+ */
+export const onBar = (
+  world: World,
+  { bar, time, rng }: { bar: number; time: number; rng: Rng },
+): World => {
+  if (world.status !== 'playing') return world;
+  const { rules } = world;
+  const alive = world.enemies.length;
+  if (rules.fill) {
+    return spawn(world, { count: MAX_ENEMIES - alive, time, rng });
+  }
+
+  const next = advanceWaves(world.waves, {
+    bar,
+    alive,
+    quietBars: rules.quietBars,
+  });
+  const advanced = { ...world, waves: next.waves };
+  if (!next.spawn) return advanced;
+  const size = waveSize({ sent: world.waves.sent, level: rules.level, alive });
+  const count = next.spawn === 'wave' ? size : Math.ceil(size / 2);
+  return spawn(advanced, { count, time, rng });
 };
 
 export interface FrameResult {
@@ -221,11 +273,15 @@ export const stepWorld = (
   const canBeHit = now >= world.invulnerableUntil;
   const playerHit = canBeHit ? (contacts.touched[0]?.position ?? null) : null;
   const hp = playerHit ? world.hp - 1 : world.hp;
+  const onExit =
+    isExitOpen(world) &&
+    length(subtract(player.position, world.level.exit)) <= EXIT_RADIUS;
+  const status = hp <= 0 ? 'dead' : onExit ? 'cleared' : 'playing';
 
   return {
     world: {
       ...world,
-      status: hp <= 0 ? 'dead' : 'playing',
+      status,
       hp,
       kills: world.kills + hits.killed.length,
       player,

@@ -66,6 +66,7 @@ export const startPlay = async ({
   element,
   level,
   rules,
+  carry,
   seed,
   bus,
   trigger,
@@ -80,6 +81,8 @@ export const startPlay = async ({
   element: HTMLElement;
   level: Level;
   rules: WaveRules;
+  /** Health and kills carried in from the run. */
+  carry: { hp: number; kills: number };
   seed: number;
   bus: Bus<GameEvents>;
   trigger: TriggerHandlers;
@@ -99,7 +102,7 @@ export const startPlay = async ({
   const detachTrigger = attachTrigger(element, trigger);
   const detachWeaponKeys = attachWeaponKeys(element, onWeaponAction);
 
-  let world = createWorld(level, rules);
+  let world = createWorld(level, rules, carry);
   let camera = world.player.position;
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
@@ -154,10 +157,9 @@ export const startPlay = async ({
       sounds.duck(audioNow());
       pulses.hit.hit(now);
     }
-    if (world.status === 'dead' && result.playerHit) {
-      trigger.release();
-      sounds.dead(audioNow());
-    }
+    const ended = world.status !== 'playing' && hud.status === 'playing';
+    if (ended) trigger.release();
+    if (ended && world.status === 'dead') sounds.dead(audioNow());
     const nextHud = hudOf(world);
     if (!sameHud(hud, nextHud)) {
       hud = nextHud;

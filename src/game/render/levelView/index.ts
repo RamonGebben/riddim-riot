@@ -4,8 +4,8 @@ import type { Palette } from '../../palette';
 
 export interface LevelView {
   view: Container;
-  /** The exit pad breathes with the beat. */
-  update: (state: { beat: number }) => void;
+  /** The exit pad: dim while shut, breathing with the beat once open. */
+  update: (state: { beat: number; exitOpen: boolean }) => void;
 }
 
 /**
@@ -69,9 +69,9 @@ export const createLevelView = (level: Level, palette: Palette): LevelView => {
 
   return {
     view,
-    update: ({ beat }) => {
-      exit.scale.set(1 + beat * 0.15);
-      exit.alpha = 0.6 + beat * 0.4;
+    update: ({ beat, exitOpen }) => {
+      exit.scale.set(exitOpen ? 1 + beat * 0.15 : 0.8);
+      exit.alpha = exitOpen ? 0.6 + beat * 0.4 : 0.2;
     },
   };
 };

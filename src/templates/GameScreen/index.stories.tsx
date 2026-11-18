@@ -16,10 +16,20 @@ const meta = {
       ],
       active: 1,
     },
-    run: { status: 'playing', hp: 4, maxHp: 5, kills: 12 },
+    run: {
+      status: 'playing',
+      level: 1,
+      hp: 4,
+      maxHp: 5,
+      kills: 12,
+      wavesCleared: 1,
+      wavesToClear: 3,
+      exitOpen: false,
+    },
     onStop: fn(),
     onRetry: fn(),
     onNewRun: fn(),
+    onNextLevel: fn(),
   },
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof GameScreen>;
@@ -36,10 +46,40 @@ export const Playing: Story = {
 };
 
 export const RunEnded: Story = {
-  args: { run: { status: 'dead', hp: 0, maxHp: 5, kills: 31 } },
+  args: {
+    run: {
+      status: 'dead',
+      level: 2,
+      hp: 0,
+      maxHp: 5,
+      kills: 31,
+      wavesCleared: 1,
+      wavesToClear: 4,
+      exitOpen: false,
+    },
+  },
   play: async ({ args, canvas, userEvent }) => {
     await expect(canvas.getByText('31 kills', { selector: 'p' })).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Try again' }));
     await expect(args.onRetry).toHaveBeenCalled();
+  },
+};
+
+export const LevelCleared: Story = {
+  args: {
+    run: {
+      status: 'cleared',
+      level: 1,
+      hp: 3,
+      maxHp: 5,
+      kills: 24,
+      wavesCleared: 3,
+      wavesToClear: 3,
+      exitOpen: true,
+    },
+  },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Next level' }));
+    await expect(args.onNextLevel).toHaveBeenCalled();
   },
 };

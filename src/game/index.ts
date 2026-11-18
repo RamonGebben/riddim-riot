@@ -11,33 +11,34 @@ import {
 import { createBus } from './bus';
 import { createClock } from './clock';
 import type { GameEvents } from './events';
-import { INITIAL_HUD, type HudView } from './hud';
+import { initialHud, type HudView } from './hud';
 import { secondsPerStep, STEPS_PER_BEAT } from './grid';
 import { createLoadout, type Armed, type LoadoutView } from './loadout';
 import { generateLevel } from './level';
 import { degreeToMidi, keyName, midiToHz } from './music';
 import { startPlay, type Pulses } from './play';
-import { DEFAULT_RULES } from './sim/world';
+import { rulesFor } from './sim/world';
 import { createPulse } from './render/pulse';
-import { deriveSeed } from './rng';
+import { levelSeed, nextLevel, type RunState } from './run';
 import { createWeaponSlot } from './sim';
-import { rollWeapon, spreadAngle, type Weapon } from './weapons';
+import {
+  rerollRecipe,
+  spreadAngle,
+  weaponFrom,
+  type WeaponRecipe,
+} from './weapons';
 
 export type { HudView } from './hud';
+export { levelSeed, newRun, type RunState } from './run';
 export type { LoadoutView } from './loadout';
 
 /** Fixed for the PoC; the level seed picks it later. */
 export const BPM = 140;
 const DUCK_SECONDS = 0.6;
-const SLOTS = 3;
-/** Keeps weapon rolls their own random stream, apart from drums and spawns. */
-const WEAPON_STREAM = 2;
-/** A run opens with one of each engine; slot 3 and every reroll are free. */
-const STARTING_ENGINES = ['wobble', 'laser'] as const;
 
-/** What the start screen shows about a seed's level, before it's played. */
-export const describeLevel = (seed: number) => {
-  const { key, palette } = generateLevel(seed);
+/** What the screens show about a run's current level, before it's played. */
+export const describeLevel = (run: RunState) => {
+  const { key, palette } = generateLevel(levelSeed(run));
   return { key: keyName(key), palette: palette.name, bpm: BPM };
 };
 
@@ -56,6 +57,8 @@ export interface Game {
   /** Called on every weapon switch or reroll; returns unsubscribe. */
   onLoadout: (listener: (view: LoadoutView) => void) => () => void;
   hud: () => HudView;
+  /** The run as it stands, moved on to the next level - after a clear. */
+  nextRun: () => RunState;
   /** Called whenever health, kills or the run's status change. */
   onHud: (listener: (view: HudView) => void) => () => void;
   stop: () => void;
@@ -66,15 +69,16 @@ export interface Game {
  * which browsers block until then.
  */
 export const startGame = async ({
-  seed,
+  run,
   stress = false,
 }: {
-  seed: number;
+  run: RunState;
   /** Fill the level with enemies from the first bar - for perf checks. */
   stress?: boolean;
 }): Promise<Game> => {
   await start();
 
+  const seed = levelSeed(run);
   const level = generateLevel(seed);
   const { key } = level;
   const rootHz = (octave: number) => midiToHz(degreeToMidi(key, 0, octave));
@@ -105,7 +109,8 @@ export const startGame = async ({
     root: rootHz(1),
   });
 
-  const arm = async (weapon: Weapon): Promise<Armed> => {
+  const arm = async (recipe: WeaponRecipe): Promise<Armed> => {
+    const weapon = weaponFrom(recipe, key);
     const volume = await measureWeaponLoudness(weapon, { bpm: BPM });
     const voice = createWeaponVoice({
       output: musicBus.input,
@@ -134,19 +139,17 @@ export const startGame = async ({
       bpm: BPM,
       now,
     });
-    return { weapon, slot, voice };
+    return { recipe, weapon, slot, voice };
   };
 
   const listeners = new Set<(view: LoadoutView) => void>();
   const hudListeners = new Set<(view: HudView) => void>();
-  let hud = INITIAL_HUD;
+  let hud = initialHud(run);
   const loadout = await createLoadout({
-    size: SLOTS,
-    roll: (slot, generation) =>
-      rollWeapon(deriveSeed(seed, WEAPON_STREAM, slot, generation), key, {
-        oscillator: generation === 0 ? STARTING_ENGINES[slot] : undefined,
-      }),
+    recipes: run.recipes,
+    active: run.active,
     arm,
+    reroll: rerollRecipe,
     now: immediate,
     onChange: view => listeners.forEach(listener => listener(view)),
   });
@@ -171,7 +174,8 @@ export const startGame = async ({
       const play = startPlay({
         element,
         level,
-        rules: stress ? { quietBars: 0, fill: true } : DEFAULT_RULES,
+        rules: rulesFor({ level: run.level, stress }),
+        carry: run,
         seed,
         bus,
         trigger: loadout,
@@ -196,6 +200,13 @@ export const startGame = async ({
     },
     loadout: loadout.view,
     hud: () => hud,
+    nextRun: () =>
+      nextLevel(run, {
+        hp: hud.hp,
+        kills: hud.kills,
+        recipes: loadout.recipes(),
+        active: loadout.active(),
+      }),
     onHud: listener => {
       hudListeners.add(listener);
       return () => hudListeners.delete(listener);

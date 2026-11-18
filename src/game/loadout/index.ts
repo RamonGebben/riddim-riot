@@ -1,10 +1,11 @@
 import type { Tick } from '../clock';
 import type { WeaponAction } from '../input';
 import type { WeaponSlot } from '../sim/weaponSlot';
-import type { Weapon } from '../weapons';
+import type { Weapon, WeaponRecipe } from '../weapons';
 
 /** A weapon in a slot: its trigger on the clock, and its voice. */
 export interface Armed {
+  recipe: WeaponRecipe;
   weapon: Weapon;
   slot: WeaponSlot;
   voice: {
@@ -25,7 +26,12 @@ export interface Loadout {
   press: () => void;
   release: () => void;
   act: (action: WeaponAction) => void;
+  /** Swap a weapon into the active slot; resolves with the one it replaced. */
+  replaceActive: (recipe: WeaponRecipe) => Promise<WeaponRecipe>;
   view: () => LoadoutView;
+  /** What to carry into the next level. */
+  recipes: () => Array<WeaponRecipe>;
+  active: () => number;
   dispose: () => void;
 }
 
@@ -36,33 +42,32 @@ export interface Loadout {
  * held trigger carries straight over.
  */
 export const createLoadout = async ({
-  size,
-  roll,
+  recipes,
+  active: startActive = 0,
   arm,
+  reroll,
   now,
   onChange,
 }: {
-  size: number;
-  /** The weapon for a slot's `generation`-th roll. */
-  roll: (slot: number, generation: number) => Weapon;
+  recipes: Array<WeaponRecipe>;
+  active?: number;
   /** Builds the weapon's voice; never called twice at once. */
-  arm: (weapon: Weapon) => Promise<Armed>;
+  arm: (recipe: WeaponRecipe) => Promise<Armed>;
+  /** The recipe a reroll of `recipe` gives. */
+  reroll: (recipe: WeaponRecipe) => WeaponRecipe;
   /** The audio time switches are scheduled at. */
   now: () => number;
   onChange: (view: LoadoutView) => void;
 }): Promise<Loadout> => {
-  let generations = Array.from({ length: size }, () => 0);
   // One at a time: arming measures loudness offline, which can't overlap.
-  let slots = await generations.reduce<Promise<Array<Armed>>>(
-    async (armed, generation, index) => [
-      ...(await armed),
-      await arm(roll(index, generation)),
-    ],
+  let slots = await recipes.reduce<Promise<Array<Armed>>>(
+    async (armed, recipe) => [...(await armed), await arm(recipe)],
     Promise.resolve([]),
   );
-  let active = 0;
+  const size = slots.length;
+  let active = startActive;
   let held = false;
-  let rerolling = false;
+  let busy = false;
 
   const view = (): LoadoutView => ({
     slots: slots.map(({ weapon }) => ({ name: weapon.name })),
@@ -94,21 +99,23 @@ export const createLoadout = async ({
     onChange(view());
   };
 
-  const reroll = async () => {
-    if (rerolling) return;
-    rerolling = true;
-    const index = active;
-    generations = generations.map((generation, i) =>
-      i === index ? generation + 1 : generation,
-    );
-    const fresh = await arm(roll(index, generations[index]));
+  /** Re-arm one slot; one replacement at a time. */
+  const replace = async (
+    index: number,
+    recipe: WeaponRecipe,
+  ): Promise<WeaponRecipe> => {
+    const old = slots[index].recipe;
+    if (busy) return recipe;
+    busy = true;
+    const fresh = await arm(recipe);
     slots[index].voice.dispose();
     slots = slots.map((armed, i) => (i === index ? fresh : armed));
     // The player may have switched away while it was being armed.
     if (index === active) takeOut(fresh);
     else putAway(fresh);
-    rerolling = false;
+    busy = false;
     onChange(view());
+    return old;
   };
 
   return {
@@ -126,9 +133,14 @@ export const createLoadout = async ({
       if (action.type === 'cycle') {
         select((active + action.direction + size) % size);
       }
-      if (action.type === 'reroll') void reroll();
+      if (action.type === 'reroll') {
+        void replace(active, reroll(slots[active].recipe));
+      }
     },
+    replaceActive: recipe => replace(active, recipe),
     view,
+    recipes: () => slots.map(({ recipe }) => recipe),
+    active: () => active,
     dispose: () => slots.forEach(({ voice }) => voice.dispose()),
   };
 };

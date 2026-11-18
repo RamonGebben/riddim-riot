@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   describeLevel,
+  newRun,
   startGame,
   type Game,
   type HudView,
   type LoadoutView,
+  type RunState,
 } from '~/game';
 import { GameScreen } from '~/templates/GameScreen';
 import { StartScreen } from '~/templates/StartScreen';
@@ -15,12 +17,12 @@ type SessionStatus = 'idle' | 'starting' | 'playing';
 const randomSeed = () => getSeed('');
 
 export const App = () => {
-  const [seed, setSeed] = useState(() => getSeed(window.location.search));
+  const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
   // `?stress` fills the level with enemies, for checking performance.
   const [stress] = useState(() =>
     new URLSearchParams(window.location.search).has('stress'),
   );
-  const level = useMemo(() => describeLevel(seed), [seed]);
+  const level = useMemo(() => describeLevel(run), [run]);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
@@ -46,11 +48,11 @@ export const App = () => {
 
   // startGame() has to run inside a click handler: browsers only let an
   // AudioContext start from a user gesture.
-  const play = async (runSeed: number) => {
+  const play = async (next: RunState) => {
     game.current?.stop();
     setStatus('starting');
-    setSeed(runSeed);
-    game.current = await startGame({ seed: runSeed, stress });
+    setRun(next);
+    game.current = await startGame({ run: next, stress });
     setLoadout(game.current.loadout());
     setHud(game.current.hud());
     setSession(current => current + 1);
@@ -63,29 +65,34 @@ export const App = () => {
     setStatus('idle');
   };
 
+  const handleNextLevel = () => {
+    if (game.current) void play(game.current.nextRun());
+  };
+
   if (status === 'playing' && hud) {
     return (
       <GameScreen
-        seed={seed}
+        seed={run.seed}
         musicalKey={level.key}
         bpm={level.bpm}
         run={hud}
         loadout={loadout}
         surfaceRef={surface}
         onStop={handleStop}
-        onRetry={() => play(seed)}
-        onNewRun={() => play(randomSeed())}
+        onRetry={() => play(newRun(run.seed))}
+        onNewRun={() => play(newRun(randomSeed()))}
+        onNextLevel={handleNextLevel}
       />
     );
   }
 
   return (
     <StartScreen
-      seed={seed}
+      seed={run.seed}
       musicalKey={level.key}
       bpm={level.bpm}
       isStarting={status === 'starting'}
-      onStart={() => play(seed)}
+      onStart={() => play(run)}
     />
   );
 };

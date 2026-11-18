@@ -42,10 +42,6 @@ export const planHop = (enemy: Enemy, to: Vec, time: number): Enemy => {
   return { ...enemy, from: enemy.to, to, hopAt: time };
 };
 
-/** Wave size grows every two bars, capped so the arena never passes 30. */
-export const waveSize = (bar: number, alive: number): number =>
-  Math.max(0, Math.min(1 + Math.floor(bar / 2), 6, MAX_ENEMIES - alive));
-
 /** A wave on distinct spots picked from `candidates` (spawnable tiles). */
 export const spawnWave = ({
   rng,
@@ -53,12 +49,14 @@ export const spawnWave = ({
   firstId,
   candidates,
   time,
+  hp = ENEMY_HP,
 }: {
   rng: Rng;
   count: number;
   firstId: number;
   candidates: Array<Vec>;
   time: number;
+  hp?: number;
 }): Array<Enemy> => {
   const picked = candidates
     .map(position => ({ position, order: rng.next() }))
@@ -66,7 +64,7 @@ export const spawnWave = ({
     .slice(0, count);
   return picked.map(({ position }, i) => ({
     id: firstId + i,
-    hp: ENEMY_HP,
+    hp,
     from: position,
     to: position,
     hopAt: time,

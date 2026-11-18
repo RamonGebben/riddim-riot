@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { F_MINOR } from '../music';
-import { rollWeapon, type Weapon } from '../weapons';
+import { rerollRecipe, weaponFrom, type WeaponRecipe } from '../weapons';
 import { createLoadout, type Armed } from '.';
 
-const fakeArm = (weapon: Weapon): Armed => ({
-  weapon,
+const fakeArm = (recipe: WeaponRecipe): Armed => ({
+  recipe,
+  weapon: weaponFrom(recipe, F_MINOR),
   slot: {
     onTick: vi.fn(),
     press: vi.fn(),
@@ -21,17 +22,20 @@ const fakeArm = (weapon: Weapon): Armed => ({
   },
 });
 
-const setup = async () => {
+const recipes = [{ seed: 1 }, { seed: 2 }, { seed: 3 }];
+
+const setup = async (active = 0) => {
   const armed: Array<Armed> = [];
   const onChange = vi.fn();
   const loadout = await createLoadout({
-    size: 3,
-    roll: (slot, generation) => rollWeapon(slot * 100 + generation, F_MINOR),
-    arm: async weapon => {
-      const next = fakeArm(weapon);
+    recipes,
+    active,
+    arm: async recipe => {
+      const next = fakeArm(recipe);
       armed.push(next);
       return next;
     },
+    reroll: rerollRecipe,
     now: () => 1,
     onChange,
   });
@@ -39,11 +43,11 @@ const setup = async () => {
 };
 
 describe('createLoadout', () => {
-  it('starts on slot 1 with the others holstered, slot 1 owning the sub', async () => {
-    const { armed, loadout } = await setup();
-    expect(loadout.view().active).toBe(0);
-    expect(armed[0].voice.setSubOwner).toHaveBeenCalledWith(true, 1);
-    expect(armed[1].slot.holster).toHaveBeenCalled();
+  it('starts on the given slot with the others holstered, it owning the sub', async () => {
+    const { armed, loadout } = await setup(1);
+    expect(loadout.view().active).toBe(1);
+    expect(armed[1].voice.setSubOwner).toHaveBeenCalledWith(true, 1);
+    expect(armed[0].slot.holster).toHaveBeenCalled();
     expect(armed[2].voice.setSubOwner).toHaveBeenCalledWith(false, 1);
   });
 
@@ -92,29 +96,33 @@ describe('createLoadout', () => {
     let arming = 0;
     let overlapped = false;
     await createLoadout({
-      size: 3,
-      roll: slot => rollWeapon(slot, F_MINOR),
-      arm: async weapon => {
+      recipes,
+      arm: async recipe => {
         arming += 1;
         overlapped ||= arming > 1;
         await new Promise(resolve => setTimeout(resolve, 1));
         arming -= 1;
-        return fakeArm(weapon);
+        return fakeArm(recipe);
       },
+      reroll: rerollRecipe,
       now: () => 1,
       onChange: vi.fn(),
     });
     expect(overlapped).toBe(false);
   });
 
-  it('rerolls the active slot into a new weapon', async () => {
-    const { armed, loadout, onChange } = await setup();
-    const before = loadout.view().slots[0].name;
+  it('swaps a weapon into the active slot and hands back the old one', async () => {
+    const { armed, loadout } = await setup();
+    const old = await loadout.replaceActive({ seed: 99 });
+    expect(old).toEqual({ seed: 1 });
+    expect(armed[0].voice.dispose).toHaveBeenCalled();
+    expect(loadout.recipes()).toEqual([{ seed: 99 }, { seed: 2 }, { seed: 3 }]);
+  });
+
+  it('rerolls the active slot through the reroll chain', async () => {
+    const { loadout, onChange } = await setup();
     loadout.act({ type: 'reroll' });
     await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
-    expect(armed[0].voice.dispose).toHaveBeenCalled();
-    expect(armed[3].weapon.seed).toBe(1);
-    expect(loadout.view().slots[0].name).toBe(armed[3].weapon.name);
-    expect(before).toBe(armed[0].weapon.name);
+    expect(loadout.recipes()[0]).toEqual(rerollRecipe({ seed: 1 }));
   });
 });
