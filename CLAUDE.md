@@ -15,6 +15,11 @@ Browser twin-stick rhythm roguelite; the design is `design-brief-poc.md`.
 - **Keep Tone out of pure modules.** `grid`, `rng`, `bus` and pattern
   generators must not import `tone` (directly or through a domain `index.ts`
   that does), so they run in the Node `unit` Vitest project.
+- **Voices never create nodes per hit.** Tone's instruments (`Synth`,
+  `MonoSynth`, `MembraneSynth`, `MetalSynth`, `NoiseSynth`, …) start fresh
+  source nodes on every note, and some are never released: the graph grows
+  until the audio crackles. Build voices from always-running sources gated by
+  `createGate` (`src/game/audio/gate`), so a hit only reschedules envelopes.
 - **Pinned:** `eslint@^9` (peer of `@pindakaasman/eslint-config`) and
   `typescript@~6.0` (typescript-eslint supports `<6.1`).
 - **Dark only.** The theme's dark mode is forced by a

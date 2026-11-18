@@ -1,13 +1,14 @@
 import {
   Channel,
   Distortion,
+  FatOscillator,
   Filter,
   LFO,
-  MonoSynth,
-  Synth,
-  type Unit,
+  Oscillator,
   type ToneAudioNode,
+  type Unit,
 } from 'tone';
+import { createGate } from '../../gate';
 
 export interface WobbleVoice {
   fire: (time: number, duration: number) => void;
@@ -25,6 +26,7 @@ const ARTICULATION = 0.9;
  * cutoff an LFO sweeps once per 1/8. The LFO runs on the Transport, so every
  * shot - landing on the same grid - opens with the same phase. A clean sine
  * sub sits under it, kept out of the distortion so the low end stays tight.
+ * Both oscillators run all game and are gated per shot (see `createGate`).
  */
 export const createWobbleVoice = ({
   output,
@@ -36,12 +38,16 @@ export const createWobbleVoice = ({
 }): WobbleVoice => {
   const channel = new Channel({ volume: -10 }).connect(output);
   const drive = new Distortion({ distortion: 0.4, wet: 0.5 }).connect(channel);
+  const saw = createGate({
+    envelope: { attack: 0.004, decay: 0.05, sustain: 1, release: 0.05 },
+    output: drive,
+  });
   const wobbleFilter = new Filter({
     type: 'lowpass',
     frequency: 300,
     rolloff: -24,
     Q: 6,
-  }).connect(drive);
+  }).connect(saw.input);
   // Starts at the bottom of its sweep (phase 270), so each shot opens up
   // from closed: "whob", not "bwo".
   const lfo = new LFO({
@@ -52,34 +58,34 @@ export const createWobbleVoice = ({
   }).connect(wobbleFilter.frequency);
   lfo.sync().start(0);
 
-  const saw = new MonoSynth({
-    oscillator: { type: 'fatsawtooth', count: 3, spread: 30 },
-    envelope: { attack: 0.004, decay: 0.05, sustain: 1, release: 0.05 },
-    filter: { type: 'lowpass', rolloff: -12, Q: 0 },
-    filterEnvelope: {
-      attack: 0.001,
-      decay: 0.01,
-      sustain: 1,
-      release: 0.05,
-      baseFrequency: 8000,
-      octaves: 0,
-    },
-  }).connect(wobbleFilter);
+  const sawOsc = new FatOscillator({
+    type: 'sawtooth',
+    frequency: note,
+    count: 3,
+    spread: 30,
+  })
+    .connect(wobbleFilter)
+    .start();
 
-  const sub = new Synth({
-    oscillator: { type: 'sine' },
+  const sub = createGate({
     envelope: { attack: 0.004, decay: 0, sustain: 1, release: 0.05 },
     volume: -6,
-  }).connect(channel);
-  const subNote = saw.toFrequency(note) / 2;
+    output: channel,
+  });
+  const subOsc = new Oscillator({
+    type: 'sine',
+    frequency: sawOsc.toFrequency(note) / 2,
+  })
+    .connect(sub.input)
+    .start();
 
-  const nodes = [saw, sub, lfo, wobbleFilter, drive, channel];
+  const nodes = [sawOsc, subOsc, lfo, wobbleFilter, saw, sub, drive, channel];
 
   return {
     fire: (time, duration) => {
       const held = duration * ARTICULATION;
-      saw.triggerAttackRelease(note, held, time);
-      sub.triggerAttackRelease(subNote, held, time);
+      saw.envelope.triggerAttackRelease(held, time);
+      sub.envelope.triggerAttackRelease(held, time);
     },
     dispose: () => nodes.forEach(node => node.dispose()),
   };

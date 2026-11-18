@@ -1,4 +1,5 @@
-import { Channel, Filter, NoiseSynth, type ToneAudioNode } from 'tone';
+import { Channel, Filter, Noise, type ToneAudioNode } from 'tone';
+import { createGate } from '../../gate';
 
 export interface ReloadSound {
   click: (time: number) => void;
@@ -14,36 +15,44 @@ export interface ReloadSound {
 export const createReloadSound = (output: ToneAudioNode): ReloadSound => {
   const channel = new Channel({ volume: -8 }).connect(output);
 
-  const clickFilter = new Filter({
-    type: 'bandpass',
-    frequency: 3200,
-    Q: 3,
-  }).connect(channel);
-  const clickNoise = new NoiseSynth({
-    noise: { type: 'white' },
+  const clickNoise = new Noise('white').start();
+  const clickFilter = new Filter({ type: 'bandpass', frequency: 3200, Q: 3 });
+  const click = createGate({
     envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 },
     volume: 6,
-  }).connect(clickFilter);
+    output: channel,
+  });
+  clickNoise.chain(clickFilter, click.input);
 
+  const rumbleNoise = new Noise('brown').start();
   const rumbleFilter = new Filter({
     type: 'lowpass',
     frequency: 150,
     rolloff: -24,
     Q: 4,
-  }).connect(channel);
-  const rumbleNoise = new NoiseSynth({
-    noise: { type: 'brown' },
+  });
+  const rumble = createGate({
     envelope: { attack: 0.2, decay: 0.05, sustain: 0.8, release: 0.03 },
     volume: 4,
-  }).connect(rumbleFilter);
+    output: channel,
+  });
+  rumbleNoise.chain(rumbleFilter, rumble.input);
 
-  const nodes = [clickNoise, clickFilter, rumbleNoise, rumbleFilter, channel];
+  const nodes = [
+    clickNoise,
+    clickFilter,
+    click,
+    rumbleNoise,
+    rumbleFilter,
+    rumble,
+    channel,
+  ];
 
   return {
     click: time => {
-      clickNoise.triggerAttackRelease(0.03, time);
+      click.envelope.triggerAttackRelease(0.03, time);
       // A second, quieter click right behind it: "ch-chk".
-      clickNoise.triggerAttackRelease(0.02, time + 0.05, 0.5);
+      click.envelope.triggerAttackRelease(0.02, time + 0.05, 0.5);
     },
     rumble: (time, duration) => {
       rumbleFilter.frequency.setValueAtTime(150, time);
@@ -51,7 +60,7 @@ export const createReloadSound = (output: ToneAudioNode): ReloadSound => {
         1400,
         time + duration,
       );
-      rumbleNoise.triggerAttackRelease(duration, time);
+      rumble.envelope.triggerAttackRelease(duration, time);
     },
     dispose: () => nodes.forEach(node => node.dispose()),
   };
