@@ -4,8 +4,7 @@ import styled from 'styled-components';
 export const Surface = styled.main`
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  overflow: hidden;
   cursor: crosshair;
   touch-action: none;
   user-select: none;

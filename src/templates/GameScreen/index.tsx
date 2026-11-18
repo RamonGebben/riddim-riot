@@ -21,7 +21,7 @@ export const GameScreen = ({
   return (
     <>
       <Surface ref={surfaceRef} aria-label="Play area">
-        <Hint>Click or hold to fire</Hint>
+        <Hint>WASD to move · aim with the mouse · click or hold to fire</Hint>
       </Surface>
       <Hud>
         <span>

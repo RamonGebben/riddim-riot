@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('start the music and fire the wobble gun', async ({ page }) => {
+test('start the music, move and fire the wobble gun', async ({ page }) => {
   const errors: Array<string> = [];
   page.on('pageerror', error => errors.push(error.message));
 
@@ -14,6 +14,11 @@ test('start the music and fire the wobble gun', async ({ page }) => {
   await page.getByRole('button', { name: 'Press to start' }).click();
   const playArea = page.getByRole('main', { name: 'Play area' });
   await expect(playArea).toBeVisible();
+  await expect(playArea.locator('canvas')).toBeVisible();
+
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(300);
+  await page.keyboard.up('KeyD');
 
   // Tap, then hold through a full magazine and its reload.
   await playArea.click();

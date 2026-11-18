@@ -3,7 +3,9 @@ import { Hint } from '.';
 
 const meta = {
   component: Hint,
-  args: { children: 'Click or hold to fire' },
+  args: {
+    children: 'WASD to move · aim with the mouse · click or hold to fire',
+  },
 } satisfies Meta<typeof Hint>;
 
 export default meta;

@@ -13,7 +13,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Playing: Story = {
   play: async ({ args, canvas, userEvent }) => {
-    await expect(canvas.getByText('Click or hold to fire')).toBeVisible();
+    await expect(canvas.getByText(/click or hold to fire/)).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }));
     await expect(args.onStop).toHaveBeenCalled();
   },
