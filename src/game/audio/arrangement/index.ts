@@ -1,5 +1,6 @@
 import { Channel, Filter, Noise, Oscillator, type ToneAudioNode } from 'tone';
 import type { Section } from '../../sim/waves';
+import { SOUND_DESIGN, type ArrangementPatch } from '../../sound';
 import { createGate } from '../gate';
 import type { MusicBus } from '../musicBus';
 
@@ -12,13 +13,14 @@ export interface Arrangement {
   dispose: () => void;
 }
 
-/** How open the music bus is per section, in Hz. */
-const OPENNESS = {
-  calm: 700,
-  groove: 3200,
-  build: 20000,
-  drop: 20000,
-} satisfies Record<Section, number>;
+/** How open the track is per section, in Hz. */
+const opennessOf = (patch: ArrangementPatch) =>
+  ({
+    calm: patch.calmHz,
+    groove: patch.grooveHz,
+    build: 20000,
+    drop: 20000,
+  }) satisfies Record<Section, number>;
 
 /**
  * Combat intensity driving the track: a quiet room is filtered, piling
@@ -30,18 +32,25 @@ export const createArrangement = ({
   output,
   barSeconds,
   rootHz,
+  patch = SOUND_DESIGN.arrangement,
 }: {
   musicBus: MusicBus;
   output: ToneAudioNode;
   barSeconds: number;
   /** The level's root in octave 1, for the drop's sub boom. */
   rootHz: number;
+  patch?: ArrangementPatch;
 }): Arrangement => {
-  const channel = new Channel({ volume: -8 }).connect(output);
+  const OPENNESS = opennessOf(patch);
+  const channel = new Channel({ volume: patch.level }).connect(output);
   const noise = new Noise('white').start();
 
   // A riser: noise swept up over two bars, swelling in.
-  const riserFilter = new Filter({ type: 'bandpass', frequency: 400, Q: 2 });
+  const riserFilter = new Filter({
+    type: 'bandpass',
+    frequency: patch.riserFrom,
+    Q: 2,
+  });
   const riser = createGate({
     envelope: {
       attack: barSeconds * 1.8,
@@ -49,23 +58,36 @@ export const createArrangement = ({
       sustain: 1,
       release: 0.05,
     },
-    volume: -4,
+    volume: patch.riserLevel,
     output: channel,
   });
   noise.chain(riserFilter, riser.input);
 
   // The drop: a long bright crash over a sub boom on the root.
-  const crashFilter = new Filter({ type: 'highpass', frequency: 3000 });
+  const crashFilter = new Filter({
+    type: 'highpass',
+    frequency: patch.crashHz,
+  });
   const crash = createGate({
-    envelope: { attack: 0.002, decay: 1.6, sustain: 0, release: 0.2 },
-    volume: -2,
+    envelope: {
+      attack: 0.002,
+      decay: patch.crashDecay,
+      sustain: 0,
+      release: 0.2,
+    },
+    volume: patch.crashLevel,
     output: channel,
   });
   noise.chain(crashFilter, crash.input);
   const boomOsc = new Oscillator({ type: 'sine', frequency: rootHz }).start();
   const boom = createGate({
-    envelope: { attack: 0.002, decay: 1.1, sustain: 0, release: 0.1 },
-    volume: 4,
+    envelope: {
+      attack: 0.002,
+      decay: patch.boomDecay,
+      sustain: 0,
+      release: 0.1,
+    },
+    volume: patch.boomLevel,
     output: channel,
   });
   boomOsc.connect(boom.input);
@@ -76,8 +98,11 @@ export const createArrangement = ({
   const startRiser = (time: number) => {
     const length = barSeconds * 2;
     riserFilter.frequency.cancelScheduledValues(time);
-    riserFilter.frequency.setValueAtTime(400, time);
-    riserFilter.frequency.exponentialRampToValueAtTime(9000, time + length);
+    riserFilter.frequency.setValueAtTime(patch.riserFrom, time);
+    riserFilter.frequency.exponentialRampToValueAtTime(
+      patch.riserTo,
+      time + length,
+    );
     riser.envelope.triggerAttackRelease(length - 0.05, time);
   };
 

@@ -6,6 +6,7 @@ import {
   type ToneAudioNode,
   type Unit,
 } from 'tone';
+import { SOUND_DESIGN, type ImpactPatch } from '../../../sound';
 import { createGate } from '../../gate';
 
 export interface ImpactSound {
@@ -20,21 +21,28 @@ export interface ImpactSound {
 export const createImpactSound = ({
   output,
   root,
+  patch = SOUND_DESIGN.impact,
 }: {
   output: ToneAudioNode;
   root: Unit.Frequency;
+  patch?: ImpactPatch;
 }): ImpactSound => {
-  const channel = new Channel({ volume: -9 }).connect(output);
+  const channel = new Channel({ volume: patch.level }).connect(output);
 
   const noise = new Noise('pink').start();
   const crunchFilter = new Filter({
     type: 'bandpass',
-    frequency: 1100,
-    Q: 1.2,
+    frequency: patch.crunchHz,
+    Q: patch.crunchQ,
   });
   const crunch = createGate({
-    envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.02 },
-    volume: 2,
+    envelope: {
+      attack: 0.001,
+      decay: patch.crunchDecay,
+      sustain: 0,
+      release: 0.02,
+    },
+    volume: patch.crunchLevel,
     output: channel,
   });
   noise.chain(crunchFilter, crunch.input);
@@ -43,7 +51,13 @@ export const createImpactSound = ({
   const thumpHz = thumpOsc.toFrequency(root);
   thumpOsc.frequency.value = thumpHz;
   const thump = createGate({
-    envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.03 },
+    envelope: {
+      attack: 0.001,
+      decay: patch.thumpDecay,
+      sustain: 0,
+      release: 0.03,
+    },
+    volume: patch.thumpLevel,
     output: channel,
   });
   thumpOsc.connect(thump.input);
@@ -53,8 +67,11 @@ export const createImpactSound = ({
   return {
     play: time => {
       thumpOsc.frequency.cancelScheduledValues(time);
-      thumpOsc.frequency.setValueAtTime(thumpHz * 4, time);
-      thumpOsc.frequency.exponentialRampToValueAtTime(thumpHz, time + 0.06);
+      thumpOsc.frequency.setValueAtTime(thumpHz * patch.thumpMultiple, time);
+      thumpOsc.frequency.exponentialRampToValueAtTime(
+        thumpHz,
+        time + patch.thumpSeconds,
+      );
       crunch.envelope.triggerAttackRelease(0.06, time);
       thump.envelope.triggerAttackRelease(0.1, time);
     },

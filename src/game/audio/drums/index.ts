@@ -1,4 +1,5 @@
 import type { ToneAudioNode } from 'tone';
+import type { DrumsPatch } from '../../sound';
 import type { Tick } from '../../clock';
 import { createDrumKit } from './kit';
 import { generateDrumBar, hitsAt, type DrumVoice } from './pattern';
@@ -21,15 +22,17 @@ export const createDrums = async ({
   seed,
   output,
   kickHz,
+  patch,
   onHit,
 }: {
   seed: number;
   output: ToneAudioNode;
   kickHz: number;
+  patch?: DrumsPatch;
   /** Every scheduled hit, so visuals can land with it. */
   onHit?: (hit: DrumHit) => void;
 }): Promise<Drums> => {
-  const kit = await createDrumKit(output, kickHz);
+  const kit = await createDrumKit(output, kickHz, patch);
 
   return {
     onTick: tick =>

@@ -1,6 +1,7 @@
 import { STEPS_PER_BAR, STEPS_PER_BEAT, STEPS_PER_DIVISION } from '../../grid';
 import { degreeToMidi, type Key } from '../../music';
 import { createRng, type Rng } from '../../rng';
+import { SOUND_DESIGN, type SoundDesign } from '../../sound';
 import {
   FX,
   FX_CHANCE,
@@ -21,9 +22,9 @@ import type {
 const between = (rng: Rng, [min, max]: [number, number]) =>
   min + rng.next() * (max - min);
 
-/** 0 at the bottom of a range, 1 at the top. */
+/** 0 at the bottom of a range, 1 at the top; the middle if it has no width. */
 const along = (value: number, [min, max]: [number, number]) =>
-  (value - min) / (max - min);
+  max === min ? 0.5 : (value - min) / (max - min);
 
 const rollRiff = (rng: Rng, degrees: Array<number>) => [
   0,
@@ -38,8 +39,12 @@ const rollRiff = (rng: Rng, degrees: Array<number>) => [
 export const rollWeapon = (
   seed: number,
   key: Key,
-  { oscillator: pinned }: { oscillator?: OscillatorPart } = {},
+  {
+    oscillator: pinned,
+    design = SOUND_DESIGN,
+  }: { oscillator?: OscillatorPart; design?: SoundDesign } = {},
 ): Weapon => {
+  const sounds = design.parts;
   const rng = createRng(seed);
   const manufacturer = rng.pick<ManufacturerPart>(['vandal', 'lumen']);
   const rolled = rng.pick<OscillatorPart>(['wobble', 'laser']);
@@ -50,20 +55,22 @@ export const rollWeapon = (
     : null;
 
   const maker = MANUFACTURERS[manufacturer];
+  const makerSound = sounds.manufacturers[manufacturer];
   const engine = OSCILLATORS[oscillator];
+  const ranges = sounds.engines[oscillator];
   const rate = LFO_RATES[lfo];
 
-  const cutoff = between(rng, engine.cutoff);
-  const resonance = between(rng, engine.resonance);
-  const riff = rollRiff(rng, engine.degrees).map(degree =>
-    degreeToMidi(key, degree, engine.octave),
+  const cutoff = between(rng, ranges.cutoff);
+  const resonance = between(rng, ranges.resonance);
+  const riff = rollRiff(rng, ranges.degrees).map(degree =>
+    degreeToMidi(key, degree, ranges.octave),
   );
-  const crush = fx === 'distortion' ? between(rng, FX.distortion.drive) : 0;
+  const crush = fx === 'distortion' ? between(rng, sounds.crush.drive) : 0;
   const delay =
     fx === 'echo'
       ? {
-          feedback: between(rng, FX.echo.feedback),
-          wet: between(rng, FX.echo.wet),
+          feedback: between(rng, sounds.echo.feedback),
+          wet: between(rng, sounds.echo.wet),
         }
       : null;
 
@@ -77,12 +84,12 @@ export const rollWeapon = (
 
   const sound = {
     oscillator,
-    waveform: maker.waveform,
+    waveform: makerSound.waveform,
     riff,
     lfo,
     cutoff,
     resonance,
-    drive: Math.min(maker.drive + crush, 0.8),
+    drive: Math.min(makerSound.drive + crush, 0.8),
     delay,
   };
 
@@ -105,8 +112,8 @@ export const rollWeapon = (
       radius: engine.radius,
       damage,
       // Brighter filters reach further; more resonance focuses the shots.
-      lifetime: engine.lifetime * (0.8 + 0.4 * along(cutoff, engine.cutoff)),
-      spread: 0.12 * (1 - along(resonance, engine.resonance)),
+      lifetime: engine.lifetime * (0.8 + 0.4 * along(cutoff, ranges.cutoff)),
+      spread: 0.12 * (1 - along(resonance, ranges.resonance)),
     },
     echo: delay ? { delayBeats: 0.5, damage: damage * 0.5 } : null,
     sound,
