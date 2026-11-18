@@ -4,3 +4,4 @@ export * from './voices';
 export * from './gate';
 export * from './loudness';
 export * from './heardTime';
+export * from './arrangement';

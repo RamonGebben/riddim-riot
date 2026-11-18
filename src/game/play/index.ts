@@ -22,6 +22,7 @@ import {
 } from '../render';
 import { createRng, deriveSeed } from '../rng';
 import type { Level } from '../level';
+import { sectionFor, type Section } from '../sim/waves';
 import {
   createWorld,
   onBar,
@@ -37,6 +38,8 @@ export interface Pulses {
   shot: Pulse;
   kill: Pulse;
   hit: Pulse;
+  /** A cleared wave's drop. */
+  drop: Pulse;
 }
 
 export interface PlaySounds {
@@ -46,10 +49,13 @@ export interface PlaySounds {
   duck: (time: number) => void;
   /** The run is over: muffle the music for good. */
   dead: (time: number) => void;
+  /** Every bar line: the section the track should play. */
+  section: (section: Section, at: { time: number; bar: number }) => void;
 }
 
 const SHAKE_PIXELS = 7;
 const KILL_SHAKE_PIXELS = 5;
+const DROP_SHAKE_PIXELS = 14;
 /** A dropped frame or a background tab shouldn't teleport the player. */
 const MAX_FRAME_SECONDS = 1 / 20;
 /** Keeps enemy spawns their own random stream, apart from the drums'. */
@@ -106,6 +112,7 @@ export const startPlay = async ({
   let camera = world.player.position;
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
+  let lastSection: Section = 'calm';
   let hud = hudOf(world);
   onHud(hud);
 
@@ -115,6 +122,12 @@ export const startPlay = async ({
     if (tick.stepInBar !== 0) return;
     const rng = createRng(deriveSeed(seed, tick.bar, SPAWN_STREAM));
     world = onBar(world, { bar: tick.bar, time: tick.time, rng });
+    if (world.status !== 'playing') return;
+    const section = sectionFor(world.waves, world.enemies.length);
+    if (section === 'drop' && lastSection !== 'drop')
+      pulses.drop.hit(tick.time);
+    sounds.section(section, { time: tick.time, bar: tick.bar });
+    lastSection = section;
   };
 
   const unsubscribe = [
@@ -170,8 +183,11 @@ export const startPlay = async ({
     );
 
     const kick = pulses.kick.valueAt(now);
+    const drop = pulses.drop.valueAt(now);
     const shake =
-      kick * SHAKE_PIXELS + pulses.kill.valueAt(now) * KILL_SHAKE_PIXELS;
+      kick * SHAKE_PIXELS +
+      pulses.kill.valueAt(now) * KILL_SHAKE_PIXELS +
+      drop * DROP_SHAKE_PIXELS;
     stage.render({
       world,
       bursts,
@@ -182,6 +198,7 @@ export const startPlay = async ({
       beat: pulses.beat.valueAt(now),
       shot: pulses.shot.valueAt(now),
       hit: pulses.hit.valueAt(now),
+      drop,
     });
   });
 

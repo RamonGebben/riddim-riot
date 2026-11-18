@@ -78,3 +78,15 @@ export const waveSize = ({
     0,
     Math.min(3 + 2 * sent + 2 * (level - 1), 14, MAX_ENEMIES - alive),
   );
+
+/** The arrangement section the music plays, picked on each bar line. */
+export type Section = 'calm' | 'groove' | 'build' | 'drop';
+
+/** Enough enemies alive that the track should start building. */
+const BUILD_ALIVE = 8;
+
+export const sectionFor = (waves: Waves, alive: number): Section => {
+  if (waves.phase === 'intro') return 'calm';
+  if (waves.phase === 'cleared') return 'drop';
+  return alive >= BUILD_ALIVE ? 'build' : 'groove';
+};

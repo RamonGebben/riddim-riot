@@ -21,6 +21,7 @@ export interface Frame {
   beat: number;
   shot: number;
   hit: number;
+  drop: number;
 }
 
 export interface Stage {

@@ -10,6 +10,7 @@ uniform highp vec4 uOutputFrame;
 uniform float uKick;
 uniform float uShot;
 uniform float uHit;
+uniform float uDrop;
 
 // Pixi compiles filters for WebGL1 too (GLSL ES 1.0, no array
 // constructors), so the bloom taps are unrolled through this helper.
@@ -37,7 +38,7 @@ void main(void)
   vec2 fromCentre = uv / uvPerScreen - 0.5;
 
   // Chromatic aberration: channels split outwards, wider on the kick.
-  vec2 split = fromCentre * (0.002 + 0.012 * uKick + 0.012 * uHit) * uvPerScreen;
+  vec2 split = fromCentre * (0.002 + 0.012 * uKick + 0.012 * uHit + 0.025 * uDrop) * uvPerScreen;
   vec3 color = vec3(
     texture(uTexture, uv + split).r,
     texture(uTexture, uv).g,
@@ -49,7 +50,10 @@ void main(void)
   float radius = 3.0 + 9.0 * uKick + 4.0 * uShot;
   vec3 glow =
     brightRing(uv, pixel * radius) + 0.6 * brightRing(uv, pixel * radius * 2.5);
-  color += glow / 12.8 * (0.6 + 1.4 * uKick + 0.8 * uShot);
+  color += glow / 12.8 * (0.6 + 1.4 * uKick + 0.8 * uShot + 2.5 * uDrop);
+
+  // A drop flashes the whole palette bright, washing towards white.
+  color = mix(color, vec3(1.0) - (vec3(1.0) - color) * 0.35, uDrop * 0.6);
 
   // Getting hit flashes the screen red.
   color += vec3(0.3, 0.0, 0.07) * uHit;

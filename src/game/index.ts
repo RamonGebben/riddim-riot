@@ -1,5 +1,6 @@
 import { getContext, immediate, now, start } from 'tone';
 import {
+  createArrangement,
   createDrums,
   createImpactSound,
   createMusicBus,
@@ -91,6 +92,7 @@ export const startGame = async ({
     shot: createPulse({ decay: 0.08 }),
     kill: createPulse({ decay: 0.12 }),
     hit: createPulse({ decay: 0.18 }),
+    drop: createPulse({ decay: 0.5 }),
   };
 
   const bus = createBus<GameEvents>();
@@ -103,9 +105,15 @@ export const startGame = async ({
       if (hit.voice === 'kick') pulses.kick.hit(hit.time, hit.velocity);
     },
   });
-  const reloadSound = createReloadSound(musicBus.input);
-  const impact = createImpactSound({
+  const reloadSound = createReloadSound(musicBus.direct);
+  const arrangement = createArrangement({
+    musicBus,
     output: musicBus.input,
+    barSeconds: beatSeconds * 4,
+    rootHz: rootHz(1),
+  });
+  const impact = createImpactSound({
+    output: musicBus.direct,
     root: rootHz(1),
   });
 
@@ -113,7 +121,7 @@ export const startGame = async ({
     const weapon = weaponFrom(recipe, key);
     const volume = await measureWeaponLoudness(weapon, { bpm: BPM });
     const voice = createWeaponVoice({
-      output: musicBus.input,
+      output: musicBus.direct,
       sound: weapon.sound,
       beatSeconds,
       volume,
@@ -189,6 +197,7 @@ export const startGame = async ({
           impact: impact.play,
           duck: time => musicBus.duck(time, DUCK_SECONDS),
           dead: musicBus.muffle,
+          section: arrangement.onBar,
         },
         stepSeconds,
         audioNow: immediate,
@@ -218,8 +227,8 @@ export const startGame = async ({
     stop: () => {
       unsubscribe.forEach(off => off());
       clock.dispose();
-      [drums, loadout, reloadSound, impact, musicBus].forEach(node =>
-        node.dispose(),
+      [drums, loadout, reloadSound, impact, arrangement, musicBus].forEach(
+        node => node.dispose(),
       );
     },
   };
