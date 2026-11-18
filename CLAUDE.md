@@ -17,6 +17,14 @@ Browser twin-stick rhythm roguelite; the design is `design-brief-poc.md`.
   that does), so they run in the Node `unit` Vitest project.
 - **Pinned:** `eslint@^9` (peer of `@pindakaasman/eslint-config`) and
   `typescript@~6.0` (typescript-eslint supports `<6.1`).
+- **Dark only.** The theme's dark mode is forced by a
+  `<meta name="ds-color-mode" content="dark">` (Vite plugin in
+  `vite.config.ts`, `.storybook/preview-head.html`).
+- **`createGlobalStyle` templates must differ in text.** styled-components
+  derives a global style's id from its template, so two styles with the same
+  text collide and only one is injected - give each a distinguishing comment.
+- **Pixi filter shaders compile as GLSL ES 1.0 too:** no array constructors,
+  and uniforms shared with the vertex stage need `highp`.
 - `test` runs only the `unit` Vitest project; `test:storybook` runs the
   browser-based story tests.
 
