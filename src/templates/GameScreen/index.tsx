@@ -1,5 +1,6 @@
 import type { Ref } from 'react';
 import { Button } from '~/atoms/Button';
+import { Combo } from './components/Combo';
 import { Health } from './components/Health';
 import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
@@ -14,6 +15,9 @@ export interface RunProps {
   hp: number;
   maxHp: number;
   kills: number;
+  score: number;
+  /** The live combo; shown from 2 up. */
+  combo: number;
   wavesCleared: number;
   wavesToClear: number;
   exitOpen: boolean;
@@ -71,6 +75,12 @@ export const GameScreen = ({
         </span>
         <span>
           <Health hp={run.hp} maxHp={run.maxHp} /> · {run.kills} kills ·{' '}
+          {run.score.toLocaleString('en')} pts ·{' '}
+          {run.combo >= 2 && (
+            <>
+              <Combo>×{run.combo}</Combo> ·{' '}
+            </>
+          )}
           {run.exitOpen ? 'exit open' : `waves ${waves}/${run.wavesToClear}`}
         </span>
         <Button onClick={onStop}>Stop</Button>
@@ -78,7 +88,11 @@ export const GameScreen = ({
       {run.status === 'dead' && (
         <Overlay
           heading="Run over"
-          stats={[`Level ${run.level}`, `${run.kills} kills`]}
+          stats={[
+            `Level ${run.level}`,
+            `${run.kills} kills`,
+            `${run.score.toLocaleString('en')} points`,
+          ]}
           actions={[
             { label: 'Try again', onClick: onRetry },
             { label: 'New run', onClick: onNewRun },
@@ -88,7 +102,11 @@ export const GameScreen = ({
       {run.status === 'cleared' && (
         <Overlay
           heading={`Level ${run.level} cleared`}
-          stats={[`${run.wavesCleared} waves`, `${run.kills} kills`]}
+          stats={[
+            `${run.wavesCleared} waves`,
+            `${run.kills} kills`,
+            `${run.score.toLocaleString('en')} points`,
+          ]}
           actions={[{ label: 'Next level', onClick: onNextLevel }]}
         />
       )}

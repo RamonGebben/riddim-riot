@@ -15,6 +15,8 @@ describe('hudOf', () => {
       hp: 3,
       maxHp: 5,
       kills: 7,
+      score: 0,
+      combo: 0,
       wavesCleared: 0,
       wavesToClear: 4,
       exitOpen: false,
@@ -31,7 +33,9 @@ describe('hudOf', () => {
 
 describe('initialHud', () => {
   it('starts a level from what the run carries', () => {
-    expect(initialHud({ level: 3, hp: 2, kills: 40 })).toMatchObject({
+    expect(
+      initialHud({ level: 3, hp: 2, kills: 40, score: 900 }),
+    ).toMatchObject({
       status: 'playing',
       level: 3,
       hp: 2,

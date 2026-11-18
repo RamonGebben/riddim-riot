@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextGridTime, secondsPerStep } from '.';
+import { gridError, nextGridTime, secondsPerStep } from '.';
 
 describe('secondsPerStep', () => {
   it('splits a beat into four 1/16 steps', () => {
@@ -25,5 +25,13 @@ describe('nextGridTime', () => {
     expect(
       nextGridTime({ now: 9.895, anchor: 10, stepSeconds: 0.1 }),
     ).toBeCloseTo(10);
+  });
+});
+
+describe('gridError', () => {
+  it('is how far off the nearest grid point a time lands', () => {
+    expect(gridError(10.03, 10, 0.25)).toBeCloseTo(0.03);
+    expect(gridError(10.23, 10, 0.25)).toBeCloseTo(-0.02);
+    expect(gridError(9.5, 10, 0.25)).toBeCloseTo(0);
   });
 });

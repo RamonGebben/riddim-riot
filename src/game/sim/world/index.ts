@@ -35,6 +35,7 @@ import {
   fireProjectile,
   type Projectile,
 } from '../projectile';
+import { NO_COMBO, registerKill, type Combo } from '../combo';
 import { dropsOnKill, lootRecipe, type Pickup } from '../loot';
 import { advanceWaves, INITIAL_WAVES, waveSize, type Waves } from '../waves';
 
@@ -90,6 +91,8 @@ export interface World {
   hp: number;
   maxHp: number;
   kills: number;
+  score: number;
+  combo: Combo;
   waves: Waves;
   enemies: Array<Enemy>;
   pickups: Array<Pickup>;
@@ -117,7 +120,11 @@ export const createWorld = (
   level: Level,
   rules: WaveRules = DEFAULT_RULES,
   /** Carried over from the previous level of a run. */
-  { hp = PLAYER_MAX_HP, kills = 0 }: { hp?: number; kills?: number } = {},
+  {
+    hp = PLAYER_MAX_HP,
+    kills = 0,
+    score = 0,
+  }: { hp?: number; kills?: number; score?: number } = {},
 ): World => ({
   level,
   rules,
@@ -126,6 +133,8 @@ export const createWorld = (
   hp,
   maxHp: PLAYER_MAX_HP,
   kills,
+  score,
+  combo: NO_COMBO,
   waves: INITIAL_WAVES,
   enemies: [],
   pickups: [],
@@ -334,11 +343,17 @@ export interface FrameResult {
 
 /**
  * One animation frame. Movement integrates over `dt`; everything musical
- * (shots, hops, spawns) is read at `now` on the audio clock.
+ * (shots, hops, spawns) is read at `now` on the audio clock, and `beat` is
+ * the beat `now` falls in, for chaining kills into a combo.
  */
 export const stepWorld = (
   world: World,
-  { input, dt, now }: { input: PlayerInput; dt: number; now: number },
+  {
+    input,
+    dt,
+    now,
+    beat = 0,
+  }: { input: PlayerInput; dt: number; now: number; beat?: number },
 ): FrameResult => {
   // A finished run freezes where it ended.
   if (world.status !== 'playing') return { world, kills: [], playerHit: null };
@@ -363,6 +378,14 @@ export const stepWorld = (
     length(subtract(player.position, world.level.exit)) <= EXIT_RADIUS;
   const status = hp <= 0 ? 'dead' : onExit ? 'cleared' : 'playing';
   const killedAt = hits.killed.map(kill => kill.position);
+  // Every kill this frame lands on the same beat, each extending the chain.
+  const scored = hits.killed.reduce(
+    acc => {
+      const next = registerKill(acc.combo, beat);
+      return { combo: next.combo, score: acc.score + next.points };
+    },
+    { combo: world.combo, score: world.score },
+  );
   const looted = hits.killed
     .filter(kill => dropsOnKill(world.level.seed, kill.enemy.id))
     .reduce((acc, kill) => dropLoot(acc, kill.position), world);
@@ -374,6 +397,8 @@ export const stepWorld = (
       status,
       hp,
       kills: world.kills + hits.killed.length,
+      score: scored.score,
+      combo: scored.combo,
       player,
       projectiles: hits.projectiles,
       enemies: contacts.enemies,

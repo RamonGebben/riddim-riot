@@ -1,5 +1,5 @@
 import type { Tick } from '../../clock';
-import { secondsPerStep, STEPS_PER_BEAT } from '../../grid';
+import { secondsPerStep, STEPS_PER_BAR, STEPS_PER_BEAT } from '../../grid';
 import type { WeaponSpec } from '../../weapons';
 import {
   advance,
@@ -11,10 +11,21 @@ import {
   type TriggerState,
 } from '../trigger';
 
+/**
+ * A shot's timing bonus: `beat` for a press within the beat window, `swap`
+ * for the first shot after a switch that lands on a downbeat.
+ */
+export type ShotAccent = 'beat' | 'swap' | null;
+
 /** Anything that can sound a shot - a synth voice, or a fake in tests. */
 export interface WeaponVoice {
   /** `shot` counts from 0 within the magazine - it picks the riff note. */
-  fire: (time: number, duration: number, shot: number) => void;
+  fire: (
+    time: number,
+    duration: number,
+    shot: number,
+    accent: ShotAccent,
+  ) => void;
 }
 
 export interface ReloadSound {
@@ -24,7 +35,8 @@ export interface ReloadSound {
 
 export interface WeaponSlot {
   onTick: (tick: Tick) => void;
-  press: () => void;
+  /** `onBeat`: the press landed close to the weapon's grid. */
+  press: (options?: { onBeat?: boolean }) => void;
   release: () => void;
   /** Put away: refills in the background, silently, and ignores presses. */
   holster: () => void;
@@ -62,9 +74,20 @@ export const createWeaponSlot = ({
   let state = initialTrigger(spec);
   let lastTick: Tick | null = null;
   let holstered = false;
+  /** Just switched to: the next shot can earn the swap bonus. */
+  let fresh = false;
+
+  const accentOf = (event: { step: number; accent: boolean }): ShotAccent => {
+    const swapped = fresh && event.step % STEPS_PER_BAR === 0;
+    fresh = false;
+    if (swapped) return 'swap';
+    return event.accent ? 'beat' : null;
+  };
 
   const play = (event: TriggerEvent, time: number) => {
-    if (event.type === 'fire') voice.fire(time, gateSeconds, event.shot);
+    if (event.type === 'fire') {
+      voice.fire(time, gateSeconds, event.shot, accentOf(event));
+    }
     if (holstered) return;
     if (event.type === 'reloadClick') reloadSound.click(time);
     if (event.type === 'reloadRumble') {
@@ -83,9 +106,9 @@ export const createWeaponSlot = ({
       lastTick = tick;
       run(tick);
     },
-    press: () => {
+    press: options => {
       if (holstered) return;
-      state = press(state);
+      state = press(state, options);
       if (!lastTick || state.reload) return;
       if (lastTick.time - now() > CATCH_UP_SECONDS) run(lastTick);
     },
@@ -98,6 +121,7 @@ export const createWeaponSlot = ({
     },
     equip: () => {
       holstered = false;
+      fresh = true;
     },
     getState: () => state,
   };

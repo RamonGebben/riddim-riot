@@ -23,12 +23,14 @@ export interface LoadoutView {
 
 export interface Loadout {
   onTick: (tick: Tick) => void;
-  press: () => void;
+  /** `onBeat`: the press landed close to the active weapon's grid. */
+  press: (options?: { onBeat?: boolean }) => void;
   release: () => void;
   act: (action: WeaponAction) => void;
   /** Swap a weapon into the active slot; resolves with the one it replaced. */
   replaceActive: (recipe: WeaponRecipe) => Promise<WeaponRecipe>;
   view: () => LoadoutView;
+  activeWeapon: () => Weapon;
   /** What to carry into the next level. */
   recipes: () => Array<WeaponRecipe>;
   active: () => number;
@@ -117,9 +119,9 @@ export const createLoadout = async ({
 
   return {
     onTick: tick => slots.forEach(({ slot }) => slot.onTick(tick)),
-    press: () => {
+    press: options => {
       held = true;
-      slots[active].slot.press();
+      slots[active].slot.press(options);
     },
     release: () => {
       held = false;
@@ -133,6 +135,7 @@ export const createLoadout = async ({
     },
     replaceActive: recipe => replace(active, recipe),
     view,
+    activeWeapon: () => slots[active].weapon,
     recipes: () => slots.map(({ recipe }) => recipe),
     active: () => active,
     dispose: () => slots.forEach(({ voice }) => voice.dispose()),

@@ -93,6 +93,20 @@ describe('advance', () => {
   });
 });
 
+describe('accents', () => {
+  it('mark the shot of an on-beat press, not the held ones after it', () => {
+    const { events } = run(press(idle, { onBeat: true }), 0, 6);
+    expect(
+      events.flatMap(event => (event.type === 'fire' ? [event.accent] : [])),
+    ).toEqual([true, false, false]);
+  });
+
+  it('leave an off-beat press plain', () => {
+    const { events } = run(release(press(idle)), 0, 2);
+    expect(events).toContainEqual(expect.objectContaining({ accent: false }));
+  });
+});
+
 describe('fire events', () => {
   it('count shots within the magazine', () => {
     const { events } = run(press(idle), 0, 6);

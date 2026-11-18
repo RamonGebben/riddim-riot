@@ -10,10 +10,15 @@ import {
   measureWeaponLoudness,
 } from './audio';
 import { createBus } from './bus';
-import { createClock } from './clock';
+import { createClock, type Tick } from './clock';
 import type { GameEvents } from './events';
 import { initialHud, type HudView } from './hud';
-import { secondsPerStep, STEPS_PER_BEAT } from './grid';
+import {
+  gridError,
+  secondsPerStep,
+  STEPS_PER_BEAT,
+  STEPS_PER_DIVISION,
+} from './grid';
 import { createLoadout, type Armed, type LoadoutView } from './loadout';
 import { generateLevel } from './level';
 import { degreeToMidi, keyName, midiToHz } from './music';
@@ -31,6 +36,13 @@ export type { LoadoutView } from './loadout';
 /** Fixed for the PoC; the level seed picks it later. */
 export const BPM = 140;
 const DUCK_SECONDS = 0.6;
+/** A press within this of the weapon's grid is on the beat. */
+const ON_BEAT_SECONDS = 0.05;
+/** What a timing bonus does to a shot. */
+const ACCENT = {
+  beat: { damage: 1.5, size: 1.35, flash: 1.5 },
+  swap: { damage: 2, size: 1.6, flash: 2 },
+};
 
 /** What the screens show about a run's current level, before it's played. */
 export const describeLevel = (run: RunState) => {
@@ -125,11 +137,19 @@ export const startGame = async ({
     const slot = createWeaponSlot({
       spec: weapon.timing,
       voice: {
-        fire: (time, duration, shot) => {
+        fire: (time, duration, shot, accent) => {
           voice.fire(time, duration, shot);
-          pulses.shot.hit(time);
+          const bonus = accent ? ACCENT[accent] : null;
+          pulses.shot.hit(time, bonus?.flash ?? 1);
           const angle = spreadAngle(shot, projectile.spread);
-          bus.emit('shot', { time, spec: projectile, angle });
+          const spec = bonus
+            ? {
+                ...projectile,
+                damage: projectile.damage * bonus.damage,
+                radius: projectile.radius * bonus.size,
+              }
+            : projectile;
+          bus.emit('shot', { time, spec, angle });
           if (!echo) return;
           bus.emit('shot', {
             time: time + echo.delayBeats * beatSeconds,
@@ -156,7 +176,24 @@ export const startGame = async ({
     onChange: view => listeners.forEach(listener => listener(view)),
   });
 
+  let lastTick: Tick | null = null;
+  /** Did a press land within the beat window of the active weapon's grid? */
+  const onBeat = () => {
+    if (!lastTick) return false;
+    const steps = STEPS_PER_DIVISION[loadout.activeWeapon().timing.division];
+    const anchor = lastTick.time - (lastTick.step % steps) * stepSeconds;
+    const error = gridError(heardNow(), anchor, steps * stepSeconds);
+    return Math.abs(error) <= ON_BEAT_SECONDS;
+  };
+  const trigger = {
+    press: () => loadout.press({ onBeat: onBeat() }),
+    release: loadout.release,
+  };
+
   const unsubscribe = [
+    bus.on('tick', tick => {
+      lastTick = tick;
+    }),
     bus.on('tick', drums.onTick),
     bus.on('tick', loadout.onTick),
     bus.on('tick', tick => {
@@ -180,7 +217,7 @@ export const startGame = async ({
         carry: run,
         seed,
         bus,
-        trigger: loadout,
+        trigger,
         onHud: view => {
           hud = view;
           hudListeners.forEach(listener => listener(view));
@@ -208,6 +245,7 @@ export const startGame = async ({
       nextLevel(run, {
         hp: hud.hp,
         kills: hud.kills,
+        score: hud.score,
         recipes: loadout.recipes(),
         active: loadout.active(),
       }),

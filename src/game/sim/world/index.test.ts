@@ -235,6 +235,24 @@ describe('stepWorld', () => {
     ).toBe(5);
   });
 
+  it('scores kills, more for kills chained on consecutive beats', () => {
+    const at = (x: number) => ({ x: start.x + x, y: start.y });
+    const firstKill = stepWorld(
+      queueShot(
+        withEnemies(createWorld(level), [enemyAt(1, at(50), 1)]),
+        shot(1),
+      ),
+      { input: still, dt: 1 / 60, now: 1, beat: 4 },
+    ).world;
+    expect(firstKill.score).toBe(100);
+    const chained = stepWorld(
+      queueShot(withEnemies(firstKill, [enemyAt(2, at(50), 1)]), shot(1.5)),
+      { input: still, dt: 1 / 60, now: 1.5, beat: 5 },
+    ).world;
+    expect(chained.combo.count).toBe(2);
+    expect(chained.score).toBe(300);
+  });
+
   it('costs a hit point per hit, and the run ends at zero', () => {
     const near = { x: start.x + 10, y: start.y };
     const fresh = createWorld(level);

@@ -2,7 +2,7 @@ import type { Bus } from '../bus';
 import type { Tick } from '../clock';
 import type { GameEvents } from '../events';
 import { hudOf, sameHud, type HudView } from '../hud';
-import { nextGridTime } from '../grid';
+import { nextGridTime, STEPS_PER_BEAT } from '../grid';
 import {
   attachControls,
   attachTrigger,
@@ -92,8 +92,8 @@ export const startPlay = async ({
   element: HTMLElement;
   level: Level;
   rules: WaveRules;
-  /** Health and kills carried in from the run. */
-  carry: { hp: number; kills: number };
+  /** Health, kills and score carried in from the run. */
+  carry: { hp: number; kills: number; score: number };
   seed: number;
   bus: Bus<GameEvents>;
   trigger: TriggerHandlers;
@@ -172,11 +172,19 @@ export const startPlay = async ({
   stage.onFrame(elapsed => {
     const dt = Math.min(elapsed, MAX_FRAME_SECONDS);
     const now = heardNow();
+    // The beat being heard, from the last tick (which runs ahead of it).
+    const beat = lastTick
+      ? Math.floor(
+          (lastTick.step + Math.floor((now - lastTick.time) / stepSeconds)) /
+            STEPS_PER_BEAT,
+        )
+      : 0;
     const aimAt = screenToWorld(controls.pointer(), camera, stage.viewport());
     const result = stepWorld(world, {
       input: { move: controls.move(), aimAt },
       dt,
       now,
+      beat,
     });
     world = result.world;
     camera = clampCamera(
@@ -200,7 +208,7 @@ export const startPlay = async ({
     const ended = world.status !== 'playing' && hud.status === 'playing';
     if (ended) trigger.release();
     if (ended && world.status === 'dead') sounds.dead(audioNow());
-    const nextHud = hudOf(world, nameOf);
+    const nextHud = hudOf(world, nameOf, beat);
     if (!sameHud(hud, nextHud)) {
       hud = nextHud;
       onHud(hud);

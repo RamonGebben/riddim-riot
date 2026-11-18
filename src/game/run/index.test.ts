@@ -34,11 +34,12 @@ describe('levelSeed', () => {
 });
 
 describe('nextLevel', () => {
-  it('carries health, kills and the loadout into the next level', () => {
+  it('carries health, kills, score and the loadout into the next level', () => {
     const run = newRun(42);
     const next = nextLevel(run, {
       hp: 2,
       kills: 17,
+      score: 2400,
       recipes: [{ seed: 9 }],
       active: 0,
     });
@@ -47,6 +48,7 @@ describe('nextLevel', () => {
       level: 2,
       hp: 2,
       kills: 17,
+      score: 2400,
       recipes: [{ seed: 9 }],
     });
   });

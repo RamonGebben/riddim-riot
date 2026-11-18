@@ -4,6 +4,7 @@ import {
   type World,
   type WorldStatus,
 } from '../sim/world';
+import { comboActive } from '../sim/combo';
 import { nearestPickup } from '../sim/loot';
 import type { WeaponRecipe } from '../weapons';
 
@@ -14,6 +15,9 @@ export interface HudView {
   hp: number;
   maxHp: number;
   kills: number;
+  score: number;
+  /** The live combo, or 0 once it has lapsed. */
+  combo: number;
   wavesCleared: number;
   wavesToClear: number;
   exitOpen: boolean;
@@ -23,10 +27,11 @@ export interface HudView {
 
 /** Before the stage is up: a fresh level. */
 export const initialHud = (
-  carry: Pick<HudView, 'level' | 'hp' | 'kills'>,
+  carry: Pick<HudView, 'level' | 'hp' | 'kills' | 'score'>,
 ): HudView => ({
   status: 'playing',
   maxHp: PLAYER_MAX_HP,
+  combo: 0,
   wavesCleared: 0,
   wavesToClear: 0,
   exitOpen: false,
@@ -38,6 +43,8 @@ export const hudOf = (
   world: World,
   /** Names a recipe in the level's key. */
   nameOf: (recipe: WeaponRecipe) => string,
+  /** The beat being heard, to tell a live combo from a lapsed one. */
+  beat = 0,
 ): HudView => {
   const underfoot = nearestPickup(world.pickups, world.player.position);
   return {
@@ -46,6 +53,8 @@ export const hudOf = (
     hp: world.hp,
     maxHp: world.maxHp,
     kills: world.kills,
+    score: world.score,
+    combo: comboActive(world.combo, beat) ? world.combo.count : 0,
     wavesCleared: world.waves.cleared,
     wavesToClear: world.rules.wavesToClear,
     exitOpen: isExitOpen(world),

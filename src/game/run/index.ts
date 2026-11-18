@@ -10,6 +10,7 @@ export interface RunState {
   level: number;
   hp: number;
   kills: number;
+  score: number;
   recipes: Array<WeaponRecipe>;
   active: number;
 }
@@ -29,6 +30,7 @@ export const newRun = (seed: number): RunState => ({
   level: 1,
   hp: PLAYER_MAX_HP,
   kills: 0,
+  score: 0,
   recipes: STARTING_ENGINES.map((oscillator, slot) => ({
     seed: deriveSeed(seed, WEAPON_STREAM, slot, 0),
     ...(oscillator ? { oscillator } : {}),
@@ -42,5 +44,5 @@ export const levelSeed = ({ seed, level }: RunState): number =>
 
 export const nextLevel = (
   run: RunState,
-  carry: Pick<RunState, 'hp' | 'kills' | 'recipes' | 'active'>,
+  carry: Pick<RunState, 'hp' | 'kills' | 'score' | 'recipes' | 'active'>,
 ): RunState => ({ ...run, ...carry, level: run.level + 1 });

@@ -15,6 +15,8 @@ export interface TriggerState {
   held: boolean;
   /** A press waiting for the next slot - fires even if released before it. */
   queued: boolean;
+  /** The queued press was on the beat: its shot gets the timing bonus. */
+  accented: boolean;
   ammo: number;
   /** The first step the next shot may land on. */
   readyAt: number;
@@ -22,8 +24,11 @@ export interface TriggerState {
 }
 
 export type TriggerEvent =
-  /** `shot` counts from 0 within the magazine. */
-  | { type: 'fire'; step: number; shot: number }
+  /**
+   * `shot` counts from 0 within the magazine; `accent` marks the shot of a
+   * press that landed on the beat.
+   */
+  | { type: 'fire'; step: number; shot: number; accent: boolean }
   | { type: 'reloadClick'; step: number }
   | { type: 'reloadRumble'; step: number; steps: number }
   | { type: 'reloaded'; step: number };
@@ -36,16 +41,24 @@ export interface TriggerResult {
 export const initialTrigger = (spec: WeaponSpec): TriggerState => ({
   held: false,
   queued: false,
+  accented: false,
   ammo: spec.magazine,
   readyAt: 0,
   reload: null,
 });
 
-/** Presses during a reload don't queue - holding through it still fires after. */
-export const press = (state: TriggerState): TriggerState => ({
+/**
+ * Presses during a reload don't queue - holding through it still fires
+ * after. `onBeat`: the press landed close to the weapon's grid.
+ */
+export const press = (
+  state: TriggerState,
+  { onBeat = false }: { onBeat?: boolean } = {},
+): TriggerState => ({
   ...state,
   held: true,
   queued: state.reload === null,
+  accented: state.reload === null && onBeat,
 });
 
 export const release = (state: TriggerState): TriggerState => ({
@@ -69,7 +82,7 @@ export const holster = (
   spec: WeaponSpec,
   step: number,
 ): TriggerState => {
-  const released = { ...state, held: false, queued: false };
+  const released = { ...state, held: false, queued: false, accented: false };
   if (state.reload || state.ammo === spec.magazine) return released;
   return { ...released, reload: planReload(step, spec) };
 };
@@ -94,11 +107,19 @@ const fire = (
     state: {
       ...state,
       queued: false,
+      accented: false,
       ammo,
       readyAt: step + beatsToSteps(spec.cooldownBeats),
       reload,
     },
-    events: [{ type: 'fire', step, shot: spec.magazine - state.ammo }],
+    events: [
+      {
+        type: 'fire',
+        step,
+        shot: spec.magazine - state.ammo,
+        accent: state.queued && state.accented,
+      },
+    ],
   };
 };
 

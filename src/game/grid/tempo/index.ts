@@ -23,3 +23,16 @@ export const nextGridTime = ({
   const steps = Math.ceil((now + margin - anchor) / stepSeconds);
   return anchor + steps * stepSeconds;
 };
+
+/**
+ * Signed seconds from `time` to the nearest point of a grid with points
+ * every `interval` seconds through `anchor`: negative is early, positive late.
+ */
+export const gridError = (
+  time: number,
+  anchor: number,
+  interval: number,
+): number => {
+  const offset = time - anchor;
+  return offset - Math.round(offset / interval) * interval;
+};

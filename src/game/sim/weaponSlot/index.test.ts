@@ -44,7 +44,7 @@ describe('createWeaponSlot', () => {
     slot.onTick(tickAt(2));
 
     expect(voice.fire).toHaveBeenCalledTimes(1);
-    expect(voice.fire).toHaveBeenCalledWith(2 * STEP, 2 * STEP, 0);
+    expect(voice.fire).toHaveBeenCalledWith(2 * STEP, 2 * STEP, 0, null);
   });
 
   it('lands a late press on the last tick while its sound is still ahead', () => {
@@ -53,7 +53,7 @@ describe('createWeaponSlot', () => {
     clock.now = 4 * STEP - 0.05;
     slot.press();
 
-    expect(voice.fire).toHaveBeenCalledWith(4 * STEP, 2 * STEP, 0);
+    expect(voice.fire).toHaveBeenCalledWith(4 * STEP, 2 * STEP, 0, null);
   });
 
   it('waits for the next slot once the last tick has already sounded', () => {
@@ -65,7 +65,7 @@ describe('createWeaponSlot', () => {
 
     slot.onTick(tickAt(5));
     slot.onTick(tickAt(6));
-    expect(voice.fire).toHaveBeenCalledWith(6 * STEP, 2 * STEP, 0);
+    expect(voice.fire).toHaveBeenCalledWith(6 * STEP, 2 * STEP, 0, null);
   });
 
   it('never fires twice on the same step', () => {
@@ -106,5 +106,36 @@ describe('createWeaponSlot', () => {
     slot.press();
     slot.onTick(tickAt(0));
     expect(voice.fire).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes an on-beat press on as a beat accent', () => {
+    const { voice, slot } = setup();
+    slot.onTick(tickAt(1));
+    slot.press({ onBeat: true });
+    slot.release();
+    slot.onTick(tickAt(2));
+    expect(voice.fire).toHaveBeenCalledWith(2 * STEP, 2 * STEP, 0, 'beat');
+  });
+
+  it('gives the first shot after a switch the swap bonus on a downbeat', () => {
+    const { voice, slot } = setup();
+    slot.holster();
+    slot.equip();
+    slot.press();
+    Array.from({ length: 18 }, (_, step) => slot.onTick(tickAt(14 + step)));
+    expect(voice.fire).toHaveBeenNthCalledWith(1, 14 * STEP, 2 * STEP, 0, null);
+    slot.release();
+
+    const second = setup();
+    second.slot.holster();
+    second.slot.equip();
+    second.slot.press();
+    second.slot.onTick(tickAt(16));
+    expect(second.voice.fire).toHaveBeenCalledWith(
+      16 * STEP,
+      2 * STEP,
+      0,
+      'swap',
+    );
   });
 });
