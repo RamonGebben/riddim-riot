@@ -20,6 +20,10 @@ Browser twin-stick rhythm roguelite; the design is `design-brief-poc.md`.
   source nodes on every note, and some are never released: the graph grows
   until the audio crackles. Build voices from always-running sources gated by
   `createGate` (`src/game/audio/gate`), so a hit only reschedules envelopes.
+- **Weapon loudness is measured, not estimated.** `measureWeaponLoudness`
+  renders a bar offline when a weapon is armed. `Offline` swaps Tone's global
+  context while building its graph, so never run two at once (the loadout
+  arms slots sequentially).
 - **Pinned:** `eslint@^9` (peer of `@pindakaasman/eslint-config`) and
   `typescript@~6.0` (typescript-eslint supports `<6.1`).
 - **Dark only.** The theme's dark mode is forced by a

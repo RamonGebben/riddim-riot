@@ -22,7 +22,8 @@ export interface TriggerState {
 }
 
 export type TriggerEvent =
-  | { type: 'fire'; step: number }
+  /** `shot` counts from 0 within the magazine. */
+  | { type: 'fire'; step: number; shot: number }
   | { type: 'reloadClick'; step: number }
   | { type: 'reloadRumble'; step: number; steps: number }
   | { type: 'reloaded'; step: number };
@@ -58,6 +59,21 @@ const planReload = (start: number, spec: WeaponSpec): Reload => {
   return { start, end, click, rumble: nextSlot(click + 1, '1/4') };
 };
 
+/**
+ * Put the weapon away: let go, and start refilling a partly used magazine
+ * from `step`. It only comes back full once the reload beats have passed, so
+ * swapping back and forth gives no free ammo.
+ */
+export const holster = (
+  state: TriggerState,
+  spec: WeaponSpec,
+  step: number,
+): TriggerState => {
+  const released = { ...state, held: false, queued: false };
+  if (state.reload || state.ammo === spec.magazine) return released;
+  return { ...released, reload: planReload(step, spec) };
+};
+
 const fillEvents = (reload: Reload, step: number): Array<TriggerEvent> => {
   if (step === reload.click) return [{ type: 'reloadClick', step }];
   if (step === reload.rumble && step < reload.end) {
@@ -82,7 +98,7 @@ const fire = (
       readyAt: step + beatsToSteps(spec.cooldownBeats),
       reload,
     },
-    events: [{ type: 'fire', step }],
+    events: [{ type: 'fire', step, shot: spec.magazine - state.ammo }],
   };
 };
 

@@ -1,24 +1,31 @@
+import type { ProjectileKind, ProjectileSpec } from '../../weapons';
 import { add, scale, type Vec } from '../../vec';
 import { PLAYER_RADIUS, type Player } from '../player';
 
-export const PROJECTILE_RADIUS = 9;
-const SPEED = 1100;
-const LIFETIME = 0.5;
-
 export interface Projectile {
+  kind: ProjectileKind;
   position: Vec;
   velocity: Vec;
+  radius: number;
+  damage: number;
   /** Audio time it fizzles out. */
   expiresAt: number;
 }
 
-/** A shot leaves the barrel at the moment it sounds. */
-export const fireProjectile = (player: Player, time: number): Projectile => {
-  const direction = { x: Math.cos(player.aim), y: Math.sin(player.aim) };
+/** A shot leaves the barrel at the moment it sounds, `angle` off the aim. */
+export const fireProjectile = (
+  player: Player,
+  { time, spec, angle }: { time: number; spec: ProjectileSpec; angle: number },
+): Projectile => {
+  const heading = player.aim + angle;
+  const direction = { x: Math.cos(heading), y: Math.sin(heading) };
   return {
+    kind: spec.kind,
     position: add(player.position, scale(direction, PLAYER_RADIUS * 1.9)),
-    velocity: scale(direction, SPEED),
-    expiresAt: time + LIFETIME,
+    velocity: scale(direction, spec.speed),
+    radius: spec.radius,
+    damage: spec.damage,
+    expiresAt: time + spec.lifetime,
   };
 };
 

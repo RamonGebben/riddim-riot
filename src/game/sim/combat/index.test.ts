@@ -12,7 +12,10 @@ const enemy = (id: number, x: number, hp = 2): Enemy => ({
   spawnAt: 0,
 });
 
-const shotAt = (x: number): Projectile => ({
+const shotAt = (x: number, damage = 1): Projectile => ({
+  kind: 'blob',
+  radius: 9,
+  damage,
   position: { x, y: 0 },
   velocity: { x: 1, y: 0 },
   expiresAt: 10,
@@ -42,6 +45,11 @@ describe('resolveHits', () => {
     );
     expect(result.projectiles).toEqual([shotAt(900)]);
     expect(result.killed).toHaveLength(1);
+  });
+
+  it("deals the projectile's own damage", () => {
+    const result = resolveHits([shotAt(100, 0.5)], [enemy(1, 105)], 1);
+    expect(result.enemies[0].hp).toBe(1.5);
   });
 
   it('ignores enemies that have not spawned yet', () => {

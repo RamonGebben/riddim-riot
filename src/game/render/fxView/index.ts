@@ -1,6 +1,6 @@
 import { Graphics } from 'pixi.js';
-import { PROJECTILE_RADIUS, type Projectile } from '../../sim/projectile';
-import type { Vec } from '../../vec';
+import type { Projectile } from '../../sim/projectile';
+import { normalize, scale, type Vec } from '../../vec';
 import { PALETTE } from '../palette';
 
 /** A kill flash, shown from the moment its impact sounds. */
@@ -27,13 +27,29 @@ export const createFxView = () => {
       now: number;
     }) => {
       view.clear();
-      projectiles.forEach(({ position }) =>
+      projectiles.forEach(projectile => {
+        const { position, radius } = projectile;
+        if (projectile.kind === 'beam') {
+          // A streak trailing back along its flight.
+          const tail = scale(normalize(projectile.velocity), -radius * 7);
+          view
+            .moveTo(position.x, position.y)
+            .lineTo(position.x + tail.x, position.y + tail.y)
+            .stroke({
+              width: radius * 1.4,
+              color: PALETTE.accent,
+              cap: 'round',
+            })
+            .circle(position.x, position.y, radius * 0.8)
+            .fill(0xffffff);
+          return;
+        }
         view
-          .circle(position.x, position.y, PROJECTILE_RADIUS * 1.8)
+          .circle(position.x, position.y, radius * 1.8)
           .fill({ color: PALETTE.player, alpha: 0.25 })
-          .circle(position.x, position.y, PROJECTILE_RADIUS)
-          .fill(0xffffff),
-      );
+          .circle(position.x, position.y, radius)
+          .fill(0xffffff);
+      });
       bursts
         .filter(burst => now >= burst.time)
         .forEach(burst => {

@@ -3,6 +3,7 @@ import { secondsPerStep, STEPS_PER_BEAT } from '../../grid';
 import type { WeaponSpec } from '../../weapons';
 import {
   advance,
+  holster,
   initialTrigger,
   press,
   release,
@@ -12,7 +13,8 @@ import {
 
 /** Anything that can sound a shot - a synth voice, or a fake in tests. */
 export interface WeaponVoice {
-  fire: (time: number, duration: number) => void;
+  /** `shot` counts from 0 within the magazine - it picks the riff note. */
+  fire: (time: number, duration: number, shot: number) => void;
 }
 
 export interface ReloadSound {
@@ -24,6 +26,9 @@ export interface WeaponSlot {
   onTick: (tick: Tick) => void;
   press: () => void;
   release: () => void;
+  /** Put away: refills in the background, silently, and ignores presses. */
+  holster: () => void;
+  equip: () => void;
   getState: () => TriggerState;
 }
 
@@ -56,9 +61,11 @@ export const createWeaponSlot = ({
   const gateSeconds = spec.gateBeats * STEPS_PER_BEAT * stepSeconds;
   let state = initialTrigger(spec);
   let lastTick: Tick | null = null;
+  let holstered = false;
 
   const play = (event: TriggerEvent, time: number) => {
-    if (event.type === 'fire') voice.fire(time, gateSeconds);
+    if (event.type === 'fire') voice.fire(time, gateSeconds, event.shot);
+    if (holstered) return;
     if (event.type === 'reloadClick') reloadSound.click(time);
     if (event.type === 'reloadRumble') {
       reloadSound.rumble(time, event.steps * stepSeconds);
@@ -77,12 +84,20 @@ export const createWeaponSlot = ({
       run(tick);
     },
     press: () => {
+      if (holstered) return;
       state = press(state);
       if (!lastTick || state.reload) return;
       if (lastTick.time - now() > CATCH_UP_SECONDS) run(lastTick);
     },
     release: () => {
       state = release(state);
+    },
+    holster: () => {
+      holstered = true;
+      state = holster(state, spec, (lastTick?.step ?? -1) + 1);
+    },
+    equip: () => {
+      holstered = false;
     },
     getState: () => state,
   };

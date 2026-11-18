@@ -11,6 +11,18 @@ import {
 } from '.';
 
 const bounds = { width: 2048, height: 1536 };
+const shot = (time: number) => ({
+  time,
+  angle: 0,
+  spec: {
+    kind: 'blob' as const,
+    speed: 1000,
+    radius: 9,
+    damage: 1,
+    lifetime: 0.5,
+    spread: 0,
+  },
+});
 const still = { move: { x: 0, y: 0 }, aimAt: { x: 2000, y: 768 } };
 
 const withEnemy = (world: World, x: number, hp = 2): World => {
@@ -46,7 +58,7 @@ describe('onBeat', () => {
 
 describe('stepWorld', () => {
   it('fires a queued shot once it sounds, not before', () => {
-    const world = queueShot(createWorld(bounds), 2);
+    const world = queueShot(createWorld(bounds), shot(2));
     const early = stepWorld(world, { input: still, dt: 1 / 60, now: 1.9 });
     expect(early.world.projectiles).toEqual([]);
     const onTime = stepWorld(early.world, {
@@ -59,7 +71,10 @@ describe('stepWorld', () => {
   });
 
   it('reports a kill where the enemy died', () => {
-    const start = queueShot(withEnemy(createWorld(bounds), 1024 + 50, 1), 1);
+    const start = queueShot(
+      withEnemy(createWorld(bounds), 1024 + 50, 1),
+      shot(1),
+    );
     const { kills, world } = stepWorld(start, {
       input: still,
       dt: 1 / 60,

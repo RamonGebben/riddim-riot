@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { toPosition } from '../../grid';
-import { WOBBLE_GUN } from '../../weapons';
+import type { WeaponSpec } from '../../weapons';
 import { createWeaponSlot } from '.';
+
+/** The hand-tuned gun from milestone 2: 8 shots of 1/8, then a 2-beat fill. */
+const WOBBLE_GUN: WeaponSpec = {
+  division: '1/8',
+  cooldownBeats: 0.5,
+  gateBeats: 0.5,
+  magazine: 8,
+  reloadBeats: 2,
+};
 
 const BPM = 120;
 const STEP = 0.125;
@@ -35,7 +44,7 @@ describe('createWeaponSlot', () => {
     slot.onTick(tickAt(2));
 
     expect(voice.fire).toHaveBeenCalledTimes(1);
-    expect(voice.fire).toHaveBeenCalledWith(2 * STEP, 2 * STEP);
+    expect(voice.fire).toHaveBeenCalledWith(2 * STEP, 2 * STEP, 0);
   });
 
   it('lands a late press on the last tick while its sound is still ahead', () => {
@@ -44,7 +53,7 @@ describe('createWeaponSlot', () => {
     clock.now = 4 * STEP - 0.05;
     slot.press();
 
-    expect(voice.fire).toHaveBeenCalledWith(4 * STEP, 2 * STEP);
+    expect(voice.fire).toHaveBeenCalledWith(4 * STEP, 2 * STEP, 0);
   });
 
   it('waits for the next slot once the last tick has already sounded', () => {
@@ -56,7 +65,7 @@ describe('createWeaponSlot', () => {
 
     slot.onTick(tickAt(5));
     slot.onTick(tickAt(6));
-    expect(voice.fire).toHaveBeenCalledWith(6 * STEP, 2 * STEP);
+    expect(voice.fire).toHaveBeenCalledWith(6 * STEP, 2 * STEP, 0);
   });
 
   it('never fires twice on the same step', () => {
@@ -75,5 +84,27 @@ describe('createWeaponSlot', () => {
 
     expect(reloadSound.click).toHaveBeenCalledWith(18 * STEP);
     expect(reloadSound.rumble).toHaveBeenCalledWith(20 * STEP, 4 * STEP);
+  });
+
+  it('refills silently while holstered and ignores presses', () => {
+    const { voice, reloadSound, slot } = setup();
+    slot.press();
+    Array.from({ length: 4 }, (_, step) => slot.onTick(tickAt(step)));
+    slot.holster();
+    slot.press();
+    Array.from({ length: 12 }, (_, i) => slot.onTick(tickAt(4 + i)));
+
+    expect(voice.fire).toHaveBeenCalledTimes(2);
+    expect(reloadSound.click).not.toHaveBeenCalled();
+    expect(slot.getState().ammo).toBe(WOBBLE_GUN.magazine);
+  });
+
+  it('fires again once equipped', () => {
+    const { voice, slot } = setup();
+    slot.holster();
+    slot.equip();
+    slot.press();
+    slot.onTick(tickAt(0));
+    expect(voice.fire).toHaveBeenCalledTimes(1);
   });
 });

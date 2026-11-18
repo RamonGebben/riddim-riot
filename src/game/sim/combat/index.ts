@@ -1,7 +1,7 @@
 import { length, subtract, type Vec } from '../../vec';
 import { ENEMY_RADIUS, enemyPosition, isSpawned, type Enemy } from '../enemy';
 import { PLAYER_RADIUS } from '../player';
-import { PROJECTILE_RADIUS, type Projectile } from '../projectile';
+import type { Projectile } from '../projectile';
 
 const overlaps = (a: Vec, b: Vec, reach: number) =>
   length(subtract(a, b)) <= reach;
@@ -18,8 +18,6 @@ export const resolveHits = (
   enemies: Array<Enemy>,
   now: number,
 ): HitResult => {
-  const reach = PROJECTILE_RADIUS + ENEMY_RADIUS;
-
   const result = projectiles.reduce<{
     projectiles: Array<Projectile>;
     enemies: Array<Enemy>;
@@ -29,7 +27,11 @@ export const resolveHits = (
         enemy =>
           enemy.hp > 0 &&
           isSpawned(enemy, now) &&
-          overlaps(projectile.position, enemyPosition(enemy, now), reach),
+          overlaps(
+            projectile.position,
+            enemyPosition(enemy, now),
+            projectile.radius + ENEMY_RADIUS,
+          ),
       );
       if (!target) {
         return { ...acc, projectiles: [...acc.projectiles, projectile] };
@@ -37,7 +39,9 @@ export const resolveHits = (
       return {
         ...acc,
         enemies: acc.enemies.map(enemy =>
-          enemy === target ? { ...enemy, hp: enemy.hp - 1 } : enemy,
+          enemy === target
+            ? { ...enemy, hp: enemy.hp - projectile.damage }
+            : enemy,
         ),
       };
     },

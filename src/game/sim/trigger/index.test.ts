@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { WOBBLE_GUN } from '../../weapons';
+import type { WeaponSpec } from '../../weapons';
 import {
   advance,
+  holster,
   initialTrigger,
   press,
   release,
   type TriggerEvent,
   type TriggerState,
 } from '.';
+
+/** The hand-tuned gun from milestone 2: 8 shots of 1/8, then a 2-beat fill. */
+const WOBBLE_GUN: WeaponSpec = {
+  division: '1/8',
+  cooldownBeats: 0.5,
+  gateBeats: 0.5,
+  magazine: 8,
+  reloadBeats: 2,
+};
 
 /** Run the trigger over a range of steps, collecting every event. */
 const run = (state: TriggerState, from: number, to: number) =>
@@ -23,7 +33,7 @@ const run = (state: TriggerState, from: number, to: number) =>
   );
 
 const fireSteps = (events: Array<TriggerEvent>) =>
-  events.filter(event => event.type === 'fire').map(event => event.step);
+  events.flatMap(event => (event.type === 'fire' ? [event.step] : []));
 
 const idle = initialTrigger(WOBBLE_GUN);
 
@@ -80,5 +90,30 @@ describe('advance', () => {
     expect(fireSteps(events)).toEqual([4]);
     expect(events).toContainEqual({ type: 'reloadClick', step: 6 });
     expect(events).toContainEqual({ type: 'reloadRumble', step: 8, steps: 6 });
+  });
+});
+
+describe('fire events', () => {
+  it('count shots within the magazine', () => {
+    const { events } = run(press(idle), 0, 6);
+    expect(
+      events.flatMap(event => (event.type === 'fire' ? [event.shot] : [])),
+    ).toEqual([0, 1, 2]);
+  });
+});
+
+describe('holster', () => {
+  it('lets go and refills a used magazine over the reload beats', () => {
+    const used = run(press(idle), 0, 4).state;
+    const away = holster(used, WOBBLE_GUN, 5);
+    expect(away.held).toBe(false);
+    expect(away.reload).toMatchObject({ start: 5, end: 13 });
+    const { state, events } = run(away, 5, 14);
+    expect(events).toContainEqual({ type: 'reloaded', step: 13 });
+    expect(state.ammo).toBe(WOBBLE_GUN.magazine);
+  });
+
+  it('leaves a full magazine alone', () => {
+    expect(holster(press(idle), WOBBLE_GUN, 3).reload).toBeNull();
   });
 });

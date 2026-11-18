@@ -2,7 +2,13 @@ import type { Bus } from '../bus';
 import type { Tick } from '../clock';
 import type { GameEvents } from '../events';
 import { nextGridTime } from '../grid';
-import { attachControls, attachTrigger, type TriggerHandlers } from '../input';
+import {
+  attachControls,
+  attachTrigger,
+  attachWeaponKeys,
+  type TriggerHandlers,
+  type WeaponAction,
+} from '../input';
 import {
   BURST_SECONDS,
   createStage,
@@ -49,6 +55,7 @@ export const startPlay = async ({
   seed,
   bus,
   trigger,
+  onWeaponAction,
   pulses,
   sounds,
   stepSeconds,
@@ -58,6 +65,7 @@ export const startPlay = async ({
   seed: number;
   bus: Bus<GameEvents>;
   trigger: TriggerHandlers;
+  onWeaponAction: (action: WeaponAction) => void;
   pulses: Pulses;
   sounds: PlaySounds;
   stepSeconds: number;
@@ -66,6 +74,7 @@ export const startPlay = async ({
   const stage = await createStage(element, ARENA);
   const controls = attachControls(element);
   const detachTrigger = attachTrigger(element, trigger);
+  const detachWeaponKeys = attachWeaponKeys(element, onWeaponAction);
 
   let world = createWorld(ARENA);
   let camera = world.player.position;
@@ -82,8 +91,8 @@ export const startPlay = async ({
 
   const unsubscribe = [
     bus.on('tick', onTick),
-    bus.on('shot', ({ time }) => {
-      world = queueShot(world, time);
+    bus.on('shot', shot => {
+      world = queueShot(world, shot);
     }),
   ];
 
@@ -139,6 +148,7 @@ export const startPlay = async ({
   return () => {
     unsubscribe.forEach(off => off());
     detachTrigger();
+    detachWeaponKeys();
     controls.detach();
     stage.destroy();
   };

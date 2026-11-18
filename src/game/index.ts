@@ -3,28 +3,42 @@ import {
   createDrums,
   createImpactSound,
   createMusicBus,
+  measureWeaponLoudness,
   createReloadSound,
-  createWobbleVoice,
+  createWeaponVoice,
 } from './audio';
 import { createBus } from './bus';
 import { createClock } from './clock';
 import type { GameEvents } from './events';
-import { secondsPerStep } from './grid';
+import { secondsPerStep, STEPS_PER_BEAT } from './grid';
+import { createLoadout, type Armed, type LoadoutView } from './loadout';
+import { F_MINOR } from './music';
 import { startPlay, type Pulses } from './play';
 import { createPulse } from './render/pulse';
+import { deriveSeed } from './rng';
 import { createWeaponSlot } from './sim';
-import { WOBBLE_GUN } from './weapons';
+import { rollWeapon, spreadAngle, type Weapon } from './weapons';
+
+export type { LoadoutView } from './loadout';
 
 /** Fixed for the PoC; the level seed picks it later. */
 export const BPM = 140;
 /** Fixed until the level seed picks key and scale. */
-const ROOT_NOTE = 'F2';
+const KEY = F_MINOR;
 const IMPACT_ROOT = 'F1';
 const DUCK_SECONDS = 0.6;
+const SLOTS = 3;
+/** Keeps weapon rolls their own random stream, apart from drums and spawns. */
+const WEAPON_STREAM = 2;
+/** A run opens with one of each engine; slot 3 and every reroll are free. */
+const STARTING_ENGINES = ['wobble', 'laser'] as const;
 
 export interface Game {
   /** Mount the stage and input on the play area; returns detach. */
   attach: (element: HTMLElement) => () => void;
+  loadout: () => LoadoutView;
+  /** Called on every weapon switch or reroll; returns unsubscribe. */
+  onLoadout: (listener: (view: LoadoutView) => void) => () => void;
   stop: () => void;
 }
 
@@ -35,6 +49,8 @@ export interface Game {
 export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
   await start();
 
+  const stepSeconds = secondsPerStep(BPM);
+  const beatSeconds = stepSeconds * STEPS_PER_BEAT;
   const pulses: Pulses = {
     kick: createPulse({ decay: 0.14 }),
     beat: createPulse({ decay: 0.1 }),
@@ -52,29 +68,59 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
       if (hit.voice === 'kick') pulses.kick.hit(hit.time, hit.velocity);
     },
   });
-  const wobble = createWobbleVoice({ output: musicBus.input, note: ROOT_NOTE });
   const reloadSound = createReloadSound(musicBus.input);
   const impact = createImpactSound({
     output: musicBus.input,
     root: IMPACT_ROOT,
   });
-  const slot = createWeaponSlot({
-    spec: WOBBLE_GUN,
-    voice: {
-      fire: (time, duration) => {
-        wobble.fire(time, duration);
-        pulses.shot.hit(time);
-        bus.emit('shot', { time });
+
+  const arm = async (weapon: Weapon): Promise<Armed> => {
+    const volume = await measureWeaponLoudness(weapon, { bpm: BPM });
+    const voice = createWeaponVoice({
+      output: musicBus.input,
+      sound: weapon.sound,
+      beatSeconds,
+      volume,
+    });
+    const { projectile, echo } = weapon;
+    const slot = createWeaponSlot({
+      spec: weapon.timing,
+      voice: {
+        fire: (time, duration, shot) => {
+          voice.fire(time, duration, shot);
+          pulses.shot.hit(time);
+          const angle = spreadAngle(shot, projectile.spread);
+          bus.emit('shot', { time, spec: projectile, angle });
+          if (!echo) return;
+          bus.emit('shot', {
+            time: time + echo.delayBeats * beatSeconds,
+            spec: { ...projectile, damage: echo.damage },
+            angle: -angle,
+          });
+        },
       },
-    },
-    reloadSound,
-    bpm: BPM,
-    now,
+      reloadSound,
+      bpm: BPM,
+      now,
+    });
+    return { weapon, slot, voice };
+  };
+
+  const listeners = new Set<(view: LoadoutView) => void>();
+  const loadout = await createLoadout({
+    size: SLOTS,
+    roll: (slot, generation) =>
+      rollWeapon(deriveSeed(seed, WEAPON_STREAM, slot, generation), KEY, {
+        oscillator: generation === 0 ? STARTING_ENGINES[slot] : undefined,
+      }),
+    arm,
+    now: immediate,
+    onChange: view => listeners.forEach(listener => listener(view)),
   });
 
   const unsubscribe = [
     bus.on('tick', drums.onTick),
-    bus.on('tick', slot.onTick),
+    bus.on('tick', loadout.onTick),
     bus.on('tick', tick => {
       if (tick.sixteenth === 0) pulses.beat.hit(tick.time);
     }),
@@ -93,23 +139,29 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
         element,
         seed,
         bus,
-        trigger: slot,
+        trigger: loadout,
+        onWeaponAction: loadout.act,
         pulses,
         sounds: {
           impact: impact.play,
           duck: time => musicBus.duck(time, DUCK_SECONDS),
         },
-        stepSeconds: secondsPerStep(BPM),
+        stepSeconds,
         audioNow: immediate,
       });
       return () => {
         play.then(detach => detach());
       };
     },
+    loadout: loadout.view,
+    onLoadout: listener => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     stop: () => {
       unsubscribe.forEach(off => off());
       clock.dispose();
-      [drums, wobble, reloadSound, impact, musicBus].forEach(node =>
+      [drums, loadout, reloadSound, impact, musicBus].forEach(node =>
         node.dispose(),
       );
     },

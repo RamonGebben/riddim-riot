@@ -9,11 +9,20 @@ import {
   type Player,
   type PlayerInput,
 } from '../player';
+import type { ProjectileSpec } from '../../weapons';
 import {
   advanceProjectiles,
   fireProjectile,
   type Projectile,
 } from '../projectile';
+
+/** A shot scheduled on the audio clock; it leaves the barrel at `time`. */
+export interface PendingShot {
+  time: number;
+  spec: ProjectileSpec;
+  /** Radians off the aim. */
+  angle: number;
+}
 
 export interface World {
   bounds: Bounds;
@@ -21,7 +30,7 @@ export interface World {
   enemies: Array<Enemy>;
   projectiles: Array<Projectile>;
   /** Shots scheduled on the audio clock that haven't sounded yet. */
-  pendingShots: Array<number>;
+  pendingShots: Array<PendingShot>;
   nextId: number;
   /** A hit can't land again until this audio time. */
   invulnerableUntil: number;
@@ -41,9 +50,9 @@ export const createWorld = (bounds: Bounds): World => ({
   invulnerableUntil: 0,
 });
 
-export const queueShot = (world: World, time: number): World => ({
+export const queueShot = (world: World, shot: PendingShot): World => ({
   ...world,
-  pendingShots: [...world.pendingShots, time],
+  pendingShots: [...world.pendingShots, shot],
 });
 
 /** On every beat: each enemy hops a tile towards the player. */
@@ -92,8 +101,8 @@ export const stepWorld = (
   { input, dt, now }: { input: PlayerInput; dt: number; now: number },
 ): FrameResult => {
   const player = stepPlayer(world.player, input, dt, world.bounds);
-  const due = world.pendingShots.filter(time => time <= now);
-  const fired = due.map(time => fireProjectile(player, time));
+  const due = world.pendingShots.filter(shot => shot.time <= now);
+  const fired = due.map(shot => fireProjectile(player, shot));
   const projectiles = advanceProjectiles(
     [...world.projectiles, ...fired],
     dt,
@@ -111,7 +120,7 @@ export const stepWorld = (
       player,
       projectiles: hits.projectiles,
       enemies: contacts.enemies,
-      pendingShots: world.pendingShots.filter(time => time > now),
+      pendingShots: world.pendingShots.filter(shot => shot.time > now),
       invulnerableUntil: playerHit
         ? now + INVULNERABLE_SECONDS
         : world.invulnerableUntil,
