@@ -13,4 +13,4 @@ export interface WeaponRecipe {
 }
 
 export const weaponFrom = (recipe: WeaponRecipe, key: Key): Weapon =>
-  rollWeapon(recipe.seed, key, { oscillator: recipe.oscillator });
+  rollWeapon(recipe.seed, key, { pins: { oscillator: recipe.oscillator } });

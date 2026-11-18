@@ -67,10 +67,31 @@ describe('rollWeapon', () => {
   it('can pin the engine without changing the rest of the roll', () => {
     const free = rollWeapon(7, F_MINOR);
     const other = free.parts.oscillator === 'wobble' ? 'laser' : 'wobble';
-    const pinned = rollWeapon(7, F_MINOR, { oscillator: other });
+    const pinned = rollWeapon(7, F_MINOR, { pins: { oscillator: other } });
     expect(pinned.parts.oscillator).toBe(other);
     expect(pinned.parts.manufacturer).toBe(free.parts.manufacturer);
     expect(pinned.parts.lfo).toBe(free.parts.lfo);
+  });
+
+  it('can pin every part, including no FX at all', () => {
+    const pinned = rollWeapon(3, F_MINOR, {
+      pins: {
+        manufacturer: 'lumen',
+        oscillator: 'laser',
+        lfo: '1/16',
+        fx: null,
+      },
+    });
+    expect(pinned.parts).toEqual({
+      manufacturer: 'lumen',
+      oscillator: 'laser',
+      lfo: '1/16',
+      fx: null,
+    });
+    expect(pinned.timing.magazine).toBe(16);
+    expect(
+      rollWeapon(3, F_MINOR, { pins: { fx: 'echo' } }).echo,
+    ).not.toBeNull();
   });
 
   it('names a weapon after its parts', () => {

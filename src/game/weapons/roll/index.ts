@@ -19,6 +19,14 @@ import type {
   Weapon,
 } from '../types';
 
+/** Parts to fix instead of rolling; `fx: null` pins "no FX". */
+export interface WeaponPins {
+  manufacturer?: ManufacturerPart;
+  oscillator?: OscillatorPart;
+  lfo?: LfoPart;
+  fx?: FxPart | null;
+}
+
 const between = (rng: Rng, [min, max]: [number, number]) =>
   min + rng.next() * (max - min);
 
@@ -33,26 +41,31 @@ const rollRiff = (rng: Rng, degrees: Array<number>) => [
 
 /**
  * Roll a weapon from the parts pool. The same seed always gives the same
- * weapon; every note it plays is in `key`. `oscillator` pins the engine -
- * the starting loadout uses it so a run never opens with three of a kind.
+ * weapon; every note it plays is in `key`. `pins` fix parts - the starting
+ * loadout pins the engine so a run never opens with three of a kind, and
+ * the sound playground pins whatever it's auditioning. A pinned roll
+ * consumes the same random numbers, so the rest of it doesn't change.
  */
 export const rollWeapon = (
   seed: number,
   key: Key,
   {
-    oscillator: pinned,
+    pins = {},
     design = SOUND_DESIGN,
-  }: { oscillator?: OscillatorPart; design?: SoundDesign } = {},
+  }: { pins?: WeaponPins; design?: SoundDesign } = {},
 ): Weapon => {
   const sounds = design.parts;
   const rng = createRng(seed);
-  const manufacturer = rng.pick<ManufacturerPart>(['vandal', 'lumen']);
-  const rolled = rng.pick<OscillatorPart>(['wobble', 'laser']);
-  const oscillator = pinned ?? rolled;
-  const lfo = rng.pick<LfoPart>(['1/4', '1/8', '1/16']);
-  const fx: FxPart | null = rng.chance(FX_CHANCE)
+  const rolledMaker = rng.pick<ManufacturerPart>(['vandal', 'lumen']);
+  const rolledEngine = rng.pick<OscillatorPart>(['wobble', 'laser']);
+  const rolledLfo = rng.pick<LfoPart>(['1/4', '1/8', '1/16']);
+  const rolledFx: FxPart | null = rng.chance(FX_CHANCE)
     ? rng.pick<FxPart>(['distortion', 'echo'])
     : null;
+  const manufacturer = pins.manufacturer ?? rolledMaker;
+  const oscillator = pins.oscillator ?? rolledEngine;
+  const lfo = pins.lfo ?? rolledLfo;
+  const fx = pins.fx === undefined ? rolledFx : pins.fx;
 
   const maker = MANUFACTURERS[manufacturer];
   const makerSound = sounds.manufacturers[manufacturer];
