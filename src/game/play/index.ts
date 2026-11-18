@@ -143,7 +143,9 @@ export const startPlay = async ({
 
   const onTick = (tick: Tick) => {
     lastTick = tick;
-    if (tick.sixteenth === 0) world = onBeat(world, tick.time);
+    if (tick.sixteenth === 0) {
+      world = onBeat(world, { time: tick.time, beat: tick.beat });
+    }
     if (tick.stepInBar !== 0) return;
     const rng = createRng(deriveSeed(seed, tick.bar, SPAWN_STREAM));
     world = onBar(world, { bar: tick.bar, time: tick.time, rng });

@@ -5,7 +5,10 @@ import { resolveContacts, resolveHits } from '.';
 
 const enemy = (id: number, x: number, hp = 2): Enemy => ({
   id,
+  kind: 'hopper',
   hp,
+  hopSeconds: 0.11,
+  aim: null,
   from: { x, y: 0 },
   to: { x, y: 0 },
   hopAt: 0,

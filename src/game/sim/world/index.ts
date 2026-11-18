@@ -2,6 +2,7 @@ import {
   distanceAt,
   distanceField,
   isWall,
+  TILE_SIZE,
   stepDownhill,
   tileCenter,
   tileOf,
@@ -9,16 +10,20 @@ import {
   type TilePos,
 } from '../../level';
 import type { Rng } from '../../rng';
-import { length, subtract, type Vec } from '../../vec';
+import { length, normalize, scale, subtract, type Vec } from '../../vec';
 import type { ProjectileSpec, WeaponRecipe } from '../../weapons';
 import { resolveContacts, resolveHits } from '../combat';
 import {
+  DASH_SECONDS,
+  DASH_TILES,
   ENEMY_HP,
+  ENEMY_RADIUS,
   MAX_ENEMIES,
   planHop,
   spawnWave,
   type Enemy,
 } from '../enemy';
+import { moveCircle } from '../collision';
 import {
   spawnPlayer,
   stepPlayer,
@@ -50,6 +55,8 @@ export interface WaveRules {
   /** Waves to clear before the exit opens. */
   wavesToClear: number;
   enemyHp: number;
+  /** Share of each wave after the first that comes as chargers. */
+  chargerChance: number;
   /** Stress test: top the level up to the enemy cap every bar. */
   fill: boolean;
 }
@@ -66,6 +73,7 @@ export const rulesFor = ({
   quietBars: stress ? 0 : level === 1 ? 2 : 1,
   wavesToClear: 2 + level,
   enemyHp: ENEMY_HP + 0.5 * (level - 1),
+  chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
 });
 
@@ -135,18 +143,60 @@ export const queueShot = (world: World, shot: PendingShot): World => ({
 
 const tileKey = ({ x, y }: TilePos) => `${x},${y}`;
 
+/** How near (walking, in tiles) a charger has to be to line up a dash. */
+const CHARGE_RANGE = 8;
+
 /**
- * On every beat: each enemy hops one tile along the flow field towards the
- * player, never onto a tile another enemy holds. The nearest move first and
- * free their tile as they go, so a line of them flows through a doorway.
+ * A charger's beat: line up on beat 3 (the snare) if near enough, dash on
+ * the downbeat after. Returns null when it walks this beat instead.
  */
-export const onBeat = (world: World, time: number): World => {
+const chargerBeat = (
+  world: World,
+  enemy: Enemy,
+  { time, beat, distance }: { time: number; beat: number; distance: number },
+): Enemy | null => {
+  if (time < enemy.spawnAt) return enemy;
+  if (beat === 0 && enemy.aim) {
+    const dash = scale(enemy.aim, DASH_TILES * TILE_SIZE);
+    const landing = moveCircle(world.level.map, enemy.to, dash, ENEMY_RADIUS);
+    return { ...planHop(enemy, landing, time, DASH_SECONDS), aim: null };
+  }
+  if (beat === 2 && distance >= 0 && distance <= CHARGE_RANGE) {
+    const aim = normalize(subtract(world.player.position, enemy.to));
+    return { ...enemy, aim };
+  }
+  // Closes in on beat 2 - and on beat 4 too while it's still far off.
+  const walks = beat === 1 || (beat === 3 && distance > CHARGE_RANGE);
+  return walks && !enemy.aim ? null : enemy;
+};
+
+/**
+ * On every beat: enemies act on the clock. Hoppers hop one tile along the
+ * flow field towards the player, never onto a tile another enemy holds -
+ * the nearest move first and free their tile as they go, so a line of them
+ * flows through a doorway. Chargers line up and dash (see `chargerBeat`).
+ */
+export const onBeat = (
+  world: World,
+  { time, beat }: { time: number; beat: number },
+): World => {
   const { map } = world.level;
   const field = distanceField(map, tileOf(world.player.position));
   const distance = (enemy: Enemy) => distanceAt(map, field, tileOf(enemy.to));
-  const nearestFirst = [...world.enemies].sort(
-    (a, b) => distance(a) - distance(b),
+  const special = new Map(
+    world.enemies.flatMap(enemy => {
+      if (enemy.kind !== 'charger') return [];
+      const acted = chargerBeat(world, enemy, {
+        time,
+        beat,
+        distance: distance(enemy),
+      });
+      return acted ? [[enemy.id, acted] as const] : [];
+    }),
   );
+  const nearestFirst = world.enemies
+    .filter(enemy => !special.has(enemy.id))
+    .sort((a, b) => distance(a) - distance(b));
 
   const { hops } = nearestFirst.reduce<{
     hops: Map<number, Enemy>;
@@ -177,7 +227,9 @@ export const onBeat = (world: World, time: number): World => {
 
   return {
     ...world,
-    enemies: world.enemies.map(enemy => hops.get(enemy.id) ?? enemy),
+    enemies: world.enemies.map(
+      enemy => special.get(enemy.id) ?? hops.get(enemy.id) ?? enemy,
+    ),
   };
 };
 
@@ -231,6 +283,9 @@ const spawn = (
     candidates: spawnSpots(world),
     time,
     hp: world.rules.enemyHp,
+    // The first wave of a level is hoppers only, to read the beat first.
+    chargerChance:
+      world.rules.fill || world.waves.sent > 1 ? world.rules.chargerChance : 0,
   });
   return {
     ...world,

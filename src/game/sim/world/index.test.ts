@@ -42,7 +42,10 @@ const shot = (time: number) => ({
 
 const enemyAt = (id: number, at: { x: number; y: number }, hp = 2): Enemy => ({
   id,
+  kind: 'hopper',
   hp,
+  hopSeconds: 0.11,
+  aim: null,
   from: at,
   to: at,
   hopAt: 0,
@@ -115,7 +118,7 @@ describe('onBeat', () => {
   it('hops each enemy one tile closer along the flow field', () => {
     const far = createWorld(level);
     const spawned = onBar(far, { bar: 20, time: 0, rng: createRng(4) });
-    const hopped = onBeat(spawned, 1);
+    const hopped = onBeat(spawned, { time: 1, beat: 0 });
     hopped.enemies.forEach((enemy, i) => {
       const before = spawned.enemies[i];
       expect(walk(enemy.to)).toBe(walk(before.to) - 1);
@@ -134,7 +137,7 @@ describe('onBeat', () => {
     const b = tileCenter({ x: t.x + 2, y: t.y + 1 });
     const world = onBeat(
       withEnemies(createWorld(level), [enemyAt(1, a), enemyAt(2, b)]),
-      1,
+      { time: 1, beat: 0 },
     );
     const landing = world.enemies.map(enemy => JSON.stringify(enemy.to));
     expect(new Set(landing).size).toBe(2);
@@ -145,9 +148,43 @@ describe('onBeat', () => {
     const queue = [2, 3, 4].map((dx, i) =>
       enemyAt(i + 1, tileCenter({ x: t.x + dx, y: t.y })),
     );
-    const world = onBeat(withEnemies(createWorld(level), queue), 1);
+    const world = onBeat(withEnemies(createWorld(level), queue), {
+      time: 1,
+      beat: 0,
+    });
     world.enemies.forEach((enemy, i) =>
       expect(enemy.to.x).toBe(queue[i].to.x - TILE_SIZE),
+    );
+  });
+});
+
+describe('chargers', () => {
+  const t = tileOf(start);
+  const charger = (x: number): Enemy => ({
+    ...enemyAt(1, tileCenter({ x: t.x + x, y: t.y })),
+    kind: 'charger',
+  });
+
+  it('line up on the snare, then dash four tiles on the downbeat', () => {
+    const world = withEnemies(createWorld(level), [charger(6)]);
+    const aimed = onBeat(world, { time: 1, beat: 2 });
+    expect(aimed.enemies[0].aim?.x).toBeCloseTo(-1);
+    expect(aimed.enemies[0].to).toEqual(world.enemies[0].to);
+
+    const dashed = onBeat(aimed, { time: 2, beat: 0 });
+    const [enemy] = dashed.enemies;
+    expect(enemy.aim).toBeNull();
+    expect(enemy.hopSeconds).toBe(0.18);
+    expect(enemy.from.x - enemy.to.x).toBeCloseTo(4 * TILE_SIZE);
+  });
+
+  it('walk in on beat 2 when not lined up, and hold still otherwise', () => {
+    const world = withEnemies(createWorld(level), [charger(6)]);
+    expect(onBeat(world, { time: 1, beat: 1 }).enemies[0].to.x).toBe(
+      world.enemies[0].to.x - TILE_SIZE,
+    );
+    expect(onBeat(world, { time: 1, beat: 3 }).enemies[0]).toBe(
+      world.enemies[0],
     );
   });
 });

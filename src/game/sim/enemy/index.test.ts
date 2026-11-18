@@ -13,7 +13,10 @@ const TILE = 64;
 
 const enemyAt = (x: number, y: number): Enemy => ({
   id: 1,
+  kind: 'hopper',
   hp: 2,
+  hopSeconds: HOP_SECONDS,
+  aim: null,
   from: { x, y },
   to: { x, y },
   hopAt: 0,
@@ -26,6 +29,12 @@ describe('planHop', () => {
     expect(hopped.from).toEqual({ x: 0, y: 0 });
     expect(hopped.to).toEqual({ x: TILE, y: 0 });
     expect(hopped.hopAt).toBe(2);
+  });
+
+  it('can take its own time, for a dash', () => {
+    const dashed = planHop(enemyAt(0, 0), { x: 4 * TILE, y: 0 }, 2, 0.18);
+    expect(enemyPosition(dashed, 2.18)).toEqual({ x: 4 * TILE, y: 0 });
+    expect(enemyPosition(dashed, 2.09).x).toBeGreaterThan(2 * TILE);
   });
 
   it('waits until it has spawned', () => {
@@ -83,6 +92,23 @@ describe('spawnWave', () => {
         time: 0,
       }),
     ).toHaveLength(2);
+  });
+
+  it('mixes chargers in, tougher than hoppers', () => {
+    const mixed = spawnWave({
+      rng: createRng(4),
+      count: 20,
+      firstId: 1,
+      candidates,
+      time: 0,
+      hp: 2,
+      chargerChance: 0.5,
+    });
+    const chargers = mixed.filter(enemy => enemy.kind === 'charger');
+    expect(chargers.length).toBeGreaterThan(3);
+    expect(chargers.length).toBeLessThan(17);
+    chargers.forEach(enemy => expect(enemy.hp).toBe(3));
+    expect(wave(1).every(enemy => enemy.kind === 'hopper')).toBe(true);
   });
 
   it('appears at the bar time', () => {

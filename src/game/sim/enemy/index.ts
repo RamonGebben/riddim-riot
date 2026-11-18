@@ -3,6 +3,11 @@ import { lerp, type Vec } from '../../vec';
 
 export const ENEMY_RADIUS = 16;
 export const ENEMY_HP = 2;
+/** Chargers soak more, since they only threaten in bursts. */
+export const CHARGER_BONUS_HP = 1;
+/** A charger's dash: four tiles, much faster than a hop. */
+export const DASH_TILES = 4;
+export const DASH_SECONDS = 0.18;
 /** How long a step's hop takes; the rest of the beat it stands still. */
 export const HOP_SECONDS = 0.11;
 export const MAX_ENEMIES = 30;
@@ -12,14 +17,25 @@ export const MAX_ENEMIES = 30;
  * audio time it starts - so the position at any moment is a pure function of
  * the audio clock and lands exactly on the beat.
  */
+/**
+ * Hoppers walk a tile every beat. Chargers line up on the snare (beat 3)
+ * and dash on the next downbeat, so they're read by the rhythm.
+ */
+export type EnemyKind = 'hopper' | 'charger';
+
 export interface Enemy {
   id: number;
+  kind: EnemyKind;
   hp: number;
   from: Vec;
   to: Vec;
   hopAt: number;
+  /** How long the current hop takes. */
+  hopSeconds: number;
   /** When it appears; it can't move or be hit before then. */
   spawnAt: number;
+  /** A charger's locked-in dash direction (unit length), shown as a tell. */
+  aim: Vec | null;
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
@@ -28,7 +44,7 @@ const clamp01 = (value: number) => Math.min(Math.max(value, 0), 1);
 
 /** 0 before the hop, 1 once it's landed. */
 export const hopProgress = (enemy: Enemy, now: number): number =>
-  easeOut(clamp01((now - enemy.hopAt) / HOP_SECONDS));
+  easeOut(clamp01((now - enemy.hopAt) / enemy.hopSeconds));
 
 export const enemyPosition = (enemy: Enemy, now: number): Vec =>
   lerp(enemy.from, enemy.to, hopProgress(enemy, now));
@@ -37,9 +53,14 @@ export const isSpawned = (enemy: Enemy, now: number): boolean =>
   now >= enemy.spawnAt;
 
 /** On a beat: hop to `to` (the next tile on its way to the player). */
-export const planHop = (enemy: Enemy, to: Vec, time: number): Enemy => {
+export const planHop = (
+  enemy: Enemy,
+  to: Vec,
+  time: number,
+  seconds: number = HOP_SECONDS,
+): Enemy => {
   if (time < enemy.spawnAt) return enemy;
-  return { ...enemy, from: enemy.to, to, hopAt: time };
+  return { ...enemy, from: enemy.to, to, hopAt: time, hopSeconds: seconds };
 };
 
 /** A wave on distinct spots picked from `candidates` (spawnable tiles). */
@@ -50,6 +71,7 @@ export const spawnWave = ({
   candidates,
   time,
   hp = ENEMY_HP,
+  chargerChance = 0,
 }: {
   rng: Rng;
   count: number;
@@ -57,17 +79,25 @@ export const spawnWave = ({
   candidates: Array<Vec>;
   time: number;
   hp?: number;
+  /** Share of the wave that comes as chargers. */
+  chargerChance?: number;
 }): Array<Enemy> => {
   const picked = candidates
     .map(position => ({ position, order: rng.next() }))
     .sort((a, b) => a.order - b.order)
     .slice(0, count);
-  return picked.map(({ position }, i) => ({
-    id: firstId + i,
-    hp,
-    from: position,
-    to: position,
-    hopAt: time,
-    spawnAt: time,
-  }));
+  return picked.map(({ position }, i) => {
+    const kind: EnemyKind = rng.chance(chargerChance) ? 'charger' : 'hopper';
+    return {
+      id: firstId + i,
+      kind,
+      hp: kind === 'charger' ? hp + CHARGER_BONUS_HP : hp,
+      from: position,
+      to: position,
+      hopAt: time,
+      hopSeconds: HOP_SECONDS,
+      spawnAt: time,
+      aim: null,
+    };
+  });
 };
