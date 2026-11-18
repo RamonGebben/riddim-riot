@@ -49,10 +49,16 @@ export interface WaveRules {
 
 export const DEFAULT_RULES: WaveRules = { quietBars: 2, fill: false };
 
+export type WorldStatus = 'playing' | 'dead';
+
 export interface World {
   level: Level;
   rules: WaveRules;
+  status: WorldStatus;
   player: Player;
+  hp: number;
+  maxHp: number;
+  kills: number;
   enemies: Array<Enemy>;
   projectiles: Array<Projectile>;
   /** Shots scheduled on the audio clock that haven't sounded yet. */
@@ -63,6 +69,7 @@ export interface World {
 }
 
 const INVULNERABLE_SECONDS = 0.6;
+export const PLAYER_MAX_HP = 5;
 /**
  * Waves appear this many tiles away, walking: off-screen, usually a room
  * or two over, so they arrive on the beat rather than pop in close.
@@ -72,10 +79,16 @@ const SPAWN_DISTANCE = { min: 10, max: 18 };
 export const createWorld = (
   level: Level,
   rules: WaveRules = DEFAULT_RULES,
+  /** Carried over from the previous level of a run. */
+  { hp = PLAYER_MAX_HP, kills = 0 }: { hp?: number; kills?: number } = {},
 ): World => ({
   level,
   rules,
+  status: 'playing',
   player: spawnPlayer(level.start),
+  hp,
+  maxHp: PLAYER_MAX_HP,
+  kills,
   enemies: [],
   projectiles: [],
   pendingShots: [],
@@ -190,6 +203,9 @@ export const stepWorld = (
   world: World,
   { input, dt, now }: { input: PlayerInput; dt: number; now: number },
 ): FrameResult => {
+  // A finished run freezes where it ended.
+  if (world.status !== 'playing') return { world, kills: [], playerHit: null };
+
   const { map } = world.level;
   const player = stepPlayer(world.player, input, dt, map);
   const due = world.pendingShots.filter(shot => shot.time <= now);
@@ -204,10 +220,14 @@ export const stepWorld = (
   const contacts = resolveContacts(player.position, hits.enemies, now);
   const canBeHit = now >= world.invulnerableUntil;
   const playerHit = canBeHit ? (contacts.touched[0]?.position ?? null) : null;
+  const hp = playerHit ? world.hp - 1 : world.hp;
 
   return {
     world: {
       ...world,
+      status: hp <= 0 ? 'dead' : 'playing',
+      hp,
+      kills: world.kills + hits.killed.length,
       player,
       projectiles: hits.projectiles,
       enemies: contacts.enemies,

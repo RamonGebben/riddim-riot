@@ -14,6 +14,7 @@ import {
   createWorld,
   onBar,
   onBeat,
+  PLAYER_MAX_HP,
   queueShot,
   stepWorld,
   type World,
@@ -164,6 +165,52 @@ describe('stepWorld', () => {
     flown.projectiles.forEach(projectile =>
       expect(tileOf(projectile.position).x).toBeLessThan(t.x + 9),
     );
+  });
+
+  it('counts kills', () => {
+    const target = { x: start.x + 50, y: start.y };
+    const world = queueShot(
+      withEnemies(createWorld(level, undefined, { kills: 4 }), [
+        enemyAt(9, target, 1),
+      ]),
+      shot(1),
+    );
+    expect(
+      stepWorld(world, { input: still, dt: 1 / 60, now: 1 }).world.kills,
+    ).toBe(5);
+  });
+
+  it('costs a hit point per hit, and the run ends at zero', () => {
+    const near = { x: start.x + 10, y: start.y };
+    const fresh = createWorld(level);
+    expect(fresh.hp).toBe(PLAYER_MAX_HP);
+    const hit = stepWorld(withEnemies(fresh, [enemyAt(1, near)]), {
+      input: still,
+      dt: 1 / 60,
+      now: 1,
+    });
+    expect(hit.world.hp).toBe(PLAYER_MAX_HP - 1);
+    expect(hit.world.status).toBe('playing');
+
+    const lastHit = stepWorld(
+      withEnemies({ ...hit.world, hp: 1 }, [enemyAt(2, near)]),
+      { input: still, dt: 1 / 60, now: 2 },
+    );
+    expect(lastHit.world.hp).toBe(0);
+    expect(lastHit.world.status).toBe('dead');
+  });
+
+  it('freezes once the run is over', () => {
+    const dead = {
+      ...queueShot(createWorld(level), shot(0)),
+      status: 'dead' as const,
+    };
+    const after = stepWorld(dead, {
+      input: { ...still, move: { x: 1, y: 0 } },
+      dt: 1 / 60,
+      now: 1,
+    });
+    expect(after.world).toBe(dead);
   });
 
   it('hits the player once, then gives a moment of invulnerability', () => {

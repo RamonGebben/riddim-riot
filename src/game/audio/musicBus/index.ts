@@ -7,6 +7,8 @@ export interface MusicBus {
   filter: Filter;
   /** Muffle everything at `time`, then open back up over `seconds`. */
   duck: (time: number, seconds: number) => void;
+  /** Muffle everything from `time` on, and stay there. */
+  muffle: (time: number) => void;
   dispose: () => void;
 }
 
@@ -30,6 +32,11 @@ export const createMusicBus = (): MusicBus => {
       filter.frequency.cancelScheduledValues(time);
       filter.frequency.setValueAtTime(DUCKED_HZ, time);
       filter.frequency.exponentialRampToValueAtTime(OPEN_HZ, time + seconds);
+    },
+    muffle: time => {
+      filter.frequency.cancelScheduledValues(time);
+      filter.frequency.setValueAtTime(OPEN_HZ, time);
+      filter.frequency.exponentialRampToValueAtTime(DUCKED_HZ, time + 1.5);
     },
     dispose: () => [input, filter, limiter].forEach(node => node.dispose()),
   };

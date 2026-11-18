@@ -1,6 +1,7 @@
 import type { Bus } from '../bus';
 import type { Tick } from '../clock';
 import type { GameEvents } from '../events';
+import { hudOf, sameHud, type HudView } from '../hud';
 import { nextGridTime } from '../grid';
 import {
   attachControls,
@@ -43,6 +44,8 @@ export interface PlaySounds {
   impact: (time: number) => void;
   /** The player got hit: duck the music right away. */
   duck: (time: number) => void;
+  /** The run is over: muffle the music for good. */
+  dead: (time: number) => void;
 }
 
 const SHAKE_PIXELS = 7;
@@ -66,6 +69,7 @@ export const startPlay = async ({
   seed,
   bus,
   trigger,
+  onHud,
   onWeaponAction,
   pulses,
   sounds,
@@ -79,6 +83,8 @@ export const startPlay = async ({
   seed: number;
   bus: Bus<GameEvents>;
   trigger: TriggerHandlers;
+  /** Called with the HUD whenever it changes. */
+  onHud: (hud: HudView) => void;
   onWeaponAction: (action: WeaponAction) => void;
   pulses: Pulses;
   sounds: PlaySounds;
@@ -97,6 +103,8 @@ export const startPlay = async ({
   let camera = world.player.position;
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
+  let hud = hudOf(world);
+  onHud(hud);
 
   const onTick = (tick: Tick) => {
     lastTick = tick;
@@ -145,6 +153,15 @@ export const startPlay = async ({
     if (result.playerHit) {
       sounds.duck(audioNow());
       pulses.hit.hit(now);
+    }
+    if (world.status === 'dead' && result.playerHit) {
+      trigger.release();
+      sounds.dead(audioNow());
+    }
+    const nextHud = hudOf(world);
+    if (!sameHud(hud, nextHud)) {
+      hud = nextHud;
+      onHud(hud);
     }
     bursts = [...bursts, ...killed].filter(
       burst => now - burst.time < BURST_SECONDS,
