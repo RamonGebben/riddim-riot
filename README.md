@@ -14,6 +14,10 @@ pnpm dev            # http://localhost:5173
 
 Press **Press to start** (browsers only start audio from a click), then play.
 
+Each level is a song: survive the waves, clear enough of them to light the
+exit pad, and step on it for the next level (new layout, key and palette).
+Your health, score and weapons carry over. Five hits and the run is over.
+
 | URL         | What it does                                                                  |
 | ----------- | ----------------------------------------------------------------------------- |
 | `/?seed=42` | Play a specific level. A number or any word (`?seed=wobble`)                  |

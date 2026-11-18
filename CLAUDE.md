@@ -41,8 +41,11 @@ Running and controls are in `README.md`.
   text collide and only one is injected - give each a distinguishing comment.
 - **Pixi filter shaders compile as GLSL ES 1.0 too:** no array constructors,
   and uniforms shared with the vertex stage need `highp`.
-- `?stress` fills the level to the 30-enemy cap from the first bar, for
-  frame-rate checks.
+- `?stress` fills the level to the 30-enemy cap from the first bar (chargers
+  included), for frame-rate checks.
+- **React never runs per frame.** The play loop publishes a `HudView`
+  (`src/game/hud`) only when it changes; App holds the run and restarts the
+  game per level.
 - `test` runs only the `unit` Vitest project; `test:storybook` runs the
   browser-based story tests.
 
