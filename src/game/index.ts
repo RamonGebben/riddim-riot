@@ -12,7 +12,8 @@ import { createClock } from './clock';
 import type { GameEvents } from './events';
 import { secondsPerStep, STEPS_PER_BEAT } from './grid';
 import { createLoadout, type Armed, type LoadoutView } from './loadout';
-import { F_MINOR } from './music';
+import { generateLevel } from './level';
+import { degreeToMidi, keyName, midiToHz } from './music';
 import { startPlay, type Pulses } from './play';
 import { createPulse } from './render/pulse';
 import { deriveSeed } from './rng';
@@ -23,15 +24,18 @@ export type { LoadoutView } from './loadout';
 
 /** Fixed for the PoC; the level seed picks it later. */
 export const BPM = 140;
-/** Fixed until the level seed picks key and scale. */
-const KEY = F_MINOR;
-const IMPACT_ROOT = 'F1';
 const DUCK_SECONDS = 0.6;
 const SLOTS = 3;
 /** Keeps weapon rolls their own random stream, apart from drums and spawns. */
 const WEAPON_STREAM = 2;
 /** A run opens with one of each engine; slot 3 and every reroll are free. */
 const STARTING_ENGINES = ['wobble', 'laser'] as const;
+
+/** What the start screen shows about a seed's level, before it's played. */
+export const describeLevel = (seed: number) => {
+  const { key, palette } = generateLevel(seed);
+  return { key: keyName(key), palette: palette.name, bpm: BPM };
+};
 
 export interface Game {
   /** Mount the stage and input on the play area; returns detach. */
@@ -49,6 +53,10 @@ export interface Game {
 export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
   await start();
 
+  const level = generateLevel(seed);
+  const { key } = level;
+  const rootHz = (octave: number) => midiToHz(degreeToMidi(key, 0, octave));
+
   const stepSeconds = secondsPerStep(BPM);
   const beatSeconds = stepSeconds * STEPS_PER_BEAT;
   const pulses: Pulses = {
@@ -64,6 +72,7 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
   const drums = await createDrums({
     seed,
     output: musicBus.input,
+    kickHz: rootHz(1),
     onHit: hit => {
       if (hit.voice === 'kick') pulses.kick.hit(hit.time, hit.velocity);
     },
@@ -71,7 +80,7 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
   const reloadSound = createReloadSound(musicBus.input);
   const impact = createImpactSound({
     output: musicBus.input,
-    root: IMPACT_ROOT,
+    root: rootHz(1),
   });
 
   const arm = async (weapon: Weapon): Promise<Armed> => {
@@ -110,7 +119,7 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
   const loadout = await createLoadout({
     size: SLOTS,
     roll: (slot, generation) =>
-      rollWeapon(deriveSeed(seed, WEAPON_STREAM, slot, generation), KEY, {
+      rollWeapon(deriveSeed(seed, WEAPON_STREAM, slot, generation), key, {
         oscillator: generation === 0 ? STARTING_ENGINES[slot] : undefined,
       }),
     arm,
@@ -137,6 +146,7 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
       // has to tear it down once it arrives.
       const play = startPlay({
         element,
+        level,
         seed,
         bus,
         trigger: loadout,

@@ -4,7 +4,13 @@ import { StartScreen } from '.';
 
 const meta = {
   component: StartScreen,
-  args: { seed: 42, bpm: 140, isStarting: false, onStart: fn() },
+  args: {
+    seed: 42,
+    musicalKey: 'F minor',
+    bpm: 140,
+    isStarting: false,
+    onStart: fn(),
+  },
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof StartScreen>;
 

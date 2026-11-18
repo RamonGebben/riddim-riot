@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { followCamera, screenToWorld, shakeOffset, worldOffset } from '.';
+import {
+  clampCamera,
+  followCamera,
+  screenToWorld,
+  shakeOffset,
+  worldOffset,
+} from '.';
 
 const viewport = { x: 800, y: 600 };
 
@@ -40,5 +46,32 @@ describe('shakeOffset', () => {
     );
     const still = shakeOffset(1.23, 0);
     expect(Math.abs(still.x) + Math.abs(still.y)).toBe(0);
+  });
+});
+
+describe('clampCamera', () => {
+  const world = { width: 3000, height: 2000 };
+
+  it('leaves a camera well inside the level alone', () => {
+    expect(clampCamera({ x: 1500, y: 1000 }, viewport, world)).toEqual({
+      x: 1500,
+      y: 1000,
+    });
+  });
+
+  it('stops at the level edges', () => {
+    expect(clampCamera({ x: 10, y: 1990 }, viewport, world)).toEqual({
+      x: 400,
+      y: 1700,
+    });
+  });
+
+  it('centres a level smaller than the screen', () => {
+    expect(
+      clampCamera({ x: 10, y: 10 }, viewport, { width: 500, height: 400 }),
+    ).toEqual({
+      x: 250,
+      y: 200,
+    });
   });
 });

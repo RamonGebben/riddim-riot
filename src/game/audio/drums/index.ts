@@ -20,14 +20,16 @@ export interface DrumHit {
 export const createDrums = async ({
   seed,
   output,
+  kickHz,
   onHit,
 }: {
   seed: number;
   output: ToneAudioNode;
+  kickHz: number;
   /** Every scheduled hit, so visuals can land with it. */
   onHit?: (hit: DrumHit) => void;
 }): Promise<Drums> => {
-  const kit = await createDrumKit(output);
+  const kit = await createDrumKit(output, kickHz);
 
   return {
     onTick: tick =>

@@ -1,5 +1,6 @@
-import { add, angleOf, lerp, scale, subtract, ZERO, type Vec } from '../../vec';
-import type { Bounds } from '../arena';
+import type { Tilemap } from '../../level';
+import { angleOf, lerp, scale, subtract, ZERO, type Vec } from '../../vec';
+import { moveCircle } from '../collision';
 
 export interface Player {
   position: Vec;
@@ -16,36 +17,30 @@ export interface PlayerInput {
 }
 
 export const PLAYER_RADIUS = 18;
-const SPEED = 340;
+const SPEED = 420;
 /** How quickly velocity catches up with the stick; higher is snappier. */
 const RESPONSE = 18;
 
-export const spawnPlayer = (bounds: Bounds): Player => ({
-  position: { x: bounds.width / 2, y: bounds.height / 2 },
+export const spawnPlayer = (position: Vec): Player => ({
+  position,
   velocity: ZERO,
   aim: 0,
 });
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
-
-const keepInside = (position: Vec, bounds: Bounds): Vec => ({
-  x: clamp(position.x, PLAYER_RADIUS, bounds.width - PLAYER_RADIUS),
-  y: clamp(position.y, PLAYER_RADIUS, bounds.height - PLAYER_RADIUS),
-});
-
-/** Advance the player by `dt` seconds. Frame-rate independent. */
+/** Advance the player by `dt` seconds, sliding along walls. Frame-rate independent. */
 export const stepPlayer = (
   player: Player,
   input: PlayerInput,
   dt: number,
-  bounds: Bounds,
+  map: Tilemap,
 ): Player => {
   const target = scale(input.move, SPEED);
   const velocity = lerp(player.velocity, target, 1 - Math.exp(-RESPONSE * dt));
-  const position = keepInside(
-    add(player.position, scale(velocity, dt)),
-    bounds,
+  const position = moveCircle(
+    map,
+    player.position,
+    scale(velocity, dt),
+    PLAYER_RADIUS,
   );
   const toCursor = subtract(input.aimAt, position);
   const aim =

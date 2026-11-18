@@ -22,3 +22,22 @@ export const shakeOffset = (time: number, strength: number): Vec => ({
   x: (Math.sin(time * 91) + Math.sin(time * 57) * 0.5) * (strength / 1.5),
   y: (Math.sin(time * 77 + 1.3) + Math.sin(time * 43) * 0.5) * (strength / 1.5),
 });
+
+/**
+ * Keep the view inside the level, so the screen never shows past its edge.
+ * A level narrower than the screen stays centred on that axis.
+ */
+export const clampCamera = (
+  camera: Vec,
+  viewport: Vec,
+  world: { width: number; height: number },
+): Vec => {
+  const axis = (value: number, view: number, size: number) =>
+    size <= view
+      ? size / 2
+      : Math.min(Math.max(value, view / 2), size - view / 2);
+  return {
+    x: axis(camera.x, viewport.x, world.width),
+    y: axis(camera.y, viewport.y, world.height),
+  };
+};

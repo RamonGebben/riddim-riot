@@ -5,7 +5,7 @@ import {
   hopProgress,
   type Enemy,
 } from '../../sim/enemy';
-import { PALETTE } from '../palette';
+import type { Palette } from '../../palette';
 
 export interface EnemiesView {
   view: Container;
@@ -15,27 +15,27 @@ export interface EnemiesView {
 /** How long a fresh spawn takes to grow in. */
 const SPAWN_SECONDS = 0.25;
 
-const drawEnemy = () => {
+const drawEnemy = (palette: Palette) => {
   const size = ENEMY_RADIUS * 1.25;
   return new Graphics()
     .rect(-size, -size, size * 2, size * 2)
-    .fill(PALETTE.accent)
+    .fill(palette.accent)
     .rect(-size / 2.5, -size / 2.5, (size * 2) / 2.5, (size * 2) / 2.5)
-    .fill(PALETTE.void);
+    .fill(palette.void);
 };
 
 /**
  * One sprite per enemy, kept by id so a hop only moves a transform. Diamonds
  * stretch mid-hop and squash as they land - on the beat, off the audio clock.
  */
-export const createEnemiesView = (): EnemiesView => {
+export const createEnemiesView = (palette: Palette): EnemiesView => {
   const view = new Container();
   const sprites = new Map<number, Graphics>();
 
   const spriteFor = (id: number) => {
     const existing = sprites.get(id);
     if (existing) return existing;
-    const sprite = drawEnemy();
+    const sprite = drawEnemy(palette);
     sprite.rotation = Math.PI / 4;
     sprites.set(id, sprite);
     view.addChild(sprite);

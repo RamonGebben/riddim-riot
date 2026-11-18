@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../rng';
-import { length, subtract } from '../../vec';
 import {
   enemyPosition,
   HOP_SECONDS,
@@ -8,12 +7,11 @@ import {
   MAX_ENEMIES,
   planHop,
   spawnWave,
-  TILE,
   waveSize,
   type Enemy,
 } from '.';
 
-const bounds = { width: 2048, height: 1536 };
+const TILE = 64;
 
 const enemyAt = (x: number, y: number): Enemy => ({
   id: 1,
@@ -25,28 +23,21 @@ const enemyAt = (x: number, y: number): Enemy => ({
 });
 
 describe('planHop', () => {
-  it('hops one tile towards the target, starting at the beat', () => {
-    const hopped = planHop(enemyAt(0, 0), { x: 500, y: 0 }, 2);
+  it('hops from where it stands to the next tile, starting at the beat', () => {
+    const hopped = planHop(enemyAt(0, 0), { x: TILE, y: 0 }, 2);
     expect(hopped.from).toEqual({ x: 0, y: 0 });
     expect(hopped.to).toEqual({ x: TILE, y: 0 });
     expect(hopped.hopAt).toBe(2);
   });
 
-  it('lands on a target closer than a tile', () => {
-    expect(planHop(enemyAt(0, 0), { x: 10, y: 0 }, 1).to).toEqual({
-      x: 10,
-      y: 0,
-    });
-  });
-
   it('waits until it has spawned', () => {
     const unspawned = { ...enemyAt(0, 0), spawnAt: 5 };
-    expect(planHop(unspawned, { x: 500, y: 0 }, 4)).toBe(unspawned);
+    expect(planHop(unspawned, { x: TILE, y: 0 }, 4)).toBe(unspawned);
   });
 });
 
 describe('enemyPosition', () => {
-  const hopping = planHop(enemyAt(0, 0), { x: 500, y: 0 }, 1);
+  const hopping = planHop(enemyAt(0, 0), { x: TILE, y: 0 }, 1);
 
   it('stands still until the beat, then lands within the hop', () => {
     expect(enemyPosition(hopping, 0.99)).toEqual({ x: 0, y: 0 });
@@ -69,13 +60,16 @@ describe('waveSize', () => {
 });
 
 describe('spawnWave', () => {
+  const candidates = Array.from({ length: 20 }, (_, i) => ({
+    x: i * TILE,
+    y: 0,
+  }));
   const wave = (seed: number) =>
     spawnWave({
       rng: createRng(seed),
       count: 5,
       firstId: 10,
-      around: { x: 1024, y: 768 },
-      bounds,
+      candidates,
       time: 3,
     });
 
@@ -84,14 +78,24 @@ describe('spawnWave', () => {
     expect(wave(1).map(enemy => enemy.id)).toEqual([10, 11, 12, 13, 14]);
   });
 
-  it('spawns away from the player and inside the arena', () => {
-    wave(2).forEach(enemy => {
-      expect(length(subtract(enemy.to, { x: 1024, y: 768 }))).toBeGreaterThan(
-        300,
-      );
-      expect(enemy.to.x).toBeGreaterThanOrEqual(TILE);
-      expect(enemy.to.y).toBeLessThanOrEqual(bounds.height - TILE);
-    });
+  it('puts each enemy on a different candidate spot', () => {
+    const spots = wave(2).map(enemy => JSON.stringify(enemy.to));
+    expect(new Set(spots).size).toBe(5);
+    spots.forEach(spot =>
+      expect(candidates.map(c => JSON.stringify(c))).toContain(spot),
+    );
+  });
+
+  it('spawns fewer when there are fewer spots', () => {
+    expect(
+      spawnWave({
+        rng: createRng(1),
+        count: 5,
+        firstId: 1,
+        candidates: candidates.slice(0, 2),
+        time: 0,
+      }),
+    ).toHaveLength(2);
   });
 
   it('appears at the bar time', () => {

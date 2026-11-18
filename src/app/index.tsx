@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BPM, startGame, type Game, type LoadoutView } from '~/game';
+import { describeLevel, startGame, type Game, type LoadoutView } from '~/game';
 import { GameScreen } from '~/templates/GameScreen';
 import { StartScreen } from '~/templates/StartScreen';
 import { getSeed } from '~/utils/getSeed';
@@ -8,6 +8,7 @@ type SessionStatus = 'idle' | 'starting' | 'playing';
 
 export const App = () => {
   const [seed] = useState(() => getSeed(window.location.search));
+  const [level] = useState(() => describeLevel(seed));
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const game = useRef<Game | null>(null);
@@ -44,7 +45,8 @@ export const App = () => {
     return (
       <GameScreen
         seed={seed}
-        bpm={BPM}
+        musicalKey={level.key}
+        bpm={level.bpm}
         loadout={loadout}
         surfaceRef={surface}
         onStop={handleStop}
@@ -55,7 +57,8 @@ export const App = () => {
   return (
     <StartScreen
       seed={seed}
-      bpm={BPM}
+      musicalKey={level.key}
+      bpm={level.bpm}
       isStarting={status === 'starting'}
       onStart={handleStart}
     />

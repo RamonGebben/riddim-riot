@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import {
+  distanceAt,
+  distanceField,
+  generateLevel,
+  tileCenter,
+  tileOf,
+  TILE_SIZE,
+  type Level,
+} from '../../level';
 import { createRng } from '../../rng';
-import { TILE, type Enemy } from '../enemy';
+import type { Enemy } from '../enemy';
 import {
   createWorld,
   onBar,
@@ -10,7 +19,9 @@ import {
   type World,
 } from '.';
 
-const bounds = { width: 2048, height: 1536 };
+const level: Level = generateLevel(3);
+const start = level.start;
+const still = { move: { x: 0, y: 0 }, aimAt: { x: start.x + 500, y: start.y } };
 const shot = (time: number) => ({
   time,
   angle: 0,
@@ -23,74 +34,138 @@ const shot = (time: number) => ({
     spread: 0,
   },
 });
-const still = { move: { x: 0, y: 0 }, aimAt: { x: 2000, y: 768 } };
 
-const withEnemy = (world: World, x: number, hp = 2): World => {
-  const enemy: Enemy = {
-    id: 99,
-    hp,
-    from: { x, y: 768 },
-    to: { x, y: 768 },
-    hopAt: 0,
-    spawnAt: 0,
-  };
-  return { ...world, enemies: [enemy] };
-};
+const enemyAt = (id: number, at: { x: number; y: number }, hp = 2): Enemy => ({
+  id,
+  hp,
+  from: at,
+  to: at,
+  hopAt: 0,
+  spawnAt: 0,
+});
+
+const withEnemies = (world: World, enemies: Array<Enemy>): World => ({
+  ...world,
+  enemies,
+});
+
+const fieldFromPlayer = distanceField(level.map, tileOf(start));
+const walk = (point: { x: number; y: number }) =>
+  distanceAt(level.map, fieldFromPlayer, tileOf(point));
+
+describe('createWorld', () => {
+  it('puts the player on the level start', () => {
+    expect(createWorld(level).player.position).toEqual(start);
+  });
+});
 
 describe('onBar', () => {
   it('keeps the first bars quiet, then spawns growing waves', () => {
-    const world = createWorld(bounds);
+    const world = createWorld(level);
     const rng = createRng(1);
     expect(onBar(world, { bar: 1, time: 1, rng }).enemies).toEqual([]);
     const first = onBar(world, { bar: 2, time: 2, rng });
     expect(first.enemies).toHaveLength(1);
-    expect(first.nextId).toBe(2);
     expect(onBar(first, { bar: 6, time: 6, rng }).enemies).toHaveLength(4);
+  });
+
+  it('spawns 10-18 tiles away by walking distance, on floor', () => {
+    const world = onBar(createWorld(level), {
+      bar: 20,
+      time: 1,
+      rng: createRng(2),
+    });
+    expect(world.enemies.length).toBeGreaterThan(0);
+    world.enemies.forEach(enemy => {
+      expect(walk(enemy.to)).toBeGreaterThanOrEqual(10);
+      expect(walk(enemy.to)).toBeLessThanOrEqual(18);
+    });
   });
 });
 
 describe('onBeat', () => {
-  it('hops every enemy a tile towards the player', () => {
-    const world = onBeat(withEnemy(createWorld(bounds), 1024 + 300), 1);
-    expect(world.enemies[0].to.x).toBe(1024 + 300 - TILE);
+  it('hops each enemy one tile closer along the flow field', () => {
+    const far = createWorld(level);
+    const spawned = onBar(far, { bar: 20, time: 0, rng: createRng(4) });
+    const hopped = onBeat(spawned, 1);
+    hopped.enemies.forEach((enemy, i) => {
+      const before = spawned.enemies[i];
+      expect(walk(enemy.to)).toBe(walk(before.to) - 1);
+      const moved = Math.hypot(
+        enemy.to.x - before.to.x,
+        enemy.to.y - before.to.y,
+      );
+      expect(moved).toBe(TILE_SIZE);
+    });
+  });
+
+  it('never lands two enemies on the same tile', () => {
+    const t = tileOf(start);
+    // Two enemies side by side, both one step from the same tile.
+    const a = tileCenter({ x: t.x + 2, y: t.y });
+    const b = tileCenter({ x: t.x + 2, y: t.y + 1 });
+    const world = onBeat(
+      withEnemies(createWorld(level), [enemyAt(1, a), enemyAt(2, b)]),
+      1,
+    );
+    const landing = world.enemies.map(enemy => JSON.stringify(enemy.to));
+    expect(new Set(landing).size).toBe(2);
+  });
+
+  it('lets a queue of enemies all move up at once', () => {
+    const t = tileOf(start);
+    const queue = [2, 3, 4].map((dx, i) =>
+      enemyAt(i + 1, tileCenter({ x: t.x + dx, y: t.y })),
+    );
+    const world = onBeat(withEnemies(createWorld(level), queue), 1);
+    world.enemies.forEach((enemy, i) =>
+      expect(enemy.to.x).toBe(queue[i].to.x - TILE_SIZE),
+    );
   });
 });
 
 describe('stepWorld', () => {
   it('fires a queued shot once it sounds, not before', () => {
-    const world = queueShot(createWorld(bounds), shot(2));
+    const world = queueShot(createWorld(level), shot(2));
     const early = stepWorld(world, { input: still, dt: 1 / 60, now: 1.9 });
     expect(early.world.projectiles).toEqual([]);
-    const onTime = stepWorld(early.world, {
-      input: still,
-      dt: 1 / 60,
-      now: 2,
-    });
+    const onTime = stepWorld(early.world, { input: still, dt: 1 / 60, now: 2 });
     expect(onTime.world.projectiles).toHaveLength(1);
-    expect(onTime.world.pendingShots).toEqual([]);
   });
 
   it('reports a kill where the enemy died', () => {
-    const start = queueShot(
-      withEnemy(createWorld(bounds), 1024 + 50, 1),
+    const target = { x: start.x + 50, y: start.y };
+    const world = queueShot(
+      withEnemies(createWorld(level), [enemyAt(9, target, 1)]),
       shot(1),
     );
-    const { kills, world } = stepWorld(start, {
+    const { kills } = stepWorld(world, { input: still, dt: 1 / 60, now: 1 });
+    expect(kills).toEqual([target]);
+  });
+
+  it('stops projectiles at walls', () => {
+    const t = tileOf(start);
+    // The start room is open; its east border wall is a few tiles away.
+    const world = queueShot(createWorld(level), shot(0));
+    const flown = Array.from({ length: 30 }, (_, i) => i).reduce(
+      (current, i) =>
+        stepWorld(current, { input: still, dt: 1 / 60, now: i / 60 }).world,
+      world,
+    );
+    flown.projectiles.forEach(projectile =>
+      expect(tileOf(projectile.position).x).toBeLessThan(t.x + 9),
+    );
+  });
+
+  it('hits the player once, then gives a moment of invulnerability', () => {
+    const near = { x: start.x + 10, y: start.y };
+    const hit = stepWorld(withEnemies(createWorld(level), [enemyAt(1, near)]), {
       input: still,
       dt: 1 / 60,
       now: 1,
     });
-    expect(kills).toEqual([{ x: 1074, y: 768 }]);
-    expect(world.enemies).toEqual([]);
-  });
-
-  it('hits the player once, then gives a moment of invulnerability', () => {
-    const start = withEnemy(createWorld(bounds), 1024 + 10);
-    const hit = stepWorld(start, { input: still, dt: 1 / 60, now: 1 });
     expect(hit.playerHit).not.toBeNull();
-    expect(hit.world.enemies).toEqual([]);
-
-    const again = stepWorld(withEnemy(hit.world, 1024 + 10), {
+    const again = stepWorld(withEnemies(hit.world, [enemyAt(2, near)]), {
       input: still,
       dt: 1 / 60,
       now: 1.2,

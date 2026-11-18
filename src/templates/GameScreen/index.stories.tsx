@@ -6,6 +6,7 @@ const meta = {
   component: GameScreen,
   args: {
     seed: 42,
+    musicalKey: 'F minor',
     bpm: 140,
     loadout: {
       slots: [

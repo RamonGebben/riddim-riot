@@ -3,7 +3,7 @@ import { Hud } from '.';
 
 const meta = {
   component: Hud,
-  args: { children: 'seed 42 · 140 BPM halftime' },
+  args: { children: 'seed 42 · F minor · 140 BPM halftime' },
 } satisfies Meta<typeof Hud>;
 
 export default meta;

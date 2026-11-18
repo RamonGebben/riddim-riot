@@ -3,7 +3,7 @@ import { Meta } from '.';
 
 const meta = {
   component: Meta,
-  args: { children: 'seed 42 · 140 BPM halftime' },
+  args: { children: 'seed 42 · F minor · 140 BPM halftime' },
 } satisfies StoryMeta<typeof Meta>;
 
 export default meta;

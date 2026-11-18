@@ -1,6 +1,16 @@
+import {
+  distanceAt,
+  distanceField,
+  isWall,
+  stepDownhill,
+  tileCenter,
+  tileOf,
+  type Level,
+  type TilePos,
+} from '../../level';
 import type { Rng } from '../../rng';
 import type { Vec } from '../../vec';
-import type { Bounds } from '../arena';
+import type { ProjectileSpec } from '../../weapons';
 import { resolveContacts, resolveHits } from '../combat';
 import { planHop, spawnWave, waveSize, type Enemy } from '../enemy';
 import {
@@ -9,7 +19,6 @@ import {
   type Player,
   type PlayerInput,
 } from '../player';
-import type { ProjectileSpec } from '../../weapons';
 import {
   advanceProjectiles,
   fireProjectile,
@@ -25,7 +34,7 @@ export interface PendingShot {
 }
 
 export interface World {
-  bounds: Bounds;
+  level: Level;
   player: Player;
   enemies: Array<Enemy>;
   projectiles: Array<Projectile>;
@@ -39,10 +48,15 @@ export interface World {
 /** Bars of breathing room before the first wave. */
 const QUIET_BARS = 2;
 const INVULNERABLE_SECONDS = 0.6;
+/**
+ * Waves appear this many tiles away, walking: off-screen, usually a room
+ * or two over, so they arrive on the beat rather than pop in close.
+ */
+const SPAWN_DISTANCE = { min: 10, max: 18 };
 
-export const createWorld = (bounds: Bounds): World => ({
-  bounds,
-  player: spawnPlayer(bounds),
+export const createWorld = (level: Level): World => ({
+  level,
+  player: spawnPlayer(level.start),
   enemies: [],
   projectiles: [],
   pendingShots: [],
@@ -55,13 +69,68 @@ export const queueShot = (world: World, shot: PendingShot): World => ({
   pendingShots: [...world.pendingShots, shot],
 });
 
-/** On every beat: each enemy hops a tile towards the player. */
-export const onBeat = (world: World, time: number): World => ({
-  ...world,
-  enemies: world.enemies.map(enemy =>
-    planHop(enemy, world.player.position, time),
-  ),
-});
+const tileKey = ({ x, y }: TilePos) => `${x},${y}`;
+
+/**
+ * On every beat: each enemy hops one tile along the flow field towards the
+ * player, never onto a tile another enemy holds. The nearest move first and
+ * free their tile as they go, so a line of them flows through a doorway.
+ */
+export const onBeat = (world: World, time: number): World => {
+  const { map } = world.level;
+  const field = distanceField(map, tileOf(world.player.position));
+  const distance = (enemy: Enemy) => distanceAt(map, field, tileOf(enemy.to));
+  const nearestFirst = [...world.enemies].sort(
+    (a, b) => distance(a) - distance(b),
+  );
+
+  const { hops } = nearestFirst.reduce<{
+    hops: Map<number, Enemy>;
+    taken: Set<string>;
+  }>(
+    (acc, enemy) => {
+      const here = tileOf(enemy.to);
+      const next = stepDownhill(map, field, here, pos =>
+        acc.taken.has(tileKey(pos)),
+      );
+      if (!next) return acc;
+      const taken = new Set(acc.taken);
+      taken.delete(tileKey(here));
+      taken.add(tileKey(next));
+      return {
+        hops: new Map(acc.hops).set(
+          enemy.id,
+          planHop(enemy, tileCenter(next), time),
+        ),
+        taken,
+      };
+    },
+    {
+      hops: new Map(),
+      taken: new Set(world.enemies.map(enemy => tileKey(tileOf(enemy.to)))),
+    },
+  );
+
+  return {
+    ...world,
+    enemies: world.enemies.map(enemy => hops.get(enemy.id) ?? enemy),
+  };
+};
+
+/** Floor tiles a fresh wave may appear on: far enough, and unoccupied. */
+const spawnSpots = (world: World): Array<Vec> => {
+  const { map } = world.level;
+  const field = distanceField(map, tileOf(world.player.position));
+  const occupied = new Set(
+    world.enemies.map(enemy => tileKey(tileOf(enemy.to))),
+  );
+  return field.flatMap((distance, index) => {
+    const pos = { x: index % map.width, y: Math.floor(index / map.width) };
+    const inRange =
+      distance >= SPAWN_DISTANCE.min && distance <= SPAWN_DISTANCE.max;
+    return inRange && !occupied.has(tileKey(pos)) ? [tileCenter(pos)] : [];
+  });
+};
 
 /** On every bar line: a wave, growing as the track goes on. */
 export const onBar = (
@@ -70,18 +139,18 @@ export const onBar = (
 ): World => {
   if (bar < QUIET_BARS) return world;
   const count = waveSize(bar - QUIET_BARS, world.enemies.length);
+  if (count === 0) return world;
   const wave = spawnWave({
     rng,
     count,
     firstId: world.nextId,
-    around: world.player.position,
-    bounds: world.bounds,
+    candidates: spawnSpots(world),
     time,
   });
   return {
     ...world,
     enemies: [...world.enemies, ...wave],
-    nextId: world.nextId + count,
+    nextId: world.nextId + wave.length,
   };
 };
 
@@ -100,14 +169,15 @@ export const stepWorld = (
   world: World,
   { input, dt, now }: { input: PlayerInput; dt: number; now: number },
 ): FrameResult => {
-  const player = stepPlayer(world.player, input, dt, world.bounds);
+  const { map } = world.level;
+  const player = stepPlayer(world.player, input, dt, map);
   const due = world.pendingShots.filter(shot => shot.time <= now);
   const fired = due.map(shot => fireProjectile(player, shot));
   const projectiles = advanceProjectiles(
     [...world.projectiles, ...fired],
     dt,
     now,
-  );
+  ).filter(projectile => !isWall(map, tileOf(projectile.position)));
 
   const hits = resolveHits(projectiles, world.enemies, now);
   const contacts = resolveContacts(player.position, hits.enemies, now);

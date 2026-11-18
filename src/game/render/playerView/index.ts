@@ -1,6 +1,6 @@
 import { Container, Graphics } from 'pixi.js';
 import { PLAYER_RADIUS, type Player } from '../../sim/player';
-import { PALETTE } from '../palette';
+import type { Palette } from '../../palette';
 
 export interface PlayerView {
   view: Container;
@@ -10,14 +10,14 @@ export interface PlayerView {
 const SQUASH = 0.18;
 const RECOIL = 5;
 
-export const createPlayerView = (): PlayerView => {
+export const createPlayerView = (palette: Palette): PlayerView => {
   const halo = new Graphics()
     .circle(0, 0, PLAYER_RADIUS * 1.9)
-    .fill({ color: PALETTE.player, alpha: 0.18 });
-  const body = new Graphics().circle(0, 0, PLAYER_RADIUS).fill(PALETTE.player);
+    .fill({ color: palette.player, alpha: 0.18 });
+  const body = new Graphics().circle(0, 0, PLAYER_RADIUS).fill(palette.player);
   const barrel = new Graphics()
     .roundRect(PLAYER_RADIUS * 0.4, -5, PLAYER_RADIUS * 1.3, 10, 4)
-    .fill(PALETTE.accent);
+    .fill(palette.accent);
   const muzzle = new Graphics()
     .circle(PLAYER_RADIUS * 1.9, 0, 9)
     .fill(0xffffff);

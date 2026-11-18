@@ -14,7 +14,6 @@ export interface DrumKit {
   dispose: () => void;
 }
 
-const KICK_HZ = 49; // G1
 const SNARE_BODY_HZ = 147; // D3
 
 /** A pitch that drops from `multiple`× down to `to` - the "boom" in a kick. */
@@ -34,11 +33,13 @@ const pitchDrop = (
  */
 export const createDrumKit = async (
   output: ToneAudioNode,
+  /** The kick's fundamental - tuned to the level's root. */
+  kickHz: number,
 ): Promise<DrumKit> => {
   const channel = new Channel({ volume: -4 }).connect(output);
   const noise = new Noise('white').start();
 
-  const kickOsc = new Oscillator({ type: 'sine', frequency: KICK_HZ }).start();
+  const kickOsc = new Oscillator({ type: 'sine', frequency: kickHz }).start();
   const kick = createGate({
     envelope: { attack: 0.001, decay: 0.45, sustain: 0, release: 0.05 },
     output: channel,
@@ -82,7 +83,7 @@ export const createDrumKit = async (
 
   const players: Record<DrumVoice, (time: number, velocity: number) => void> = {
     kick: (time, velocity) => {
-      pitchDrop(kickOsc, { to: KICK_HZ, multiple: 5, seconds: 0.045 }, time);
+      pitchDrop(kickOsc, { to: kickHz, multiple: 5, seconds: 0.045 }, time);
       kick.envelope.triggerAttackRelease(0.2, time, velocity);
     },
     snare: (time, velocity) => {

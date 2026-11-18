@@ -9,7 +9,9 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Bass Weapons' }),
   ).toBeVisible();
-  await expect(page.getByText('seed 42 · 140 BPM halftime')).toBeVisible();
+  await expect(
+    page.getByText(/^seed 42 · [A-G]#? (minor|phrygian) · 140 BPM halftime$/),
+  ).toBeVisible();
 
   await page.getByRole('button', { name: 'Press to start' }).click();
   const playArea = page.getByRole('main', { name: 'Play area' });

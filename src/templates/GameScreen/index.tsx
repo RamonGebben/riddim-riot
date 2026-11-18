@@ -7,6 +7,8 @@ import { Surface } from './components/Surface';
 
 export interface GameScreenProps {
   seed: number;
+  /** The level's key, e.g. "F minor". */
+  musicalKey: string;
   bpm: number;
   loadout: LoadoutProps;
   /** The element the game attaches its input (and later its canvas) to. */
@@ -16,6 +18,7 @@ export interface GameScreenProps {
 
 export const GameScreen = ({
   seed,
+  musicalKey,
   bpm,
   loadout,
   surfaceRef,
@@ -31,7 +34,7 @@ export const GameScreen = ({
       <Loadout {...loadout} />
       <Hud>
         <span>
-          seed {seed} · {bpm} BPM halftime
+          seed {seed} · {musicalKey} · {bpm} BPM halftime
         </span>
         <Button onClick={onStop}>Stop</Button>
       </Hud>

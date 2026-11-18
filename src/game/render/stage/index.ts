@@ -1,12 +1,11 @@
 import { Application, Container } from 'pixi.js';
-import type { Bounds } from '../../sim/arena';
+import type { Level } from '../../level';
 import type { World } from '../../sim/world';
 import { add, type Vec } from '../../vec';
-import { createArenaView } from '../arenaView';
 import { worldOffset } from '../camera';
 import { createEnemiesView } from '../enemiesView';
 import { createFxView, type Burst } from '../fxView';
-import { PALETTE } from '../palette';
+import { createLevelView } from '../levelView';
 import { createPlayerView } from '../playerView';
 import { createRaveFilter } from '../raveFilter';
 
@@ -35,12 +34,13 @@ export interface Stage {
 
 export const createStage = async (
   element: HTMLElement,
-  arena: Bounds,
+  level: Level,
 ): Promise<Stage> => {
+  const { palette } = level;
   const app = new Application();
   await app.init({
     resizeTo: element,
-    background: PALETTE.void,
+    background: palette.void,
     antialias: true,
     autoDensity: true,
     resolution: Math.min(window.devicePixelRatio, 2),
@@ -50,10 +50,11 @@ export const createStage = async (
   element.prepend(app.canvas);
 
   const layers = new Container();
-  const player = createPlayerView();
-  const enemies = createEnemiesView();
-  const fx = createFxView();
-  layers.addChild(createArenaView(arena), enemies.view, player.view, fx.view);
+  const levelView = createLevelView(level, palette);
+  const player = createPlayerView(palette);
+  const enemies = createEnemiesView(palette);
+  const fx = createFxView(palette);
+  layers.addChild(levelView.view, enemies.view, player.view, fx.view);
   app.stage.addChild(layers);
 
   const rave = createRaveFilter();
@@ -70,6 +71,7 @@ export const createStage = async (
     render: frame => {
       const offset = add(worldOffset(frame.camera, viewport()), frame.shake);
       layers.position.set(Math.round(offset.x), Math.round(offset.y));
+      levelView.update(frame);
       enemies.update(frame.world.enemies, frame.now);
       player.update({ ...frame, player: frame.world.player });
       fx.update({ ...frame, projectiles: frame.world.projectiles });

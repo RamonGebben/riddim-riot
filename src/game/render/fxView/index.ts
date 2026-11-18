@@ -1,7 +1,7 @@
 import { Graphics } from 'pixi.js';
 import type { Projectile } from '../../sim/projectile';
 import { normalize, scale, type Vec } from '../../vec';
-import { PALETTE } from '../palette';
+import type { Palette } from '../../palette';
 
 /** A kill flash, shown from the moment its impact sounds. */
 export interface Burst {
@@ -12,7 +12,7 @@ export interface Burst {
 export const BURST_SECONDS = 0.35;
 
 /** Projectiles and kill bursts: few and short-lived, so redrawn every frame. */
-export const createFxView = () => {
+export const createFxView = (palette: Palette) => {
   const view = new Graphics();
 
   return {
@@ -37,7 +37,7 @@ export const createFxView = () => {
             .lineTo(position.x + tail.x, position.y + tail.y)
             .stroke({
               width: radius * 1.4,
-              color: PALETTE.accent,
+              color: palette.accent,
               cap: 'round',
             })
             .circle(position.x, position.y, radius * 0.8)
@@ -46,7 +46,7 @@ export const createFxView = () => {
         }
         view
           .circle(position.x, position.y, radius * 1.8)
-          .fill({ color: PALETTE.player, alpha: 0.25 })
+          .fill({ color: palette.player, alpha: 0.25 })
           .circle(position.x, position.y, radius)
           .fill(0xffffff);
       });
@@ -56,7 +56,7 @@ export const createFxView = () => {
           const t = (now - burst.time) / BURST_SECONDS;
           view
             .circle(burst.position.x, burst.position.y, 12 + t * 60)
-            .stroke({ width: 6 * (1 - t), color: PALETTE.accent, alpha: 1 - t })
+            .stroke({ width: 6 * (1 - t), color: palette.accent, alpha: 1 - t })
             .circle(burst.position.x, burst.position.y, 14 * (1 - t))
             .fill({ color: 0xffffff, alpha: 1 - t });
         });

@@ -1,17 +1,6 @@
 import type { Rng } from '../../rng';
-import {
-  add,
-  length,
-  lerp,
-  normalize,
-  scale,
-  subtract,
-  type Vec,
-} from '../../vec';
-import type { Bounds } from '../arena';
+import { lerp, type Vec } from '../../vec';
 
-/** One tile per beat. */
-export const TILE = 64;
 export const ENEMY_RADIUS = 16;
 export const ENEMY_HP = 2;
 /** How long a step's hop takes; the rest of the beat it stands still. */
@@ -47,64 +36,40 @@ export const enemyPosition = (enemy: Enemy, now: number): Vec =>
 export const isSpawned = (enemy: Enemy, now: number): boolean =>
   now >= enemy.spawnAt;
 
-/** On a beat: hop one tile towards the target (or onto it, if closer). */
-export const planHop = (enemy: Enemy, target: Vec, time: number): Enemy => {
+/** On a beat: hop to `to` (the next tile on its way to the player). */
+export const planHop = (enemy: Enemy, to: Vec, time: number): Enemy => {
   if (time < enemy.spawnAt) return enemy;
-  const toTarget = subtract(target, enemy.to);
-  const distance = Math.min(TILE, length(toTarget));
-  return {
-    ...enemy,
-    from: enemy.to,
-    to: add(enemy.to, scale(normalize(toTarget), distance)),
-    hopAt: time,
-  };
+  return { ...enemy, from: enemy.to, to, hopAt: time };
 };
 
 /** Wave size grows every two bars, capped so the arena never passes 30. */
 export const waveSize = (bar: number, alive: number): number =>
   Math.max(0, Math.min(1 + Math.floor(bar / 2), 6, MAX_ENEMIES - alive));
 
-const MIN_SPAWN_DISTANCE = 420;
-const MAX_SPAWN_DISTANCE = 760;
-
-const spawnPoint = (rng: Rng, around: Vec, bounds: Bounds): Vec => {
-  const angle = rng.next() * Math.PI * 2;
-  const distance =
-    MIN_SPAWN_DISTANCE + rng.next() * (MAX_SPAWN_DISTANCE - MIN_SPAWN_DISTANCE);
-  const point = add(around, {
-    x: Math.cos(angle) * distance,
-    y: Math.sin(angle) * distance,
-  });
-  return {
-    x: Math.min(Math.max(point.x, TILE), bounds.width - TILE),
-    y: Math.min(Math.max(point.y, TILE), bounds.height - TILE),
-  };
-};
-
+/** A wave on distinct spots picked from `candidates` (spawnable tiles). */
 export const spawnWave = ({
   rng,
   count,
   firstId,
-  around,
-  bounds,
+  candidates,
   time,
 }: {
   rng: Rng;
   count: number;
   firstId: number;
-  /** The player: enemies appear in a ring around them. */
-  around: Vec;
-  bounds: Bounds;
+  candidates: Array<Vec>;
   time: number;
-}): Array<Enemy> =>
-  Array.from({ length: count }, (_, i) => {
-    const position = spawnPoint(rng, around, bounds);
-    return {
-      id: firstId + i,
-      hp: ENEMY_HP,
-      from: position,
-      to: position,
-      hopAt: time,
-      spawnAt: time,
-    };
-  });
+}): Array<Enemy> => {
+  const picked = candidates
+    .map(position => ({ position, order: rng.next() }))
+    .sort((a, b) => a.order - b.order)
+    .slice(0, count);
+  return picked.map(({ position }, i) => ({
+    id: firstId + i,
+    hp: ENEMY_HP,
+    from: position,
+    to: position,
+    hopAt: time,
+    spawnAt: time,
+  }));
+};

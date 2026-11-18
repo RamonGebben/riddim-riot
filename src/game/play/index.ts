@@ -11,6 +11,7 @@ import {
 } from '../input';
 import {
   BURST_SECONDS,
+  clampCamera,
   createStage,
   followCamera,
   screenToWorld,
@@ -19,7 +20,7 @@ import {
   type Pulse,
 } from '../render';
 import { createRng, deriveSeed } from '../rng';
-import { ARENA } from '../sim/arena';
+import type { Level } from '../level';
 import { createWorld, onBar, onBeat, queueShot, stepWorld } from '../sim/world';
 
 export interface Pulses {
@@ -52,6 +53,7 @@ const SPAWN_STREAM = 1;
  */
 export const startPlay = async ({
   element,
+  level,
   seed,
   bus,
   trigger,
@@ -62,6 +64,7 @@ export const startPlay = async ({
   audioNow,
 }: {
   element: HTMLElement;
+  level: Level;
   seed: number;
   bus: Bus<GameEvents>;
   trigger: TriggerHandlers;
@@ -71,12 +74,12 @@ export const startPlay = async ({
   stepSeconds: number;
   audioNow: () => number;
 }): Promise<() => void> => {
-  const stage = await createStage(element, ARENA);
+  const stage = await createStage(element, level);
   const controls = attachControls(element);
   const detachTrigger = attachTrigger(element, trigger);
   const detachWeaponKeys = attachWeaponKeys(element, onWeaponAction);
 
-  let world = createWorld(ARENA);
+  let world = createWorld(level);
   let camera = world.player.position;
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
@@ -111,7 +114,11 @@ export const startPlay = async ({
       now,
     });
     world = result.world;
-    camera = followCamera(camera, world.player.position, dt);
+    camera = clampCamera(
+      followCamera(camera, world.player.position, dt),
+      stage.viewport(),
+      level,
+    );
 
     const killed = result.kills.map(position => ({
       position,
