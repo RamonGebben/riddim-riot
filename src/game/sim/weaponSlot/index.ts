@@ -1,0 +1,89 @@
+import type { Tick } from '../../clock';
+import { secondsPerStep, STEPS_PER_BEAT } from '../../grid';
+import type { WeaponSpec } from '../../weapons';
+import {
+  advance,
+  initialTrigger,
+  press,
+  release,
+  type TriggerEvent,
+  type TriggerState,
+} from '../trigger';
+
+/** Anything that can sound a shot - a synth voice, or a fake in tests. */
+export interface WeaponVoice {
+  fire: (time: number, duration: number) => void;
+}
+
+export interface ReloadSound {
+  click: (time: number) => void;
+  rumble: (time: number, duration: number) => void;
+}
+
+export interface WeaponSlot {
+  onTick: (tick: Tick) => void;
+  press: () => void;
+  release: () => void;
+  getState: () => TriggerState;
+}
+
+/**
+ * How far ahead of the audio clock the last tick must still be for a press to
+ * land on it. Under this, the shot can't be scheduled reliably in time.
+ */
+const CATCH_UP_SECONDS = 0.01;
+
+/**
+ * One weapon on the clock. Ticks arrive ahead of the audio (the Transport's
+ * lookahead), so a press can still land on the last tick when its sound
+ * hasn't played yet - that keeps the gun feeling instant.
+ */
+export const createWeaponSlot = ({
+  spec,
+  voice,
+  reloadSound,
+  bpm,
+  now,
+}: {
+  spec: WeaponSpec;
+  voice: WeaponVoice;
+  reloadSound: ReloadSound;
+  bpm: number;
+  /** The audio clock's current time. */
+  now: () => number;
+}): WeaponSlot => {
+  const stepSeconds = secondsPerStep(bpm);
+  const gateSeconds = spec.gateBeats * STEPS_PER_BEAT * stepSeconds;
+  let state = initialTrigger(spec);
+  let lastTick: Tick | null = null;
+
+  const play = (event: TriggerEvent, time: number) => {
+    if (event.type === 'fire') voice.fire(time, gateSeconds);
+    if (event.type === 'reloadClick') reloadSound.click(time);
+    if (event.type === 'reloadRumble') {
+      reloadSound.rumble(time, event.steps * stepSeconds);
+    }
+  };
+
+  const run = (tick: Tick) => {
+    const result = advance(state, spec, tick.step);
+    state = result.state;
+    result.events.forEach(event => play(event, tick.time));
+  };
+
+  return {
+    onTick: tick => {
+      lastTick = tick;
+      run(tick);
+    },
+    press: () => {
+      state = press(state);
+      if (!lastTick || state.reload) return;
+      if (lastTick.time - now() > CATCH_UP_SECONDS) run(lastTick);
+    },
+    release: () => {
+      state = release(state);
+    },
+    getState: () => state,
+  };
+};
