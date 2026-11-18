@@ -188,6 +188,29 @@ drops it. Score carries across levels.
   when armed (~35 ms) and set to −20 dB RMS. Rolls that spanned 17 dB now
   match exactly.
 
+### Sound design (`sound/`, `playground/`)
+
+Every value that shapes the sound lives in one typed `SoundDesign`
+(`sound/model`): the wobble and laser engines, the weapon mix and loudness
+target, the drums, impact, reload and arrangement patches, and the sound
+half of the parts pool (waveforms, base drive, octaves, riff degrees, and
+the cutoff, resonance, crush and echo ranges rolls land in). Gameplay
+stats stay in `weapons/parts`.
+
+The game plays `SOUND_DESIGN`: `BASE_DESIGN` merged with
+`sound/design.json`. `mergeDesign` keeps only values whose type matches
+the base, so a design saved by an older build, or edited by hand, still
+loads and the base fills any gap. Every voice takes its patch with the
+game's design as the default.
+
+`sound/schema` lists every value with its label, range, step and unit;
+tests keep it complete. The playground page (`/playground.html`,
+`src/playground`) renders a control per field and drives
+`game/playground`, which runs the real voices on the real clock. Saving
+goes through a dev-only Vite endpoint (`/__sound-design` in
+`vite.config.ts`) that merges, Prettier-formats and writes `design.json`
+without reloading the page.
+
 ### Levels
 
 `generateLevel(seed)` builds a 3×3 room grid. A Spelunky-style walk lays the
@@ -233,10 +256,12 @@ session scratch files, not the repo. To redo them:
 Done since the PoC: health and death, the run loop, intensity-driven
 arrangement, weapon loot, the charger, and combo, on-beat and swap bonuses.
 
-Next is **sound design**: a playground page with knobs and values tuned by
-ear, whose settings become the ranges the weapon generator rolls from.
-That's the place to add the dubstep weight that's still missing, and to make
-the riser, crash and drop hit like a real one.
+Next is **sound design**, in the playground (`/playground.html`). Tune by
+ear and save; the game and the weapon generator use what's saved. That's
+the place to add the dubstep weight that's still missing, and to make the
+riser, crash and drop hit like a real one. Where a knob isn't enough (a
+new engine, an FM or wavetable manufacturer, a sidechain), add the value to
+`SoundDesign` and `DESIGN_SCHEMA` so it shows up in the playground.
 
 Gameplay ideas still open:
 

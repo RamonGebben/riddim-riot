@@ -23,6 +23,30 @@ Your health, score and weapons carry over. Five hits and the run is over.
 | `/?seed=42` | Play a specific level. A number or any word (`?seed=wobble`)                  |
 | `/?stress`  | Fill the level to the 30-enemy cap from the first bar, for performance checks |
 
+## Sound playground
+
+Open <http://localhost:5173/playground.html> while `pnpm dev` runs, press
+**Start audio**, and tune by ear. Every value that shapes the sound is on
+a control, and you hear it through the game's own voices, drums and
+arrangement at 140 BPM.
+
+1. **Listen.** Pick a key, switch the drums and the section (calm, groove,
+   build, drop), and fire one-shots: impact, reload, riser, drop hit.
+2. **Pick a weapon.** Roll seeds, or step through them, and pin any part
+   (engine, manufacturer, LFO rate, FX) to hear just that kind. **Hold** or
+   **Mash** fires hands-free while you turn knobs. **Compare rolls** lines
+   up eight seeds from the current design.
+3. **Shape the sound.** The right-hand groups are the engines, the weapon
+   mix and loudness target, the parts pool (the ranges rolls land in),
+   drums, kill impact, reload and arrangement. Changed values are marked,
+   counted per group, and can be reset per group.
+4. **Save to game.** Writes `src/game/sound/design.json`; reload the game to
+   play with it. **Export** / **Import** move a design as a file; drafts are
+   kept in the browser between reloads.
+
+"This roll's sound" tweaks only the weapon you're listening to. To change
+what every roll can sound like, change the parts pool ranges instead.
+
 ## Controls
 
 | Input                         | Action                                        |

@@ -31,6 +31,13 @@ Running and controls are in `README.md`.
   renders a bar offline when a weapon is armed. `Offline` swaps Tone's global
   context while building its graph, so never run two at once (the loadout
   arms slots sequentially).
+- **No sound value in code.** Every number that shapes the sound belongs in
+  `SoundDesign` (`src/game/sound/model`) with a control in `DESIGN_SCHEMA`
+  (tests enforce one per value), so the playground can tune it. The game
+  plays `SOUND_DESIGN` (base merged with `design.json`).
+- **Keep `design.json` out of the Vite config's imports.** The config imports
+  `sound/model` for the save endpoint; importing anything that reaches
+  `design.json` would restart the dev server on every playground save.
 - **Pinned:** `eslint@^9` (peer of `@pindakaasman/eslint-config`) and
   `typescript@~6.0` (typescript-eslint supports `<6.1`).
 - **Dark only.** The theme's dark mode is forced by a
