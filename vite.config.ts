@@ -1,19 +1,23 @@
 import { fileURLToPath } from 'node:url';
-import { colorModeScript } from '@pindakaasman/design-system';
+import { COLOR_MODE_META } from '@pindakaasman/design-system';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
-// Applies a saved color mode before first paint - see the design-system
-// skill's "Color modes".
-const colorMode = (): Plugin => ({
-  name: 'color-mode-script',
+// The game is dark by design: force the theme's dark mode with the design
+// system's own override tag, whatever the OS prefers.
+const darkMode = (): Plugin => ({
+  name: 'dark-color-mode',
   transformIndexHtml: () => [
-    { tag: 'script', children: colorModeScript(), injectTo: 'head-prepend' },
+    {
+      tag: 'meta',
+      attrs: { name: COLOR_MODE_META, content: 'dark' },
+      injectTo: 'head-prepend',
+    },
   ],
 });
 
 export default defineConfig({
-  plugins: [react(), colorMode()],
+  plugins: [react(), darkMode()],
   resolve: {
     alias: { '~': fileURLToPath(new URL('./src', import.meta.url)) },
   },
