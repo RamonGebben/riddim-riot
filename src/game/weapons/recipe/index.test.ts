@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { F_MINOR, type Key } from '../../music';
-import { rerollRecipe, weaponFrom } from '.';
+import { weaponFrom } from '.';
 
 const G_MINOR: Key = { root: 7, scale: 'minor' };
 
@@ -18,14 +18,5 @@ describe('weaponFrom', () => {
     expect(
       weaponFrom({ seed: 5, oscillator: 'laser' }, F_MINOR).parts.oscillator,
     ).toBe('laser');
-  });
-});
-
-describe('rerollRecipe', () => {
-  it('gives a new, reproducible, unpinned recipe', () => {
-    const next = rerollRecipe({ seed: 5, oscillator: 'laser' });
-    expect(next).toEqual(rerollRecipe({ seed: 5 }));
-    expect(next.seed).not.toBe(5);
-    expect(next.oscillator).toBeUndefined();
   });
 });

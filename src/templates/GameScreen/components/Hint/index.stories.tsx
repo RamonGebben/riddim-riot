@@ -5,7 +5,7 @@ const meta = {
   component: Hint,
   args: {
     children:
-      'WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · R reroll',
+      'WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · F take weapon',
   },
 } satisfies Meta<typeof Hint>;
 

@@ -22,12 +22,7 @@ import { rulesFor } from './sim/world';
 import { createPulse } from './render/pulse';
 import { levelSeed, nextLevel, type RunState } from './run';
 import { createWeaponSlot } from './sim';
-import {
-  rerollRecipe,
-  spreadAngle,
-  weaponFrom,
-  type WeaponRecipe,
-} from './weapons';
+import { spreadAngle, weaponFrom, type WeaponRecipe } from './weapons';
 
 export type { HudView } from './hud';
 export { levelSeed, newRun, type RunState } from './run';
@@ -157,7 +152,6 @@ export const startGame = async ({
     recipes: run.recipes,
     active: run.active,
     arm,
-    reroll: rerollRecipe,
     now: immediate,
     onChange: view => listeners.forEach(listener => listener(view)),
   });
@@ -192,6 +186,7 @@ export const startGame = async ({
           hudListeners.forEach(listener => listener(view));
         },
         onWeaponAction: loadout.act,
+        swapWeapon: loadout.replaceActive,
         pulses,
         sounds: {
           impact: impact.play,

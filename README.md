@@ -27,7 +27,7 @@ Press **Press to start** (browsers only start audio from a click), then play.
 | Mouse                         | Aim                                           |
 | Left mouse (click or hold)    | Fire, quantized to the weapon's beat division |
 | 1 / 2 / 3, Q / E, mouse wheel | Switch weapon slot                            |
-| R                             | Reroll the active slot (a test key)           |
+| F                             | Take the weapon you're standing on            |
 
 ## Scripts
 

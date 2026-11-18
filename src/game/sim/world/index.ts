@@ -10,7 +10,7 @@ import {
 } from '../../level';
 import type { Rng } from '../../rng';
 import { length, subtract, type Vec } from '../../vec';
-import type { ProjectileSpec } from '../../weapons';
+import type { ProjectileSpec, WeaponRecipe } from '../../weapons';
 import { resolveContacts, resolveHits } from '../combat';
 import {
   ENEMY_HP,
@@ -30,6 +30,7 @@ import {
   fireProjectile,
   type Projectile,
 } from '../projectile';
+import { dropsOnKill, lootRecipe, type Pickup } from '../loot';
 import { advanceWaves, INITIAL_WAVES, waveSize, type Waves } from '../waves';
 
 /** A shot scheduled on the audio clock; it leaves the barrel at `time`. */
@@ -83,6 +84,9 @@ export interface World {
   kills: number;
   waves: Waves;
   enemies: Array<Enemy>;
+  pickups: Array<Pickup>;
+  /** Where the latest kill fell - a cleared wave drops its reward there. */
+  lastKill: Vec | null;
   projectiles: Array<Projectile>;
   /** Shots scheduled on the audio clock that haven't sounded yet. */
   pendingShots: Array<PendingShot>;
@@ -116,6 +120,8 @@ export const createWorld = (
   kills,
   waves: INITIAL_WAVES,
   enemies: [],
+  pickups: [],
+  lastKill: null,
   projectiles: [],
   pendingShots: [],
   nextId: 1,
@@ -190,6 +196,26 @@ const spawnSpots = (world: World): Array<Vec> => {
   });
 };
 
+/** Put a weapon on the ground. */
+export const placePickup = (
+  world: World,
+  recipe: WeaponRecipe,
+  position: Vec,
+): World => ({
+  ...world,
+  pickups: [...world.pickups, { id: world.nextId, position, recipe }],
+  nextId: world.nextId + 1,
+});
+
+/** Lift a weapon off the ground (the loadout swaps it in). */
+export const takePickup = (world: World, id: number): World => ({
+  ...world,
+  pickups: world.pickups.filter(pickup => pickup.id !== id),
+});
+
+const dropLoot = (world: World, position: Vec): World =>
+  placePickup(world, lootRecipe(world.level.seed, world.nextId), position);
+
 export const isExitOpen = (world: World): boolean =>
   world.waves.cleared >= world.rules.wavesToClear;
 
@@ -233,7 +259,11 @@ export const onBar = (
     alive,
     quietBars: rules.quietBars,
   });
-  const advanced = { ...world, waves: next.waves };
+  const justCleared = next.waves.cleared > world.waves.cleared;
+  const rewarded = justCleared
+    ? dropLoot(world, world.lastKill ?? world.player.position)
+    : world;
+  const advanced = { ...rewarded, waves: next.waves };
   if (!next.spawn) return advanced;
   const size = waveSize({ sent: world.waves.sent, level: rules.level, alive });
   const count = next.spawn === 'wave' ? size : Math.ceil(size / 2);
@@ -277,10 +307,15 @@ export const stepWorld = (
     isExitOpen(world) &&
     length(subtract(player.position, world.level.exit)) <= EXIT_RADIUS;
   const status = hp <= 0 ? 'dead' : onExit ? 'cleared' : 'playing';
+  const killedAt = hits.killed.map(kill => kill.position);
+  const looted = hits.killed
+    .filter(kill => dropsOnKill(world.level.seed, kill.enemy.id))
+    .reduce((acc, kill) => dropLoot(acc, kill.position), world);
 
   return {
     world: {
-      ...world,
+      ...looted,
+      lastKill: killedAt[killedAt.length - 1] ?? world.lastKill,
       status,
       hp,
       kills: world.kills + hits.killed.length,

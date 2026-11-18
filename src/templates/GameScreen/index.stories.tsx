@@ -25,6 +25,7 @@ const meta = {
       wavesCleared: 1,
       wavesToClear: 3,
       exitOpen: false,
+      pickup: null,
     },
     onStop: fn(),
     onRetry: fn(),
@@ -56,6 +57,7 @@ export const RunEnded: Story = {
       wavesCleared: 1,
       wavesToClear: 4,
       exitOpen: false,
+      pickup: null,
     },
   },
   play: async ({ args, canvas, userEvent }) => {
@@ -76,10 +78,32 @@ export const LevelCleared: Story = {
       wavesCleared: 3,
       wavesToClear: 3,
       exitOpen: true,
+      pickup: null,
     },
   },
   play: async ({ args, canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Next level' }));
     await expect(args.onNextLevel).toHaveBeenCalled();
+  },
+};
+
+export const OnAWeapon: Story = {
+  args: {
+    run: {
+      status: 'playing',
+      level: 1,
+      hp: 5,
+      maxHp: 5,
+      kills: 9,
+      wavesCleared: 1,
+      wavesToClear: 3,
+      exitOpen: false,
+      pickup: 'Vandal Laser 1/8 Echo',
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'F take Vandal Laser 1/8 Echo',
+    );
   },
 };

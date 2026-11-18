@@ -5,6 +5,7 @@ import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
 import { Loadout, type LoadoutProps } from './components/Loadout';
 import { Overlay } from './components/Overlay';
+import { Prompt } from './components/Prompt';
 import { Surface } from './components/Surface';
 
 export interface RunProps {
@@ -16,6 +17,8 @@ export interface RunProps {
   wavesCleared: number;
   wavesToClear: number;
   exitOpen: boolean;
+  /** The weapon the player is standing on, if any. */
+  pickup: string | null;
 }
 
 export interface GameScreenProps {
@@ -52,9 +55,15 @@ export const GameScreen = ({
     <>
       <Surface ref={surfaceRef} aria-label="Play area">
         <Hint>
-          WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · R reroll
+          WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · F take
+          weapon
         </Hint>
       </Surface>
+      {run.pickup && (
+        <Prompt>
+          <kbd>F</kbd> take {run.pickup}
+        </Prompt>
+      )}
       <Loadout {...loadout} />
       <Hud>
         <span>

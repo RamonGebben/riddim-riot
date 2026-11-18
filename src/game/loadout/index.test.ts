@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { F_MINOR } from '../music';
-import { rerollRecipe, weaponFrom, type WeaponRecipe } from '../weapons';
+import { weaponFrom, type WeaponRecipe } from '../weapons';
 import { createLoadout, type Armed } from '.';
 
 const fakeArm = (recipe: WeaponRecipe): Armed => ({
@@ -35,7 +35,6 @@ const setup = async (active = 0) => {
       armed.push(next);
       return next;
     },
-    reroll: rerollRecipe,
     now: () => 1,
     onChange,
   });
@@ -104,7 +103,6 @@ describe('createLoadout', () => {
         arming -= 1;
         return fakeArm(recipe);
       },
-      reroll: rerollRecipe,
       now: () => 1,
       onChange: vi.fn(),
     });
@@ -117,12 +115,5 @@ describe('createLoadout', () => {
     expect(old).toEqual({ seed: 1 });
     expect(armed[0].voice.dispose).toHaveBeenCalled();
     expect(loadout.recipes()).toEqual([{ seed: 99 }, { seed: 2 }, { seed: 3 }]);
-  });
-
-  it('rerolls the active slot through the reroll chain', async () => {
-    const { loadout, onChange } = await setup();
-    loadout.act({ type: 'reroll' });
-    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
-    expect(loadout.recipes()[0]).toEqual(rerollRecipe({ seed: 1 }));
   });
 });

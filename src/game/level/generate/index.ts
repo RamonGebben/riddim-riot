@@ -12,6 +12,7 @@ import { buildRoom, ROOM_HEIGHT, ROOM_WIDTH } from '../rooms';
 import { tileCenter, TILE_SIZE, type Tile, type Tilemap } from '../tilemap';
 
 export interface Level {
+  seed: number;
   map: Tilemap;
   grid: RoomGrid;
   /** World point the player starts on. */
@@ -76,6 +77,7 @@ export const generateLevel = (seed: number): Level => {
   });
 
   return {
+    seed,
     map: { width, height, tiles },
     grid,
     start: roomCenter(start),

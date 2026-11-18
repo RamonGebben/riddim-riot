@@ -23,12 +23,16 @@ import {
 import { createRng, deriveSeed } from '../rng';
 import type { Level } from '../level';
 import { sectionFor, type Section } from '../sim/waves';
+import { nearestPickup } from '../sim/loot';
+import { weaponFrom, type WeaponRecipe } from '../weapons';
 import {
   createWorld,
   onBar,
   onBeat,
+  placePickup,
   queueShot,
   stepWorld,
+  takePickup,
   type WaveRules,
 } from '../sim/world';
 
@@ -78,6 +82,7 @@ export const startPlay = async ({
   trigger,
   onHud,
   onWeaponAction,
+  swapWeapon,
   pulses,
   sounds,
   stepSeconds,
@@ -95,6 +100,8 @@ export const startPlay = async ({
   /** Called with the HUD whenever it changes. */
   onHud: (hud: HudView) => void;
   onWeaponAction: (action: WeaponAction) => void;
+  /** Swap a weapon into the active slot; resolves with the one it replaced. */
+  swapWeapon: (recipe: WeaponRecipe) => Promise<WeaponRecipe>;
   pulses: Pulses;
   sounds: PlaySounds;
   stepSeconds: number;
@@ -106,14 +113,32 @@ export const startPlay = async ({
   const stage = await createStage(element, level);
   const controls = attachControls(element);
   const detachTrigger = attachTrigger(element, trigger);
-  const detachWeaponKeys = attachWeaponKeys(element, onWeaponAction);
+  const takeWeapon = () => {
+    const underfoot = nearestPickup(world.pickups, world.player.position);
+    if (!underfoot || world.status !== 'playing') return;
+    world = takePickup(world, underfoot.id);
+    void swapWeapon(underfoot.recipe).then(old => {
+      world = placePickup(world, old, underfoot.position);
+    });
+  };
+  const detachWeaponKeys = attachWeaponKeys(element, action =>
+    action.type === 'pickup' ? takeWeapon() : onWeaponAction(action),
+  );
 
   let world = createWorld(level, rules, carry);
   let camera = world.player.position;
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
   let lastSection: Section = 'calm';
-  let hud = hudOf(world);
+  const names = new Map<number, string>();
+  const nameOf = (recipe: WeaponRecipe) => {
+    const known = names.get(recipe.seed);
+    if (known) return known;
+    const name = weaponFrom(recipe, level.key).name;
+    names.set(recipe.seed, name);
+    return name;
+  };
+  let hud = hudOf(world, nameOf);
   onHud(hud);
 
   const onTick = (tick: Tick) => {
@@ -173,7 +198,7 @@ export const startPlay = async ({
     const ended = world.status !== 'playing' && hud.status === 'playing';
     if (ended) trigger.release();
     if (ended && world.status === 'dead') sounds.dead(audioNow());
-    const nextHud = hudOf(world);
+    const nextHud = hudOf(world, nameOf);
     if (!sameHud(hud, nextHud)) {
       hud = nextHud;
       onHud(hud);

@@ -6,6 +6,7 @@ import { worldOffset } from '../camera';
 import { createEnemiesView } from '../enemiesView';
 import { createFxView, type Burst } from '../fxView';
 import { createLevelView } from '../levelView';
+import { createPickupsView } from '../pickupsView';
 import { createPlayerView } from '../playerView';
 import { createRaveFilter } from '../raveFilter';
 
@@ -53,9 +54,16 @@ export const createStage = async (
   const layers = new Container();
   const levelView = createLevelView(level, palette);
   const player = createPlayerView(palette);
+  const pickups = createPickupsView(palette);
   const enemies = createEnemiesView(palette);
   const fx = createFxView(palette);
-  layers.addChild(levelView.view, enemies.view, player.view, fx.view);
+  layers.addChild(
+    levelView.view,
+    pickups.view,
+    enemies.view,
+    player.view,
+    fx.view,
+  );
   app.stage.addChild(layers);
 
   const rave = createRaveFilter();
@@ -73,6 +81,7 @@ export const createStage = async (
       const offset = add(worldOffset(frame.camera, viewport()), frame.shake);
       layers.position.set(Math.round(offset.x), Math.round(offset.y));
       levelView.update({ ...frame, exitOpen: isExitOpen(frame.world) });
+      pickups.update({ ...frame, pickups: frame.world.pickups });
       enemies.update(frame.world.enemies, frame.now);
       player.update({ ...frame, player: frame.world.player });
       fx.update({ ...frame, projectiles: frame.world.projectiles });

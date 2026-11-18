@@ -1,7 +1,7 @@
 export type WeaponAction =
   | { type: 'select'; slot: number }
   | { type: 'cycle'; direction: 1 | -1 }
-  | { type: 'reroll' };
+  | { type: 'pickup' };
 
 const ACTIONS: Record<string, WeaponAction> = {
   Digit1: { type: 'select', slot: 0 },
@@ -9,10 +9,10 @@ const ACTIONS: Record<string, WeaponAction> = {
   Digit3: { type: 'select', slot: 2 },
   KeyQ: { type: 'cycle', direction: -1 },
   KeyE: { type: 'cycle', direction: 1 },
-  KeyR: { type: 'reroll' },
+  KeyF: { type: 'pickup' },
 };
 
-/** 1-3 pick a slot, Q/E cycle, R rerolls the active one (a PoC test key). */
+/** 1-3 pick a slot, Q/E cycle, F takes the weapon you're standing on. */
 export const weaponKeyAction = (code: string): WeaponAction | null =>
   ACTIONS[code] ?? null;
 

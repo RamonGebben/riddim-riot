@@ -15,10 +15,12 @@ import {
   isExitOpen,
   onBar,
   onBeat,
+  placePickup,
   PLAYER_MAX_HP,
   queueShot,
   rulesFor,
   stepWorld,
+  takePickup,
   type World,
 } from '.';
 
@@ -227,6 +229,26 @@ describe('stepWorld', () => {
       now: 1,
     });
     expect(after.world).toBe(dead);
+  });
+
+  it('drops a weapon where the last kill fell when a wave clears', () => {
+    const rng = createRng(1);
+    const fighting = onBar(createWorld(level), { bar: 2, time: 2, rng });
+    const lastKill = { x: 300, y: 400 };
+    const cleared = onBar(
+      { ...fighting, enemies: [], lastKill },
+      { bar: 5, time: 5, rng },
+    );
+    expect(cleared.pickups).toHaveLength(1);
+    expect(cleared.pickups[0].position).toEqual(lastKill);
+  });
+
+  it('puts weapons down and picks them up', () => {
+    const world = placePickup(createWorld(level), { seed: 7 }, start);
+    expect(world.pickups).toEqual([
+      { id: expect.any(Number), position: start, recipe: { seed: 7 } },
+    ]);
+    expect(takePickup(world, world.pickups[0].id).pickups).toEqual([]);
   });
 
   it('keeps the exit shut until enough waves are cleared', () => {

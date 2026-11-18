@@ -6,10 +6,11 @@ describe('weaponKeyAction', () => {
     expect(weaponKeyAction('Digit2')).toEqual({ type: 'select', slot: 1 });
   });
 
-  it('cycles on Q and E, rerolls on R', () => {
+  it('cycles on Q and E, takes a weapon on F', () => {
     expect(weaponKeyAction('KeyQ')).toEqual({ type: 'cycle', direction: -1 });
     expect(weaponKeyAction('KeyE')).toEqual({ type: 'cycle', direction: 1 });
-    expect(weaponKeyAction('KeyR')).toEqual({ type: 'reroll' });
+    expect(weaponKeyAction('KeyF')).toEqual({ type: 'pickup' });
+    expect(weaponKeyAction('KeyR')).toBeNull();
   });
 
   it('ignores everything else, movement included', () => {

@@ -45,7 +45,6 @@ export const createLoadout = async ({
   recipes,
   active: startActive = 0,
   arm,
-  reroll,
   now,
   onChange,
 }: {
@@ -53,8 +52,6 @@ export const createLoadout = async ({
   active?: number;
   /** Builds the weapon's voice; never called twice at once. */
   arm: (recipe: WeaponRecipe) => Promise<Armed>;
-  /** The recipe a reroll of `recipe` gives. */
-  reroll: (recipe: WeaponRecipe) => WeaponRecipe;
   /** The audio time switches are scheduled at. */
   now: () => number;
   onChange: (view: LoadoutView) => void;
@@ -132,9 +129,6 @@ export const createLoadout = async ({
       if (action.type === 'select') select(action.slot);
       if (action.type === 'cycle') {
         select((active + action.direction + size) % size);
-      }
-      if (action.type === 'reroll') {
-        void replace(active, reroll(slots[active].recipe));
       }
     },
     replaceActive: recipe => replace(active, recipe),
