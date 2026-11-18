@@ -21,7 +21,14 @@ import {
 } from '../render';
 import { createRng, deriveSeed } from '../rng';
 import type { Level } from '../level';
-import { createWorld, onBar, onBeat, queueShot, stepWorld } from '../sim/world';
+import {
+  createWorld,
+  onBar,
+  onBeat,
+  queueShot,
+  stepWorld,
+  type WaveRules,
+} from '../sim/world';
 
 export interface Pulses {
   kick: Pulse;
@@ -47,13 +54,15 @@ const SPAWN_STREAM = 1;
 
 /**
  * The frame loop: input → world sim → camera → render. Movement runs on
- * frames, but everything musical is read off the audio clock (`audioNow`):
+ * frames, but everything musical is read off the clock of what's being
+ * heard (`heardNow`):
  * enemies hop on beat ticks, waves spawn on bar ticks, and each kill's
  * impact is scheduled on the next 1/16 slot.
  */
 export const startPlay = async ({
   element,
   level,
+  rules,
   seed,
   bus,
   trigger,
@@ -62,9 +71,11 @@ export const startPlay = async ({
   sounds,
   stepSeconds,
   audioNow,
+  heardNow,
 }: {
   element: HTMLElement;
   level: Level;
+  rules: WaveRules;
   seed: number;
   bus: Bus<GameEvents>;
   trigger: TriggerHandlers;
@@ -72,14 +83,17 @@ export const startPlay = async ({
   pulses: Pulses;
   sounds: PlaySounds;
   stepSeconds: number;
+  /** Where the audio thread is: schedule new sounds from here. */
   audioNow: () => number;
+  /** What's coming out of the speakers: draw and simulate at this. */
+  heardNow: () => number;
 }): Promise<() => void> => {
   const stage = await createStage(element, level);
   const controls = attachControls(element);
   const detachTrigger = attachTrigger(element, trigger);
   const detachWeaponKeys = attachWeaponKeys(element, onWeaponAction);
 
-  let world = createWorld(level);
+  let world = createWorld(level, rules);
   let camera = world.player.position;
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
@@ -106,7 +120,7 @@ export const startPlay = async ({
 
   stage.onFrame(elapsed => {
     const dt = Math.min(elapsed, MAX_FRAME_SECONDS);
-    const now = audioNow();
+    const now = heardNow();
     const aimAt = screenToWorld(controls.pointer(), camera, stage.viewport());
     const result = stepWorld(world, {
       input: { move: controls.move(), aimAt },
@@ -122,14 +136,14 @@ export const startPlay = async ({
 
     const killed = result.kills.map(position => ({
       position,
-      time: nextSlot(now),
+      time: nextSlot(audioNow()),
     }));
     killed.forEach(({ time }) => {
       sounds.impact(time);
       pulses.kill.hit(time);
     });
     if (result.playerHit) {
-      sounds.duck(now);
+      sounds.duck(audioNow());
       pulses.hit.hit(now);
     }
     bursts = [...bursts, ...killed].filter(

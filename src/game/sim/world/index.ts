@@ -12,7 +12,13 @@ import type { Rng } from '../../rng';
 import type { Vec } from '../../vec';
 import type { ProjectileSpec } from '../../weapons';
 import { resolveContacts, resolveHits } from '../combat';
-import { planHop, spawnWave, waveSize, type Enemy } from '../enemy';
+import {
+  MAX_ENEMIES,
+  planHop,
+  spawnWave,
+  waveSize,
+  type Enemy,
+} from '../enemy';
 import {
   spawnPlayer,
   stepPlayer,
@@ -33,8 +39,19 @@ export interface PendingShot {
   angle: number;
 }
 
+/** How the waves come. */
+export interface WaveRules {
+  /** Bars of breathing room before the first wave. */
+  quietBars: number;
+  /** Stress test: top the level up to the enemy cap every bar. */
+  fill: boolean;
+}
+
+export const DEFAULT_RULES: WaveRules = { quietBars: 2, fill: false };
+
 export interface World {
   level: Level;
+  rules: WaveRules;
   player: Player;
   enemies: Array<Enemy>;
   projectiles: Array<Projectile>;
@@ -45,8 +62,6 @@ export interface World {
   invulnerableUntil: number;
 }
 
-/** Bars of breathing room before the first wave. */
-const QUIET_BARS = 2;
 const INVULNERABLE_SECONDS = 0.6;
 /**
  * Waves appear this many tiles away, walking: off-screen, usually a room
@@ -54,8 +69,12 @@ const INVULNERABLE_SECONDS = 0.6;
  */
 const SPAWN_DISTANCE = { min: 10, max: 18 };
 
-export const createWorld = (level: Level): World => ({
+export const createWorld = (
+  level: Level,
+  rules: WaveRules = DEFAULT_RULES,
+): World => ({
   level,
+  rules,
   player: spawnPlayer(level.start),
   enemies: [],
   projectiles: [],
@@ -137,8 +156,10 @@ export const onBar = (
   world: World,
   { bar, time, rng }: { bar: number; time: number; rng: Rng },
 ): World => {
-  if (bar < QUIET_BARS) return world;
-  const count = waveSize(bar - QUIET_BARS, world.enemies.length);
+  const { quietBars, fill } = world.rules;
+  if (bar < quietBars) return world;
+  const alive = world.enemies.length;
+  const count = fill ? MAX_ENEMIES - alive : waveSize(bar - quietBars, alive);
   if (count === 0) return world;
   const wave = spawnWave({
     rng,

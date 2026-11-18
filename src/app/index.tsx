@@ -8,6 +8,10 @@ type SessionStatus = 'idle' | 'starting' | 'playing';
 
 export const App = () => {
   const [seed] = useState(() => getSeed(window.location.search));
+  // `?stress` fills the level with enemies, for checking performance.
+  const [stress] = useState(() =>
+    new URLSearchParams(window.location.search).has('stress'),
+  );
   const [level] = useState(() => describeLevel(seed));
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
@@ -30,7 +34,7 @@ export const App = () => {
   // AudioContext start from a user gesture.
   const handleStart = async () => {
     setStatus('starting');
-    game.current = await startGame({ seed });
+    game.current = await startGame({ seed, stress });
     setLoadout(game.current.loadout());
     setStatus('playing');
   };

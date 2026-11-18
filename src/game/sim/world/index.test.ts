@@ -69,6 +69,15 @@ describe('onBar', () => {
     expect(onBar(first, { bar: 6, time: 6, rng }).enemies).toHaveLength(4);
   });
 
+  it('fills the level to the enemy cap in stress mode, from the first bar', () => {
+    const world = createWorld(level, { quietBars: 0, fill: true });
+    const filled = onBar(world, { bar: 0, time: 0, rng: createRng(1) });
+    expect(filled.enemies).toHaveLength(30);
+    expect(
+      onBar(filled, { bar: 1, time: 1, rng: createRng(2) }).enemies,
+    ).toHaveLength(30);
+  });
+
   it('spawns 10-18 tiles away by walking distance, on floor', () => {
     const world = onBar(createWorld(level), {
       bar: 20,

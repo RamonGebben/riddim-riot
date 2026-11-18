@@ -12,6 +12,10 @@ Browser twin-stick rhythm roguelite; the design is `design-brief-poc.md`.
 - **One clock.** Tone's Transport is the only time source; everything reacts
   to `tick` events on the bus and schedules at `tick.time`. Never use
   `setTimeout` or frame counts for musical timing.
+- **Two clocks, one source.** Schedule new sounds at the audio clock
+  (`audioNow`, Tone's `immediate()`); simulate and draw at the heard clock
+  (`heardNow`, from `getOutputTimestamp()`), which trails it by the output
+  latency - otherwise visuals land early, badly so on Bluetooth.
 - **Keep Tone out of pure modules.** `grid`, `rng`, `bus` and pattern
   generators must not import `tone` (directly or through a domain `index.ts`
   that does), so they run in the Node `unit` Vitest project.
@@ -34,6 +38,8 @@ Browser twin-stick rhythm roguelite; the design is `design-brief-poc.md`.
   text collide and only one is injected - give each a distinguishing comment.
 - **Pixi filter shaders compile as GLSL ES 1.0 too:** no array constructors,
   and uniforms shared with the vertex stage need `highp`.
+- `?stress` fills the level to the 30-enemy cap from the first bar, for
+  frame-rate checks.
 - `test` runs only the `unit` Vitest project; `test:storybook` runs the
   browser-based story tests.
 

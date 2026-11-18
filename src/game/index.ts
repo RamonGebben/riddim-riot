@@ -1,11 +1,12 @@
-import { immediate, now, start } from 'tone';
+import { getContext, immediate, now, start } from 'tone';
 import {
   createDrums,
   createImpactSound,
   createMusicBus,
-  measureWeaponLoudness,
   createReloadSound,
   createWeaponVoice,
+  heardTime,
+  measureWeaponLoudness,
 } from './audio';
 import { createBus } from './bus';
 import { createClock } from './clock';
@@ -15,6 +16,7 @@ import { createLoadout, type Armed, type LoadoutView } from './loadout';
 import { generateLevel } from './level';
 import { degreeToMidi, keyName, midiToHz } from './music';
 import { startPlay, type Pulses } from './play';
+import { DEFAULT_RULES } from './sim/world';
 import { createPulse } from './render/pulse';
 import { deriveSeed } from './rng';
 import { createWeaponSlot } from './sim';
@@ -37,6 +39,14 @@ export const describeLevel = (seed: number) => {
   return { key: keyName(key), palette: palette.name, bpm: BPM };
 };
 
+/** The audio time of what the speakers are playing right now. */
+const heardNow = () => {
+  const raw = getContext().rawContext;
+  const timestamp =
+    raw instanceof AudioContext ? raw.getOutputTimestamp() : undefined;
+  return heardTime(timestamp, performance.now(), immediate());
+};
+
 export interface Game {
   /** Mount the stage and input on the play area; returns detach. */
   attach: (element: HTMLElement) => () => void;
@@ -50,7 +60,14 @@ export interface Game {
  * Must be called from a user gesture (a click): it starts the AudioContext,
  * which browsers block until then.
  */
-export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
+export const startGame = async ({
+  seed,
+  stress = false,
+}: {
+  seed: number;
+  /** Fill the level with enemies from the first bar - for perf checks. */
+  stress?: boolean;
+}): Promise<Game> => {
   await start();
 
   const level = generateLevel(seed);
@@ -147,6 +164,7 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
       const play = startPlay({
         element,
         level,
+        rules: stress ? { quietBars: 0, fill: true } : DEFAULT_RULES,
         seed,
         bus,
         trigger: loadout,
@@ -158,6 +176,7 @@ export const startGame = async ({ seed }: { seed: number }): Promise<Game> => {
         },
         stepSeconds,
         audioNow: immediate,
+        heardNow,
       });
       return () => {
         play.then(detach => detach());
