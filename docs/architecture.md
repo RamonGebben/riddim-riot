@@ -135,7 +135,7 @@ the only mutable reference:
   (the snare) when within 8 tiles, showing a tell, and dash 4 tiles on the
   next downbeat; otherwise they walk on beat 2. The boss steps on beats 1
   and 3 only.
-- `onBar(world, { bar, time, rng, telegraphSeconds })`: advances the level
+- `onBar(world, { bar, time, rng, telegraphSeconds, view })`: advances the level
   (`sim/survival`). It waits until the player steps into the circle; the
   next bar line starts a one-bar charge (riser, filling ring) and the bar
   after slams: shockwave, drop hit, drums in, and the song starts. The song
@@ -145,8 +145,13 @@ the only mutable reference:
   2 bars through the build-up, every 4 with extra enemies in the drops,
   none in the outro; sooner once the floor is clear). Drop 3 opens with the
   boss, 8+ tiles away. Once the boss is down and the outro is playing, the
-  circle opens as the exit. Spawns can land anywhere 4+ tiles from the
-  player; a marker pulses there for 2 beats first (`telegraphSeconds`).
+  circle opens as the exit. Spawns land 4+ tiles from the player and,
+  given the `view` (the camera's world rect), only where it can be seen,
+  falling back to anywhere when nothing on screen is free; a marker pulses
+  there for a bar first (`telegraphSeconds`), so a wave lands on the next
+  bar line. The camera zooms out on small screens (`render/camera`
+  `zoomFor`) until the short side shows at least 720 world px, so a phone
+  sees about as much of the arena as a laptop.
 - `stepWorld(world, { input, dt, now, beat })`: per frame, the player moves
   (420 px/s, sliding along walls), shots whose time has sounded leave the
   barrel, projectiles fly and die on walls, beam ticks hit everything along
@@ -157,8 +162,10 @@ the only mutable reference:
   health. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
   it's `cleared`. Either way it freezes.
 
-`WaveRules` (from `rulesFor({ level, stress })`) set the song, enemy HP
-(+0.5 a level), boss HP (30, +12 a level) and charger share. An enemy stores
+`WaveRules` (from `rulesFor({ level, stress })`) set the song, boss HP
+(30, +12 a level) and charger share. Hoppers and chargers die to any hit
+(a shot, echo, blast or beam tick), so difficulty comes from wave size,
+chargers and the boss. An enemy stores
 its current hop (`from`, `to`, `hopAt`, `hopSeconds`), so its position is a
 pure function of the clock and lands exactly on the beat.
 

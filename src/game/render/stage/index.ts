@@ -1,8 +1,8 @@
 import { Application, Container } from 'pixi.js';
 import type { Level } from '../../level';
 import type { World } from '../../sim/world';
-import { add, type Vec } from '../../vec';
-import { worldOffset } from '../camera';
+import { add, scale, type Vec } from '../../vec';
+import { viewOf, worldOffset } from '../camera';
 import { createEnemiesView } from '../enemiesView';
 import { createFxView, type Burst } from '../fxView';
 import { createLevelView } from '../levelView';
@@ -29,7 +29,8 @@ export interface Frame {
 
 export interface Stage {
   /** Screen size in CSS pixels. */
-  viewport: () => Vec;
+  /** The zoom, and the world-pixel size of what's on screen. */
+  view: () => { zoom: number; size: Vec };
   /** Run `update` every animation frame with the elapsed seconds. */
   onFrame: (update: (dt: number) => void) => void;
   render: (frame: Frame) => void;
@@ -72,19 +73,24 @@ export const createStage = async (
   app.stage.filters = [rave.filter];
   app.stage.filterArea = app.screen;
 
-  const viewport = () => ({ x: app.screen.width, y: app.screen.height });
+  const view = () => viewOf({ x: app.screen.width, y: app.screen.height });
   // Pixi's resizeTo only listens to the window; a browser bar sliding away
   // or fullscreen kicking in can resize the element without telling it.
   const resizes = new ResizeObserver(() => app.resize());
   resizes.observe(element);
 
   return {
-    viewport,
+    view,
     onFrame: update => {
       app.ticker.add(ticker => update(ticker.deltaMS / 1000));
     },
     render: frame => {
-      const offset = add(worldOffset(frame.camera, viewport()), frame.shake);
+      const { zoom, size } = view();
+      const offset = add(
+        scale(worldOffset(frame.camera, size), zoom),
+        frame.shake,
+      );
+      layers.scale.set(zoom);
       layers.position.set(Math.round(offset.x), Math.round(offset.y));
       levelView.update({ ...frame, survival: frame.world.survival });
       pickups.update({

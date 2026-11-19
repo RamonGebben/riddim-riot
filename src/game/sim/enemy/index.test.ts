@@ -94,20 +94,20 @@ describe('spawnWave', () => {
     ).toHaveLength(2);
   });
 
-  it('mixes chargers in, tougher than hoppers', () => {
+  it('mixes chargers in, and any hit kills either kind', () => {
     const mixed = spawnWave({
       rng: createRng(4),
       count: 20,
       firstId: 1,
       candidates,
       time: 0,
-      hp: 2,
       chargerChance: 0.5,
     });
     const chargers = mixed.filter(enemy => enemy.kind === 'charger');
     expect(chargers.length).toBeGreaterThan(3);
     expect(chargers.length).toBeLessThan(17);
-    chargers.forEach(enemy => expect(enemy.hp).toBe(3));
+    // The weakest hit there is: a tiny beam tick or a blast's share.
+    mixed.forEach(enemy => expect(enemy.hp - 0.001).toBeLessThan(0));
     expect(wave(1).every(enemy => enemy.kind === 'hopper')).toBe(true);
   });
 
