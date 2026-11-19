@@ -1,18 +1,19 @@
-import { dbToGain, Filter, Gain, Limiter, type ToneAudioNode } from 'tone';
+import { dbToGain, getDestination } from 'tone';
 import type { MixPatch } from '../../sound';
+import { createGraph, type Automation } from '../graph';
 
 export interface MusicBus {
   /** The track - drums and arrangement - opened and closed by `open`. */
-  input: ToneAudioNode;
+  input: AudioNode;
   /** Part of the track like `input`, but pumped by the kick: the bed. */
-  bed: ToneAudioNode;
+  bed: AudioNode;
   /** Like `direct`, but pumped by the kick: the weapons. */
-  weapons: ToneAudioNode;
+  weapons: AudioNode;
   /**
    * Past the arrangement filter: the player's weapons and kills stay clear
    * however filtered the track is. Still ducked when hit.
    */
-  direct: ToneAudioNode;
+  direct: AudioNode;
   /** Set how open the track is: the cutoff, reached `seconds` after `time`. */
   open: (hz: number, time: number, seconds: number) => void;
   /** Muffle everything at `time`, then open back up over `seconds`. */
@@ -31,36 +32,41 @@ const OPEN_HZ = 20000;
 const DUCKED_HZ = 280;
 
 export const createMusicBus = (): MusicBus => {
-  const limiter = new Limiter(-1).toDestination();
-  const duckFilter = new Filter({
+  const graph = createGraph();
+  const limiter = graph.limiter(-1, getDestination());
+  const duckFilter = graph.filter({
     type: 'lowpass',
     frequency: OPEN_HZ,
     rolloff: -24,
     Q: 0.7,
-  }).connect(limiter);
-  const direct = new Gain(0.9).connect(duckFilter);
-  const arrangementFilter = new Filter({
+    output: limiter,
+  });
+  const direct = graph.gain(0.9, duckFilter.input);
+  const arrangementFilter = graph.filter({
     type: 'lowpass',
     frequency: OPEN_HZ,
     rolloff: -24,
     Q: 1,
-  }).connect(duckFilter);
-  const input = new Gain(0.9).connect(arrangementFilter);
-  const bedPump = new Gain(1).connect(arrangementFilter);
-  const bed = new Gain(0.9).connect(bedPump);
-  const weaponPump = new Gain(1).connect(direct);
-  const weapons = new Gain(1).connect(weaponPump);
+    output: duckFilter.input,
+  });
+  const input = graph.gain(0.9, arrangementFilter.input);
+  const bedPumpNode = graph.gain(1, arrangementFilter.input);
+  const bedPump = graph.param(bedPumpNode.gain, 'gain', 1);
+  const bed = graph.gain(0.9, bedPumpNode);
+  const weaponPumpNode = graph.gain(1, direct);
+  const weaponPump = graph.param(weaponPumpNode.gain, 'gain', 1);
+  const weapons = graph.gain(1, weaponPumpNode);
 
   const pumpDown = (
-    gain: Gain,
+    gain: Automation,
     depthDb: number,
     time: number,
     seconds: number,
   ) => {
-    gain.gain.cancelAndHoldAtTime(time);
+    gain.cancelAndHoldAtTime(time);
     // A few milliseconds down: a step would click on a held note.
-    gain.gain.linearRampToValueAtTime(dbToGain(depthDb), time + 0.005);
-    gain.gain.linearRampToValueAtTime(1, time + seconds);
+    gain.linearRampToValueAtTime(dbToGain(depthDb), time + 0.005);
+    gain.linearRampToValueAtTime(1, time + seconds);
   };
 
   return {
@@ -95,17 +101,6 @@ export const createMusicBus = (): MusicBus => {
       duckFilter.frequency.setValueAtTime(OPEN_HZ, time);
       duckFilter.frequency.exponentialRampToValueAtTime(DUCKED_HZ, time + 1.5);
     },
-    dispose: () =>
-      [
-        input,
-        bed,
-        bedPump,
-        weapons,
-        weaponPump,
-        arrangementFilter,
-        direct,
-        duckFilter,
-        limiter,
-      ].forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

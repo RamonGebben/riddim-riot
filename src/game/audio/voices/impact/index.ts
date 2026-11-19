@@ -1,13 +1,7 @@
-import {
-  Channel,
-  Filter,
-  Noise,
-  Oscillator,
-  type ToneAudioNode,
-  type Unit,
-} from 'tone';
+import { Frequency, type Unit } from 'tone';
 import { SOUND_DESIGN, type ImpactPatch } from '../../../sound';
 import { createGate } from '../../gate';
+import { createGraph, type Output } from '../../graph';
 import { createSaturator } from '../../saturate';
 
 export interface ImpactSound {
@@ -25,19 +19,15 @@ export const createImpactSound = ({
   root,
   patch = SOUND_DESIGN.impact,
 }: {
-  output: ToneAudioNode;
+  output: Output;
   root: Unit.Frequency;
   patch?: ImpactPatch;
 }): ImpactSound => {
-  const channel = new Channel({ volume: patch.level }).connect(output);
+  const graph = createGraph();
+  const channel = graph.channel(patch.level, output);
 
-  const noise = new Noise('pink').start();
-  const crunchFilter = new Filter({
-    type: 'bandpass',
-    frequency: patch.crunchHz,
-    Q: patch.crunchQ,
-  });
-  const crunch = createGate({
+  const noise = graph.noise('pink');
+  const crunch = createGate(graph, {
     envelope: {
       attack: 0.001,
       decay: patch.crunchDecay,
@@ -47,12 +37,17 @@ export const createImpactSound = ({
     volume: patch.crunchLevel,
     output: channel,
   });
-  noise.chain(crunchFilter, crunch.input);
+  noise.connect(
+    graph.filter({
+      type: 'bandpass',
+      frequency: patch.crunchHz,
+      Q: patch.crunchQ,
+      output: crunch.input,
+    }).input,
+  );
 
-  const thumpOsc = new Oscillator({ type: 'sine' }).start();
-  const thumpHz = thumpOsc.toFrequency(root);
-  thumpOsc.frequency.value = thumpHz;
-  const thump = createGate({
+  const thumpHz = Frequency(root).toFrequency();
+  const thump = createGate(graph, {
     envelope: {
       attack: 0.001,
       decay: patch.thumpDecay,
@@ -62,10 +57,12 @@ export const createImpactSound = ({
     volume: patch.thumpLevel,
     output: channel,
   });
-  thumpOsc.connect(thump.input);
+  const thumpOsc = graph.oscillator(
+    { type: 'sine', frequency: thumpHz },
+    thump.input,
+  );
 
-  const snapFilter = new Filter({ type: 'highpass', frequency: patch.snapHz });
-  const snap = createGate({
+  const snap = createGate(graph, {
     envelope: {
       attack: 0.001,
       decay: patch.snapDecay,
@@ -75,10 +72,16 @@ export const createImpactSound = ({
     volume: patch.snapLevel,
     output: channel,
   });
-  noise.chain(snapFilter, snap.input);
+  noise.connect(
+    graph.filter({
+      type: 'highpass',
+      frequency: patch.snapHz,
+      output: snap.input,
+    }).input,
+  );
 
   const bodyHz = thumpHz * 2 ** patch.bodyOctave;
-  const body = createGate({
+  const body = createGate(graph, {
     envelope: {
       attack: 0.001,
       decay: patch.bodyDecay,
@@ -88,26 +91,10 @@ export const createImpactSound = ({
     volume: patch.bodyLevel,
     output: channel,
   });
-  const bodySaturation = createSaturator(patch.bodySaturation).connect(
-    body.input,
+  const bodyOsc = graph.oscillator(
+    { type: 'square', frequency: bodyHz },
+    createSaturator(graph, patch.bodySaturation, body.input),
   );
-  const bodyOsc = new Oscillator({ type: 'square', frequency: bodyHz })
-    .connect(bodySaturation)
-    .start();
-
-  const nodes = [
-    noise,
-    crunchFilter,
-    crunch,
-    thumpOsc,
-    thump,
-    snapFilter,
-    snap,
-    bodyOsc,
-    bodySaturation,
-    body,
-    channel,
-  ];
 
   return {
     play: time => {
@@ -128,6 +115,6 @@ export const createImpactSound = ({
       body.envelope.triggerAttackRelease(0.03, time);
       thump.envelope.triggerAttackRelease(0.1, time);
     },
-    dispose: () => nodes.forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

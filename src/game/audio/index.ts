@@ -2,6 +2,7 @@ export * from './drums';
 export * from './musicBus';
 export * from './voices';
 export * from './gate';
+export * from './graph';
 export * from './loudness';
 export * from './heardTime';
 export * from './nativeContext';

@@ -1,16 +1,8 @@
-import {
-  Channel,
-  FatOscillator,
-  Filter,
-  Noise,
-  Oscillator,
-  Volume,
-  type ToneAudioNode,
-} from 'tone';
 import { degreeToMidi, midiToHz, type Key } from '../../music';
 import type { Section } from '../../sim/survival';
 import { SOUND_DESIGN, type ArrangementPatch } from '../../sound';
 import { createGate } from '../gate';
+import { createGraph, type Output } from '../graph';
 import type { MusicBus } from '../musicBus';
 
 export interface Arrangement {
@@ -56,7 +48,7 @@ export const createArrangement = ({
   patch = SOUND_DESIGN.arrangement,
 }: {
   musicBus: MusicBus;
-  output: ToneAudioNode;
+  output: Output;
   barSeconds: number;
   /** The level's root in octave 1, for the drop's sub boom. */
   rootHz: number;
@@ -65,16 +57,12 @@ export const createArrangement = ({
   patch?: ArrangementPatch;
 }): Arrangement => {
   const OPENNESS = opennessOf(patch);
-  const channel = new Channel({ volume: patch.level }).connect(output);
-  const noise = new Noise('white').start();
+  const graph = createGraph();
+  const channel = graph.channel(patch.level, output);
+  const noise = graph.noise('white');
 
   // A riser: noise swept up over two bars, swelling in.
-  const riserFilter = new Filter({
-    type: 'bandpass',
-    frequency: patch.riserFrom,
-    Q: 2,
-  });
-  const riser = createGate({
+  const riser = createGate(graph, {
     envelope: {
       attack: barSeconds * 1.8,
       decay: 0.05,
@@ -84,14 +72,16 @@ export const createArrangement = ({
     volume: patch.riserLevel,
     output: channel,
   });
-  noise.chain(riserFilter, riser.input);
+  const riserFilter = graph.filter({
+    type: 'bandpass',
+    frequency: patch.riserFrom,
+    Q: 2,
+    output: riser.input,
+  });
+  noise.connect(riserFilter.input);
 
   // The drop: a long bright crash over a sub boom on the root.
-  const crashFilter = new Filter({
-    type: 'highpass',
-    frequency: patch.crashHz,
-  });
-  const crash = createGate({
+  const crash = createGate(graph, {
     envelope: {
       attack: 0.002,
       decay: patch.crashDecay,
@@ -101,9 +91,14 @@ export const createArrangement = ({
     volume: patch.crashLevel,
     output: channel,
   });
-  noise.chain(crashFilter, crash.input);
-  const boomOsc = new Oscillator({ type: 'sine', frequency: rootHz }).start();
-  const boom = createGate({
+  noise.connect(
+    graph.filter({
+      type: 'highpass',
+      frequency: patch.crashHz,
+      output: crash.input,
+    }).input,
+  );
+  const boom = createGate(graph, {
     envelope: {
       attack: 0.002,
       decay: patch.boomDecay,
@@ -113,32 +108,38 @@ export const createArrangement = ({
     volume: patch.boomLevel,
     output: channel,
   });
-  boomOsc.connect(boom.input);
+  const boomOsc = graph.oscillator(
+    { type: 'sine', frequency: rootHz },
+    boom.input,
+  );
 
-  const bed = new Volume(patch.pad.calm).connect(musicBus.bed);
-  const padLevel = new Volume(patch.pad.level).connect(bed);
-  const padFilter = new Filter({
+  const bedNode = graph.gain(1, musicBus.bed);
+  const bed = graph.param(bedNode.gain, 'decibels', patch.pad.calm);
+  const padFilter = graph.filter({
     type: 'lowpass',
     frequency: patch.pad.hz,
-  }).connect(padLevel);
-  const pad = patch.pad.degrees.map(degree =>
-    new FatOscillator({
-      type: 'sawtooth',
-      frequency: midiToHz(degreeToMidi(key, degree, patch.pad.octave)),
-      count: 2,
-      spread: patch.pad.detune,
-      // Each note at its share, so a bigger chord isn't a louder one.
-      volume: -20 * Math.log10(Math.max(patch.pad.degrees.length, 1)),
-    })
-      .connect(padFilter)
-      .start(),
+    output: graph.volume(patch.pad.level, bedNode),
+  });
+  patch.pad.degrees.forEach(degree =>
+    graph.fatOscillator(
+      {
+        type: 'sawtooth',
+        frequency: midiToHz(degreeToMidi(key, degree, patch.pad.octave)),
+        count: 2,
+        spread: patch.pad.detune,
+        // Each note at its share, so a bigger chord isn't a louder one.
+        volume: -20 * Math.log10(Math.max(patch.pad.degrees.length, 1)),
+      },
+      padFilter.input,
+    ),
   );
-  const airLevel = new Volume(patch.air.level).connect(bed);
-  const airFilter = new Filter({
-    type: 'highpass',
-    frequency: patch.air.hz,
-  }).connect(airLevel);
-  noise.connect(airFilter);
+  noise.connect(
+    graph.filter({
+      type: 'highpass',
+      frequency: patch.air.hz,
+      output: graph.volume(patch.air.level, bedNode),
+    }).input,
+  );
 
   let current: Section = 'calm';
   musicBus.open(OPENNESS.calm, 0, 0);
@@ -162,23 +163,6 @@ export const createArrangement = ({
     boom.envelope.triggerAttackRelease(0.1, time);
   };
 
-  const nodes = [
-    noise,
-    riserFilter,
-    riser,
-    crashFilter,
-    crash,
-    boomOsc,
-    boom,
-    ...pad,
-    padFilter,
-    padLevel,
-    airFilter,
-    airLevel,
-    bed,
-    channel,
-  ];
-
   return {
     onBar: (section, { time, bar }) => {
       const entering = section !== current;
@@ -194,7 +178,7 @@ export const createArrangement = ({
           section === 'drop' ? 0 : barSeconds,
         );
       }
-      if (entering) bed.volume.rampTo(patch.pad[section], barSeconds, time);
+      if (entering) bed.rampTo(patch.pad[section], barSeconds, time);
       if (entering && section === 'drop') drop(time);
       current = section;
     },
@@ -204,6 +188,6 @@ export const createArrangement = ({
       startRiser(time, seconds);
       musicBus.open(OPENNESS.build, time, seconds);
     },
-    dispose: () => nodes.forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

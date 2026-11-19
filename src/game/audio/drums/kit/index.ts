@@ -1,13 +1,6 @@
-import {
-  Channel,
-  Filter,
-  Noise,
-  Oscillator,
-  Reverb,
-  type ToneAudioNode,
-} from 'tone';
 import { SOUND_DESIGN, type DrumsPatch } from '../../../sound';
 import { createGate } from '../../gate';
+import { createGraph, type Automation, type Output } from '../../graph';
 import type { DrumVoice } from '../pattern';
 
 export interface DrumKit {
@@ -19,103 +12,118 @@ const CLAP_STRIKES = [0, 0.011, 0.022];
 
 /** A pitch that drops from `multiple`× down to `to` - the "boom" in a kick. */
 const pitchDrop = (
-  oscillator: Oscillator,
+  frequency: Automation,
   { to, multiple, seconds }: { to: number; multiple: number; seconds: number },
   time: number,
 ) => {
-  oscillator.frequency.cancelScheduledValues(time);
-  oscillator.frequency.setValueAtTime(to * multiple, time);
-  oscillator.frequency.exponentialRampToValueAtTime(to, time + seconds);
+  frequency.cancelScheduledValues(time);
+  frequency.setValueAtTime(to * multiple, time);
+  frequency.exponentialRampToValueAtTime(to, time + seconds);
 };
 
 /**
  * A fully synthesized kit - no samples - tuned for halftime at 140. Every
  * source runs from the start and is gated per hit (see `createGate`).
  */
-export const createDrumKit = async (
-  output: ToneAudioNode,
+export const createDrumKit = (
+  output: Output,
   /** The kick's fundamental - tuned to the level's root. */
   kickHz: number,
   patch: DrumsPatch = SOUND_DESIGN.drums,
-): Promise<DrumKit> => {
+): DrumKit => {
   const { kick: k, snare: s, hat: h, openHat: o } = patch;
-  const channel = new Channel({ volume: patch.level }).connect(output);
-  const noise = new Noise('white').start();
+  const graph = createGraph();
+  const channel = graph.channel(patch.level, output);
+  const noise = graph.noise('white');
 
-  const kickOsc = new Oscillator({ type: 'sine', frequency: kickHz }).start();
-  const kick = createGate({
+  const kick = createGate(graph, {
     envelope: { attack: 0.001, decay: k.decay, sustain: 0, release: 0.05 },
     volume: k.level,
     output: channel,
   });
-  kickOsc.connect(kick.input);
-  const kickClickFilter = new Filter({
-    type: 'bandpass',
-    frequency: k.clickHz,
-  });
-  const kickClick = createGate({
-    envelope: { attack: 0.001, decay: k.clickDecay, sustain: 0, release: 0.01 },
-    volume: k.clickLevel,
-    output: channel,
-  });
-  noise.chain(kickClickFilter, kickClick.input);
   // The tail rides the same oscillator: a second sine would drift out of
   // phase with the punch and cancel it on some hits.
-  const kickSub = createGate({
+  const kickSub = createGate(graph, {
     envelope: { attack: 0.004, decay: k.subDecay, sustain: 0, release: 0.05 },
     volume: k.subLevel,
     output: channel,
   });
-  kickOsc.connect(kickSub.input);
+  const kickOsc = graph.oscillator(
+    { type: 'sine', frequency: kickHz },
+    kick.input,
+  );
+  kickOsc.node.connect(kickSub.input);
+  const kickClick = createGate(graph, {
+    envelope: { attack: 0.001, decay: k.clickDecay, sustain: 0, release: 0.01 },
+    volume: k.clickLevel,
+    output: channel,
+  });
+  noise.connect(
+    graph.filter({
+      type: 'bandpass',
+      frequency: k.clickHz,
+      output: kickClick.input,
+    }).input,
+  );
 
-  const snareRoom = new Reverb({ decay: s.roomDecay, wet: s.roomWet }).connect(
+  const snareRoom = graph.reverb(
+    { decay: s.roomDecay, wet: s.roomWet },
     channel,
   );
-  await snareRoom.ready;
-  const snareFilter = new Filter(s.noiseHz, 'highpass');
-  const snareNoise = createGate({
+  const snareNoise = createGate(graph, {
     envelope: { attack: 0.001, decay: s.noiseDecay, sustain: 0, release: 0.02 },
     volume: s.noiseLevel,
     output: snareRoom,
   });
-  noise.chain(snareFilter, snareNoise.input);
-  const snareOsc = new Oscillator({
-    type: 'sine',
-    frequency: s.bodyHz,
-  }).start();
-  const snareBody = createGate({
+  noise.connect(
+    graph.filter({
+      type: 'highpass',
+      frequency: s.noiseHz,
+      output: snareNoise.input,
+    }).input,
+  );
+  const snareBody = createGate(graph, {
     envelope: { attack: 0.001, decay: s.bodyDecay, sustain: 0, release: 0.02 },
     volume: s.bodyLevel,
     output: snareRoom,
   });
-  snareOsc.connect(snareBody.input);
-  const clapFilter = new Filter({ type: 'bandpass', frequency: s.clapHz });
-  const clap = createGate({
+  const snareOsc = graph.oscillator(
+    { type: 'sine', frequency: s.bodyHz },
+    snareBody.input,
+  );
+  const clap = createGate(graph, {
     envelope: { attack: 0.001, decay: s.clapDecay, sustain: 0, release: 0.02 },
     volume: s.clapLevel,
     output: snareRoom,
   });
-  noise.chain(clapFilter, clap.input);
+  noise.connect(
+    graph.filter({ type: 'bandpass', frequency: s.clapHz, output: clap.input })
+      .input,
+  );
 
-  const hatFilter = new Filter(h.hz, 'highpass');
-  const hat = createGate({
+  const hat = createGate(graph, {
     envelope: { attack: 0.001, decay: h.decay, sustain: 0, release: 0.01 },
     volume: h.level,
     output: channel,
   });
-  noise.chain(hatFilter, hat.input);
-  const openHatFilter = new Filter(o.hz, 'highpass');
-  const openHat = createGate({
+  noise.connect(
+    graph.filter({ type: 'highpass', frequency: h.hz, output: hat.input })
+      .input,
+  );
+  const openHat = createGate(graph, {
     envelope: { attack: 0.001, decay: o.decay, sustain: 0, release: 0.06 },
     volume: o.level,
     output: channel,
   });
-  noise.chain(openHatFilter, openHat.input);
+  noise.connect(
+    graph.filter({ type: 'highpass', frequency: o.hz, output: openHat.input })
+      .input,
+  );
 
   const players: Record<DrumVoice, (time: number, velocity: number) => void> = {
     kick: (time, velocity) => {
       pitchDrop(
-        kickOsc,
+        kickOsc.frequency,
         { to: kickHz, multiple: k.pitchMultiple, seconds: k.pitchSeconds },
         time,
       );
@@ -124,7 +132,11 @@ export const createDrumKit = async (
       kickSub.envelope.triggerAttackRelease(0.2, time, velocity);
     },
     snare: (time, velocity) => {
-      pitchDrop(snareOsc, { to: s.bodyHz, multiple: 2, seconds: 0.015 }, time);
+      pitchDrop(
+        snareOsc.frequency,
+        { to: s.bodyHz, multiple: 2, seconds: 0.015 },
+        time,
+      );
       snareNoise.envelope.triggerAttackRelease(0.1, time, velocity);
       snareBody.envelope.triggerAttackRelease(0.05, time, velocity);
       // A clap is a few hands a hair apart: three quick strikes, the last
@@ -146,29 +158,8 @@ export const createDrumKit = async (
       openHat.envelope.triggerAttackRelease(0.2, time, velocity),
   };
 
-  const nodes = [
-    noise,
-    kickOsc,
-    kickClickFilter,
-    snareOsc,
-    clapFilter,
-    snareFilter,
-    snareRoom,
-    hatFilter,
-    openHatFilter,
-    channel,
-    kick,
-    kickClick,
-    kickSub,
-    clap,
-    snareNoise,
-    snareBody,
-    hat,
-    openHat,
-  ];
-
   return {
     play: (voice, time, velocity) => players[voice](time, velocity),
-    dispose: () => nodes.forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

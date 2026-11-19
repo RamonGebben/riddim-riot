@@ -132,7 +132,7 @@ export const startGame = async ({
   const bus = createBus<GameEvents>();
   const musicBus = createMusicBus();
   onStep('kit');
-  const drums = await createDrums({
+  const drums = createDrums({
     seed,
     output: musicBus.input,
     kickHz: rootHz(1),

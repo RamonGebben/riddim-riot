@@ -126,7 +126,7 @@ export const createPlayground = async ({
     recharge?.dispose();
     score?.dispose();
     blast?.dispose();
-    drums = await createDrums({
+    drums = createDrums({
       seed: 1,
       output: musicBus.input,
       kickHz: rootHz(),
