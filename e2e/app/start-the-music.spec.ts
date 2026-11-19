@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 test('start the music, move and fire the wobble gun', async ({ page }) => {
+  // A dozen steps on a real-time game: past the default 30 s on a slow runner.
+  test.setTimeout(60_000);
   const errors: Array<string> = [];
   page.on('pageerror', error => errors.push(error.message));
 
@@ -24,7 +26,7 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
 
   // Tap, then hold through a full magazine and its reload.
   await playArea.click();
-  await page.mouse.move(400, 400);
+  await page.mouse.move(400, 250);
   await page.mouse.down();
   await page.waitForTimeout(2500);
   await page.mouse.up();
@@ -33,7 +35,7 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
   await page.getByLabel('Score').dblclick();
   await page.mouse.move(20, 20);
   await page.mouse.down();
-  await page.mouse.move(1200, 700, { steps: 5 });
+  await page.mouse.move(620, 340, { steps: 5 });
   await page.mouse.up();
   expect(await page.evaluate(() => String(window.getSelection()))).toBe('');
 

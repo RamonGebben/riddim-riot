@@ -1,6 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 4173;
+/**
+ * A small landscape phone's worth of pixels. The runner draws WebGL in
+ * software, where a 1280x720 frame took WebKit over a second and the
+ * game crawled; at this size it keeps up.
+ */
+const viewport = { width: 640, height: 360 };
 
 export default defineConfig({
   testDir: 'e2e',
@@ -13,9 +19,9 @@ export default defineConfig({
   // Every engine: Tone's audio differs across them (Firefox once failed to
   // start while Chromium played fine).
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport } },
   ],
   webServer: {
     command: `pnpm exec vite --port ${PORT} --strictPort`,
