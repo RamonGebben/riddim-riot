@@ -39,6 +39,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      # The runner has no sound device. Chromium and WebKit fall back to a
+      # fake one, but Firefox's AudioContext stays suspended at 0 s, so the
+      # game's clock never moves: a null sink gives it somewhere to play.
+      - name: Give the runner a sound device
+        run: |
+          sudo apt-get install -y --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci
+          pactl set-default-sink ci
       - run: pnpm test:storybook
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
