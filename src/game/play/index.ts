@@ -35,6 +35,7 @@ import {
   queueShot,
   stepWorld,
   takePickup,
+  type View,
   type WaveRules,
 } from '../sim/world';
 
@@ -72,8 +73,11 @@ export interface PlaySounds {
 }
 
 const SHAKE_PIXELS = 7;
-/** A spawn's marker pulses for two beats before it appears. */
-const TELEGRAPH_BEATS = 2;
+/**
+ * A spawn's marker pulses for a bar before it appears, so it lands on the
+ * next bar line - long enough to see it coming and get out of the way.
+ */
+const TELEGRAPH_BEATS = 4;
 /** The slam's shockwave, out from the circle across the arena. */
 const SLAM_RADIUS = 900;
 const KILL_SHAKE_PIXELS = 5;
@@ -157,6 +161,8 @@ export const startPlay = async ({
 
   let world = createWorld(level, rules, carry);
   let camera = world.player.position;
+  /** What's on screen, for spawning where it can be seen. */
+  let view: View = { center: camera, size: stage.view().size };
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
   let lastSection: Section = 'calm';
@@ -187,6 +193,7 @@ export const startPlay = async ({
       time: tick.time,
       rng,
       telegraphSeconds: TELEGRAPH_BEATS * beatSeconds,
+      view,
     });
     if (world.status !== 'playing') return;
     const { survival } = world;
@@ -242,9 +249,10 @@ export const startPlay = async ({
         )
       : 0;
     const stickAim = touch.active() ? touch.aim() : null;
+    const { zoom, size } = stage.view();
     const aimAt = stickAim
       ? add(world.player.position, scale(stickAim, STICK_AIM_PIXELS))
-      : screenToWorld(controls.pointer(), camera, stage.viewport());
+      : screenToWorld(scale(controls.pointer(), 1 / zoom), camera, size);
     const move = touch.active() ? touch.move() : controls.move();
     const result = stepWorld(world, {
       input: { move, aimAt },
@@ -255,9 +263,10 @@ export const startPlay = async ({
     world = result.world;
     camera = clampCamera(
       followCamera(camera, world.player.position, dt),
-      stage.viewport(),
+      size,
       level,
     );
+    view = { center: camera, size };
 
     const killed = result.kills.map(position => ({
       position,

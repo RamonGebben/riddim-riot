@@ -3,6 +3,23 @@ import { add, lerp, scale, subtract, type Vec } from '../../vec';
 /** How quickly the camera catches up with its target; higher is tighter. */
 const FOLLOW = 10;
 
+/**
+ * The least world, in pixels, the screen's short side shows. A laptop
+ * already shows more and plays at 1:1; a phone in landscape (~390 px tall)
+ * zooms out to this, so waves come into view before they reach you.
+ */
+export const MIN_VIEW_PIXELS = 720;
+
+/** World pixels to screen pixels: 1, or less on a small screen. */
+export const zoomFor = (screen: Vec): number =>
+  Math.min(1, Math.min(screen.x, screen.y) / MIN_VIEW_PIXELS);
+
+/** What a screen shows: its zoom, and how much world fits on it. */
+export const viewOf = (screen: Vec): { zoom: number; size: Vec } => {
+  const zoom = zoomFor(screen);
+  return { zoom, size: scale(screen, 1 / zoom) };
+};
+
 /** The camera is the world point at the centre of the screen. */
 export const followCamera = (camera: Vec, target: Vec, dt: number): Vec =>
   lerp(camera, target, 1 - Math.exp(-FOLLOW * dt));

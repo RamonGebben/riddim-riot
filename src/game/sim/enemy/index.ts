@@ -2,9 +2,11 @@ import type { Rng } from '../../rng';
 import { lerp, type Vec } from '../../vec';
 
 export const ENEMY_RADIUS = 16;
-export const ENEMY_HP = 2;
-/** Chargers soak more, since they only threaten in bursts. */
-export const CHARGER_BONUS_HP = 1;
+/**
+ * Hoppers and chargers go down to any hit: every shot, echo, blast and beam
+ * tick does more damage than this. Only the boss has health to wear down.
+ */
+export const ENEMY_HP = Number.MIN_VALUE;
 /** A charger's dash: four tiles, much faster than a hop. */
 export const DASH_TILES = 4;
 export const DASH_SECONDS = 0.18;
@@ -76,7 +78,6 @@ export const spawnWave = ({
   firstId,
   candidates,
   time,
-  hp = ENEMY_HP,
   chargerChance = 0,
 }: {
   rng: Rng;
@@ -84,7 +85,6 @@ export const spawnWave = ({
   firstId: number;
   candidates: Array<Vec>;
   time: number;
-  hp?: number;
   /** Share of the wave that comes as chargers. */
   chargerChance?: number;
 }): Array<Enemy> => {
@@ -97,7 +97,7 @@ export const spawnWave = ({
     return {
       id: firstId + i,
       kind,
-      hp: kind === 'charger' ? hp + CHARGER_BONUS_HP : hp,
+      hp: ENEMY_HP,
       from: position,
       to: position,
       hopAt: time,

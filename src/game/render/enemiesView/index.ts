@@ -147,7 +147,6 @@ export const createEnemiesView = (palette: Palette): EnemiesView => {
           return;
         }
         body.scale.set(grown * (1 - stretch), grown * (1 + stretch));
-        body.alpha = enemy.hp <= 1 ? 0.7 : 1;
 
         if (enemy.kind !== 'charger' || !tell) return;
         const heading = enemy.aim ?? {

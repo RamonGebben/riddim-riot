@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MIN_VIEW_PIXELS,
+  viewOf,
   clampCamera,
   followCamera,
   screenToWorld,
@@ -33,6 +35,22 @@ describe('camera', () => {
       x: 10,
       y: 20,
     });
+  });
+});
+
+describe('viewOf', () => {
+  it('plays a big screen at 1:1', () => {
+    expect(viewOf({ x: 1440, y: 900 })).toEqual({
+      zoom: 1,
+      size: { x: 1440, y: 900 },
+    });
+  });
+
+  it('zooms a phone out until its short side shows enough world', () => {
+    const { zoom, size } = viewOf({ x: 844, y: 390 });
+    expect(zoom).toBeCloseTo(390 / MIN_VIEW_PIXELS);
+    expect(size.y).toBeCloseTo(MIN_VIEW_PIXELS);
+    expect(size.x).toBeCloseTo((844 * MIN_VIEW_PIXELS) / 390);
   });
 });
 

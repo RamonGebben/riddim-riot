@@ -110,10 +110,34 @@ describe('the circle', () => {
 });
 
 describe('onBar', () => {
-  it('gives enemies more hit points on later levels', () => {
-    fighting(rulesFor({ level: 3 })).enemies.forEach(enemy =>
-      expect(enemy.hp).toBe(3),
+  it('keeps waves at one hit to kill on later levels', () => {
+    fighting(rulesFor({ level: 5 })).enemies.forEach(enemy =>
+      expect(enemy.hp - 0.001).toBeLessThan(0),
     );
+  });
+
+  it('spawns where the player can see, when it knows the view', () => {
+    const charged = onBar(stepInto(createWorld(level), level.pad), {
+      bar: 1,
+      time: 2,
+      rng: createRng(1),
+    });
+    const view = { center: level.pad, size: { x: 1400, y: 720 } };
+    const slammed = onBar(charged, {
+      bar: 2,
+      time: 4,
+      rng: createRng(1),
+      view,
+    });
+    expect(slammed.enemies.length).toBeGreaterThan(0);
+    slammed.enemies.forEach(enemy => {
+      expect(Math.abs(enemy.to.x - view.center.x)).toBeLessThanOrEqual(
+        view.size.x / 2 - TILE_SIZE,
+      );
+      expect(Math.abs(enemy.to.y - view.center.y)).toBeLessThanOrEqual(
+        view.size.y / 2 - TILE_SIZE,
+      );
+    });
   });
 
   it('brings the boss on the last drop, far from the player', () => {

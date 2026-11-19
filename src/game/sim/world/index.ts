@@ -18,7 +18,6 @@ import { resolveBlasts, type Blast } from '../splash';
 import {
   DASH_SECONDS,
   DASH_TILES,
-  ENEMY_HP,
   ENEMY_RADIUS,
   MAX_ENEMIES,
   HOP_SECONDS,
@@ -74,7 +73,6 @@ export interface WaveRules {
   level: number;
   /** The song the level plays, part by part (see `songFor`). */
   song: Array<SongSection>;
-  enemyHp: number;
   bossHp: number;
   /** Share of each wave after the first that comes as chargers. */
   chargerChance: number;
@@ -95,7 +93,6 @@ export const rulesFor = ({
 }): WaveRules => ({
   level,
   song: songFor(level),
-  enemyHp: ENEMY_HP + 0.5 * (level - 1),
   bossHp: 30 + 12 * (level - 1),
   chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
@@ -139,6 +136,27 @@ export const PLAYER_MAX_HP = 5;
  * never right on top of the player.
  */
 const SPAWN_MIN_TILES = 4;
+
+/** What the player can see, in world pixels: the camera and the view's size. */
+export interface View {
+  center: Vec;
+  size: Vec;
+}
+
+/** Inside the view, a tile clear of its edge, so a marker is never cut off. */
+const inView = (view: View, point: Vec) =>
+  Math.abs(point.x - view.center.x) <= view.size.x / 2 - TILE_SIZE &&
+  Math.abs(point.y - view.center.y) <= view.size.y / 2 - TILE_SIZE;
+
+/**
+ * Spots on screen if there are any, so a wave's markers are seen for the
+ * whole telegraph; anywhere otherwise, so a wave always comes.
+ */
+const visibleFirst = (spots: Array<Vec>, view: View | undefined) => {
+  if (!view) return spots;
+  const seen = spots.filter(spot => inView(view, spot));
+  return seen.length > 0 ? seen : spots;
+};
 
 export const createWorld = (
   level: Level,
@@ -362,16 +380,22 @@ const spawn = (
     time,
     rng,
     chargerChance,
-  }: { count: number; time: number; rng: Rng; chargerChance: number },
+    view,
+  }: {
+    count: number;
+    time: number;
+    rng: Rng;
+    chargerChance: number;
+    view?: View;
+  },
 ): World => {
   if (count === 0) return world;
   const wave = spawnWave({
     rng,
     count,
     firstId: world.nextId,
-    candidates: spawnSpots(world),
+    candidates: visibleFirst(spawnSpots(world), view),
     time,
-    hp: world.rules.enemyHp,
     chargerChance,
   });
   return {
@@ -384,7 +408,8 @@ const spawn = (
 /**
  * On every bar line: the level moves on (see `advanceSurvival`), so the
  * charge, the slam and every wave land on the song's structure. Spawns
- * appear `telegraphSeconds` after the bar, their markers pulsing until then.
+ * appear `telegraphSeconds` after the bar, their markers pulsing until then,
+ * on screen when `view` says where that is.
  */
 export const onBar = (
   world: World,
@@ -393,7 +418,14 @@ export const onBar = (
     time,
     rng,
     telegraphSeconds = 0,
-  }: { bar: number; time: number; rng: Rng; telegraphSeconds?: number },
+    view,
+  }: {
+    bar: number;
+    time: number;
+    rng: Rng;
+    telegraphSeconds?: number;
+    view?: View;
+  },
 ): World => {
   if (world.status !== 'playing') return world;
   const { rules } = world;
@@ -405,6 +437,7 @@ export const onBar = (
       time: spawnAt,
       rng,
       chargerChance: rules.chargerChance,
+      view,
     });
   }
 
@@ -425,21 +458,22 @@ export const onBar = (
         time: spawnAt,
         rng,
         chargerChance: wave.chargers ? rules.chargerChance : 0,
+        view,
       })
     : advanced;
-  return boss ? spawnTheBoss(waved, { time: spawnAt, rng }) : waved;
+  return boss ? spawnTheBoss(waved, { time: spawnAt, rng, view }) : waved;
 };
 
 const spawnTheBoss = (
   world: World,
-  { time, rng }: { time: number; rng: Rng },
+  { time, rng, view }: { time: number; rng: Rng; view?: View },
 ): World => {
   const far = spawnSpots(world).filter(
     spot =>
       length(subtract(spot, world.player.position)) >=
       BOSS_MIN_TILES * TILE_SIZE,
   );
-  const spots = far.length > 0 ? far : spawnSpots(world);
+  const spots = visibleFirst(far.length > 0 ? far : spawnSpots(world), view);
   if (spots.length === 0) return world;
   const boss = spawnBoss({
     id: world.nextId,
