@@ -1,18 +1,3 @@
-import {
-  Channel,
-  Compressor,
-  Distortion,
-  FatOscillator,
-  FeedbackDelay,
-  Filter,
-  Gain,
-  LFO,
-  Noise,
-  Oscillator,
-  Volume,
-  type Signal,
-  type ToneAudioNode,
-} from 'tone';
 import { STEPS_PER_BEAT } from '../../../grid';
 import { midiToHz } from '../../../music';
 import {
@@ -26,6 +11,13 @@ import {
 } from '../../../sound';
 import type { LfoPart, WeaponSound } from '../../../weapons';
 import { createGate } from '../../gate';
+import {
+  createGraph,
+  type Automation,
+  type Filter,
+  type Graph,
+  type Output,
+} from '../../graph';
 import { createSaturator } from '../../saturate';
 
 export interface WeaponVoice {
@@ -47,22 +39,21 @@ const LFO_RATE = { '1/4': '4n', '1/8': '8n', '1/16': '16n' } satisfies Record<
 >;
 
 interface Engine {
-  /** Everything above the crossover, for the drive and echo. */
-  output: ToneAudioNode;
-  /** The clean sub, kept out of the drive and echo. */
-  sub: ToneAudioNode;
   play: (time: number, duration: number, hz: number) => void;
-  nodes: Array<{ dispose: () => void }>;
   /** Held across shots (a beam): give it each shot's full slot. */
   continuous?: boolean;
 }
 
+/** Where an engine plays into. */
+interface EngineOutputs {
+  /** Everything above the crossover, for the drive and echo. */
+  output: Output;
+  /** The clean sub, kept out of the drive and echo. */
+  sub: Output;
+}
+
 /** How an engine moves an oscillator onto a shot's note. */
-type SetPitch = (
-  frequency: Signal<'frequency'>,
-  hz: number,
-  time: number,
-) => void;
+type SetPitch = (frequency: Automation, hz: number, time: number) => void;
 
 const jump: SetPitch = (frequency, hz, time) =>
   frequency.setValueAtTime(hz, time);
@@ -72,79 +63,80 @@ const jump: SetPitch = (frequency, hz, time) =>
  * feeds the body's own filter so the wobble sweeps it too; the growl gets a
  * band-pass swept by a twin of the body's LFO.
  */
-const createLayers = ({
-  sound,
-  patch,
-  envelope,
-  phase,
-  body,
-  output,
-  sub: subOutput,
-}: {
-  sound: WeaponSound;
-  patch: WeaponLayersPatch;
-  envelope: EnvelopePatch;
-  /** The body LFO's phase, so the growl opens with it. */
-  phase: number;
-  /** The body's filter input. */
-  body: ToneAudioNode;
-  output: ToneAudioNode;
-  sub: ToneAudioNode;
-}) => {
+const createLayers = (
+  graph: Graph,
+  {
+    sound,
+    patch,
+    envelope,
+    phase,
+    body,
+    output,
+    sub: subOutput,
+  }: {
+    sound: WeaponSound;
+    patch: WeaponLayersPatch;
+    envelope: EnvelopePatch;
+    /** The body LFO's phase, so the growl opens with it. */
+    phase: number;
+    /** The body's filter input. */
+    body: Output;
+  } & EngineOutputs,
+) => {
   const hz = midiToHz(sound.riff[0]);
 
-  const subLevel = new Volume(patch.sub.level).connect(subOutput);
-  const subSaturation = createSaturator(patch.sub.saturation).connect(subLevel);
-  const sub = createGate({
+  const sub = createGate(graph, {
     envelope: {
       attack: envelope.attack,
       decay: 0,
       sustain: 1,
       release: patch.sub.release,
     },
-    output: subSaturation,
+    output: createSaturator(
+      graph,
+      patch.sub.saturation,
+      graph.volume(patch.sub.level, subOutput),
+    ),
   });
-  const subOsc = new Oscillator({
-    type: 'sine',
-    frequency: hz / 2 ** patch.sub.octavesDown,
-  })
-    .connect(sub.input)
-    .start();
-
-  const stackLevel = new Volume(patch.stack.level).connect(body);
-  const stack = new FatOscillator({
-    type: sound.waveform,
-    frequency: hz * 2 ** patch.stack.octave,
-    count: 2,
-    spread: patch.stack.detune,
-  })
-    .connect(stackLevel)
-    .start();
-
-  const growl = createGate({ envelope, volume: patch.growl.level, output });
-  const growlSaturation = createSaturator(patch.growl.saturation).connect(
-    growl.input,
+  const subOsc = graph.oscillator(
+    { type: 'sine', frequency: hz / 2 ** patch.sub.octavesDown },
+    sub.input,
   );
-  const growlFilter = new Filter({
+
+  const stack = graph.fatOscillator(
+    {
+      type: sound.waveform,
+      frequency: hz * 2 ** patch.stack.octave,
+      count: 2,
+      spread: patch.stack.detune,
+    },
+    graph.volume(patch.stack.level, body),
+  );
+
+  const growl = createGate(graph, {
+    envelope,
+    volume: patch.growl.level,
+    output,
+  });
+  const growlFilter = graph.filter({
     type: 'bandpass',
     frequency: patch.growl.floorHz,
     Q: patch.growl.q,
-  }).connect(growlSaturation);
-  const growlLfo = new LFO({
-    frequency: LFO_RATE[sound.lfo],
+    output: createSaturator(graph, patch.growl.saturation, growl.input),
+  });
+  graph.lfo({
+    filter: growlFilter,
+    rate: LFO_RATE[sound.lfo],
     min: patch.growl.floorHz,
     max: Math.max(sound.cutoff * patch.growl.peak, patch.growl.floorHz),
     phase,
-  }).connect(growlFilter.frequency);
-  growlLfo.sync().start(0);
-  const growlOsc = new Oscillator({
-    type: 'square',
-    frequency: hz * 2 ** patch.growl.octave,
-  })
-    .connect(growlFilter)
-    .start();
+  });
+  const growlOsc = graph.oscillator(
+    { type: 'square', frequency: hz * 2 ** patch.growl.octave },
+    growlFilter.input,
+  );
 
-  const click = createGate({
+  const click = createGate(graph, {
     envelope: {
       attack: 0.001,
       decay: patch.click.decay,
@@ -154,52 +146,68 @@ const createLayers = ({
     volume: patch.click.level,
     output,
   });
-  const clickFilter = new Filter({
-    type: 'bandpass',
-    frequency: patch.click.hz,
-  }).connect(click.input);
-  const clickNoise = new Noise('white').connect(clickFilter).start();
+  graph.noise('white').connect(
+    graph.filter({
+      type: 'bandpass',
+      frequency: patch.click.hz,
+      output: click.input,
+    }).input,
+  );
 
-  return {
-    play: (time: number, duration: number, note: number, pitch: SetPitch) => {
-      subOsc.frequency.setValueAtTime(note / 2 ** patch.sub.octavesDown, time);
-      pitch(stack.frequency, note * 2 ** patch.stack.octave, time);
-      pitch(growlOsc.frequency, note * 2 ** patch.growl.octave, time);
-      sub.envelope.triggerAttackRelease(duration, time);
-      growl.envelope.triggerAttackRelease(duration, time);
-      click.envelope.triggerAttackRelease(0.005, time);
-    },
-    nodes: [
-      subOsc,
-      sub,
-      subSaturation,
-      subLevel,
-      stack,
-      stackLevel,
-      growlOsc,
-      growlLfo,
-      growlFilter,
-      growlSaturation,
-      growl,
-      clickNoise,
-      clickFilter,
-      click,
-    ],
+  return (time: number, duration: number, note: number, pitch: SetPitch) => {
+    subOsc.frequency.setValueAtTime(note / 2 ** patch.sub.octavesDown, time);
+    pitch(stack.frequency, note * 2 ** patch.stack.octave, time);
+    pitch(growlOsc.frequency, note * 2 ** patch.growl.octave, time);
+    sub.envelope.triggerAttackRelease(duration, time);
+    growl.envelope.triggerAttackRelease(duration, time);
+    click.envelope.triggerAttackRelease(0.005, time);
   };
 };
 
 /** The body's gate, behind a high-pass so it leaves the lows to the sub. */
 const createBody = (
+  graph: Graph,
   envelope: EnvelopePatch,
   layers: WeaponLayersPatch,
-  output: ToneAudioNode,
+  output: Output,
 ) => {
-  const gate = createGate({ envelope, output });
-  const crossover = new Filter({
+  const gate = createGate(graph, { envelope, output });
+  const crossover = graph.filter({
     type: 'highpass',
     frequency: layers.crossoverHz,
-  }).connect(gate.input);
-  return { gate, crossover };
+    output: gate.input,
+  });
+  return { gate, crossover: crossover.input };
+};
+
+/** A resonant low-pass for an engine's body, its cutoff swept by an LFO. */
+const createSweptFilter = (
+  graph: Graph,
+  {
+    sound,
+    rolloff,
+    min,
+    max,
+    phase,
+    output,
+  }: {
+    sound: WeaponSound;
+    rolloff: -12 | -24 | -48 | -96;
+    min: number;
+    max: number;
+    phase?: number;
+    output: Output;
+  },
+): Filter => {
+  const filter = graph.filter({
+    type: 'lowpass',
+    frequency: max,
+    rolloff,
+    Q: sound.resonance,
+    output,
+  });
+  graph.lfo({ filter, rate: LFO_RATE[sound.lfo], min, max, phase });
+  return filter;
 };
 
 /**
@@ -207,60 +215,51 @@ const createBody = (
  * Transport-synced LFO sweeps at the rolled rate, so every shot - landing on
  * the grid - opens with the same phase. The layers sit around it.
  */
-const createWobble = (sound: WeaponSound, patch: WobblePatch): Engine => {
-  const output = new Gain();
-  const subOutput = new Gain();
-  const { gate, crossover } = createBody(patch.envelope, patch.layers, output);
-  const filter = new Filter({
-    type: 'lowpass',
-    frequency: 300,
-    rolloff: patch.rolloff,
-    Q: sound.resonance,
-  }).connect(crossover);
+const createWobble = (
+  graph: Graph,
+  sound: WeaponSound,
+  patch: WobblePatch,
+  outputs: EngineOutputs,
+): Engine => {
+  const { gate, crossover } = createBody(
+    graph,
+    patch.envelope,
+    patch.layers,
+    outputs.output,
+  );
   // A phase of 270 starts each sweep closed: "whob", not "bwo".
-  const lfo = new LFO({
-    frequency: LFO_RATE[sound.lfo],
+  const filter = createSweptFilter(graph, {
+    sound,
+    rolloff: patch.rolloff,
     min: patch.sweepFloor,
     max: sound.cutoff,
     phase: patch.phase,
-  }).connect(filter.frequency);
-  lfo.sync().start(0);
-  const osc = new FatOscillator({
-    type: sound.waveform,
-    frequency: midiToHz(sound.riff[0]),
-    count: patch.voices,
-    spread: patch.spread,
-  })
-    .connect(filter)
-    .start();
-  const layers = createLayers({
+    output: crossover,
+  });
+  const osc = graph.fatOscillator(
+    {
+      type: sound.waveform,
+      frequency: midiToHz(sound.riff[0]),
+      count: patch.voices,
+      spread: patch.spread,
+    },
+    filter.input,
+  );
+  const layers = createLayers(graph, {
     sound,
     patch: patch.layers,
     envelope: patch.envelope,
     phase: patch.phase,
-    body: filter,
-    output,
-    sub: subOutput,
+    body: filter.input,
+    ...outputs,
   });
 
   return {
-    output,
-    sub: subOutput,
     play: (time, duration, hz) => {
       osc.frequency.setValueAtTime(hz, time);
       gate.envelope.triggerAttackRelease(duration, time);
-      layers.play(time, duration, hz, jump);
+      layers(time, duration, hz, jump);
     },
-    nodes: [
-      osc,
-      lfo,
-      filter,
-      crossover,
-      gate,
-      ...layers.nodes,
-      output,
-      subOutput,
-    ],
   };
 };
 
@@ -268,36 +267,36 @@ const createWobble = (sound: WeaponSound, patch: WobblePatch): Engine => {
  * Laser: a bright "pew" - each shot's pitch drops onto the riff note - with
  * the LFO shimmering the filter. Its sub sits well below the pew.
  */
-const createLaser = (sound: WeaponSound, patch: LaserPatch): Engine => {
-  const output = new Gain();
-  const subOutput = new Gain();
-  const { gate, crossover } = createBody(patch.envelope, patch.layers, output);
-  const filter = new Filter({
-    type: 'lowpass',
-    frequency: sound.cutoff,
+const createLaser = (
+  graph: Graph,
+  sound: WeaponSound,
+  patch: LaserPatch,
+  outputs: EngineOutputs,
+): Engine => {
+  const { gate, crossover } = createBody(
+    graph,
+    patch.envelope,
+    patch.layers,
+    outputs.output,
+  );
+  const filter = createSweptFilter(graph, {
+    sound,
     rolloff: patch.rolloff,
-    Q: sound.resonance,
-  }).connect(crossover);
-  const lfo = new LFO({
-    frequency: LFO_RATE[sound.lfo],
     min: sound.cutoff * patch.shimmerDepth,
     max: sound.cutoff,
-  }).connect(filter.frequency);
-  lfo.sync().start(0);
-  const osc = new Oscillator({
-    type: sound.waveform,
-    frequency: midiToHz(sound.riff[0]),
-  })
-    .connect(filter)
-    .start();
-  const layers = createLayers({
+    output: crossover,
+  });
+  const osc = graph.oscillator(
+    { type: sound.waveform, frequency: midiToHz(sound.riff[0]) },
+    filter.input,
+  );
+  const layers = createLayers(graph, {
     sound,
     patch: patch.layers,
     envelope: patch.envelope,
     phase: 0,
-    body: filter,
-    output,
-    sub: subOutput,
+    body: filter.input,
+    ...outputs,
   });
   const pew: SetPitch = (frequency, hz, time) => {
     frequency.cancelScheduledValues(time);
@@ -306,23 +305,11 @@ const createLaser = (sound: WeaponSound, patch: LaserPatch): Engine => {
   };
 
   return {
-    output,
-    sub: subOutput,
     play: (time, duration, hz) => {
       pew(osc.frequency, hz, time);
       gate.envelope.triggerAttackRelease(duration, time);
-      layers.play(time, duration, hz, pew);
+      layers(time, duration, hz, pew);
     },
-    nodes: [
-      osc,
-      lfo,
-      filter,
-      crossover,
-      gate,
-      ...layers.nodes,
-      output,
-      subOutput,
-    ],
   };
 };
 
@@ -334,59 +321,63 @@ const EPSILON = 0.001;
  * one only moves the release on - so it sounds as one long note that glides
  * through the riff, its filter pulsed by the LFO.
  */
-const createBeam = (sound: WeaponSound, patch: BeamPatch): Engine => {
-  const output = new Gain();
-  const subOutput = new Gain();
+const createBeam = (
+  graph: Graph,
+  sound: WeaponSound,
+  patch: BeamPatch,
+  { output, sub: subOutput }: EngineOutputs,
+): Engine => {
   const hz = midiToHz(sound.riff[0]);
-  const gate = createGate({ envelope: patch.envelope, output });
-  const filter = new Filter({
-    type: 'lowpass',
-    frequency: sound.cutoff,
+  const gate = createGate(graph, { envelope: patch.envelope, output });
+  const filter = createSweptFilter(graph, {
+    sound,
     rolloff: patch.rolloff,
-    Q: sound.resonance,
-  }).connect(gate.input);
-  const lfo = new LFO({
-    frequency: LFO_RATE[sound.lfo],
     min: Math.min(patch.sweepFloor, sound.cutoff),
     max: sound.cutoff,
-  }).connect(filter.frequency);
-  lfo.sync().start(0);
-  const osc = new FatOscillator({
-    type: sound.waveform,
-    frequency: hz,
-    count: patch.voices,
-    spread: patch.spread,
-  })
-    .connect(filter)
-    .start();
-  const topLevel = new Volume(patch.topLevel).connect(filter);
-  const top = new Oscillator({ type: 'square', frequency: hz * 2 })
-    .connect(topLevel)
-    .start();
+    output: gate.input,
+  });
+  const osc = graph.fatOscillator(
+    {
+      type: sound.waveform,
+      frequency: hz,
+      count: patch.voices,
+      spread: patch.spread,
+    },
+    filter.input,
+  );
+  const top = graph.oscillator(
+    { type: 'square', frequency: hz * 2 },
+    graph.volume(patch.topLevel, filter.input),
+  );
 
-  const subLevel = new Volume(patch.sub.level).connect(subOutput);
-  const subSaturation = createSaturator(patch.sub.saturation).connect(subLevel);
-  const sub = createGate({ envelope: patch.envelope, output: subSaturation });
-  const subOsc = new Oscillator({
-    type: 'sine',
-    frequency: hz / 2 ** patch.sub.octavesDown,
-  })
-    .connect(sub.input)
-    .start();
+  const sub = createGate(graph, {
+    envelope: patch.envelope,
+    output: createSaturator(
+      graph,
+      patch.sub.saturation,
+      graph.volume(patch.sub.level, subOutput),
+    ),
+  });
+  const subOsc = graph.oscillator(
+    { type: 'sine', frequency: hz / 2 ** patch.sub.octavesDown },
+    sub.input,
+  );
 
-  const sizzle = createGate({
+  const sizzle = createGate(graph, {
     envelope: patch.envelope,
     volume: patch.sizzle.level,
     output,
   });
-  const sizzleFilter = new Filter({
-    type: 'highpass',
-    frequency: patch.sizzle.hz,
-  }).connect(sizzle.input);
-  const noise = new Noise('white').connect(sizzleFilter).start();
+  graph.noise('white').connect(
+    graph.filter({
+      type: 'highpass',
+      frequency: patch.sizzle.hz,
+      output: sizzle.input,
+    }).input,
+  );
 
   const gates = [gate, sub, sizzle];
-  const pitched: Array<[Signal<'frequency'>, number]> = [
+  const pitched: Array<[Automation, number]> = [
     [osc.frequency, 1],
     [top.frequency, 2],
     [subOsc.frequency, 1 / 2 ** patch.sub.octavesDown],
@@ -394,8 +385,6 @@ const createBeam = (sound: WeaponSound, patch: BeamPatch): Engine => {
   let openUntil = -Infinity;
 
   return {
-    output,
-    sub: subOutput,
     continuous: true,
     play: (time, duration, note) => {
       // Ticks land where the last one's release was scheduled, give or take
@@ -418,33 +407,24 @@ const createBeam = (sound: WeaponSound, patch: BeamPatch): Engine => {
       gates.forEach(({ envelope }) => envelope.triggerRelease(time + duration));
       openUntil = time + duration;
     },
-    nodes: [
-      osc,
-      top,
-      topLevel,
-      lfo,
-      filter,
-      gate,
-      subOsc,
-      sub,
-      subSaturation,
-      subLevel,
-      noise,
-      sizzleFilter,
-      sizzle,
-      output,
-      subOutput,
-    ],
   };
 };
 
 const ENGINES = {
-  wobble: (sound, design) => createWobble(sound, design.wobble),
-  laser: (sound, design) => createLaser(sound, design.laser),
-  beam: (sound, design) => createBeam(sound, design.beam),
+  wobble: (graph, sound, design, outputs) =>
+    createWobble(graph, sound, design.wobble, outputs),
+  laser: (graph, sound, design, outputs) =>
+    createLaser(graph, sound, design.laser, outputs),
+  beam: (graph, sound, design, outputs) =>
+    createBeam(graph, sound, design.beam, outputs),
 } satisfies Record<
   WeaponSound['oscillator'],
-  (sound: WeaponSound, design: SoundDesign) => Engine
+  (
+    graph: Graph,
+    sound: WeaponSound,
+    design: SoundDesign,
+    outputs: EngineOutputs,
+  ) => Engine
 >;
 
 /**
@@ -459,7 +439,7 @@ export const createWeaponVoice = ({
   volume = 0,
   design = SOUND_DESIGN,
 }: {
-  output: ToneAudioNode;
+  output: Output;
   sound: WeaponSound;
   beatSeconds: number;
   /** dB */
@@ -467,39 +447,37 @@ export const createWeaponVoice = ({
   design?: SoundDesign;
 }): WeaponVoice => {
   const mix = design.weaponMix;
-  const channel = new Channel({ volume }).connect(output);
-  const glue = new Compressor({
-    threshold: mix.glueThreshold,
-    ratio: mix.glueRatio,
-  }).connect(channel);
-  const fade = new Gain(1).connect(glue);
-  const subCut = new Filter({ type: 'highpass', frequency: 20 }).connect(fade);
+  const graph = createGraph();
+  const glue = graph.compressor(
+    { threshold: mix.glueThreshold, ratio: mix.glueRatio },
+    graph.channel(volume, output),
+  );
+  const fadeNode = graph.gain(1, glue);
+  const fade = graph.param(fadeNode.gain, 'gain', 1);
+  const subCut = graph.filter({
+    type: 'highpass',
+    frequency: 20,
+    output: fadeNode,
+  });
   const delay = sound.delay
-    ? new FeedbackDelay({
-        delayTime: beatSeconds / 2,
-        feedback: sound.delay.feedback,
-        wet: sound.delay.wet,
-      }).connect(subCut)
+    ? graph.feedbackDelay(
+        {
+          delayTime: beatSeconds / 2,
+          feedback: sound.delay.feedback,
+          wet: sound.delay.wet,
+        },
+        subCut.input,
+      )
     : null;
-  const afterDrive = delay ?? subCut;
+  const afterDrive = delay ?? subCut.input;
   const drive =
     sound.drive > 0
-      ? new Distortion({ distortion: sound.drive, wet: mix.driveWet }).connect(
-          afterDrive,
-        )
+      ? graph.distortion({ amount: sound.drive, wet: mix.driveWet }, afterDrive)
       : null;
-  const engine = ENGINES[sound.oscillator](sound, design);
-  engine.output.connect(drive ?? afterDrive);
-  engine.sub.connect(subCut);
-
-  const nodes = [
-    ...engine.nodes,
-    ...[drive, delay].filter(node => node !== null),
-    subCut,
-    fade,
-    glue,
-    channel,
-  ];
+  const engine = ENGINES[sound.oscillator](graph, sound, design, {
+    output: drive ?? afterDrive,
+    sub: subCut.input,
+  });
 
   return {
     fire: (time, duration, shot) => {
@@ -515,16 +493,16 @@ export const createWeaponVoice = ({
       );
     },
     holster: time => {
-      fade.gain.cancelScheduledValues(time);
-      fade.gain.rampTo(0, mix.holsterFadeSeconds, time);
+      fade.cancelScheduledValues(time);
+      fade.rampTo(0, mix.holsterFadeSeconds, time);
     },
     equip: time => {
-      fade.gain.cancelScheduledValues(time);
-      fade.gain.rampTo(1, 0.01, time);
+      fade.cancelScheduledValues(time);
+      fade.rampTo(1, 0.01, time);
     },
     setSubOwner: (owner, time) => {
       subCut.frequency.rampTo(owner ? 20 : mix.subCutHz, 0.05, time);
     },
-    dispose: () => nodes.forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

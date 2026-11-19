@@ -1,14 +1,8 @@
-import {
-  Channel,
-  FeedbackDelay,
-  Filter,
-  Oscillator,
-  type ToneAudioNode,
-} from 'tone';
 import { degreeToMidi, midiToHz, type Key } from '../../../music';
 import { MAX_MULTIPLIER } from '../../../sim/combo';
 import { SOUND_DESIGN, type ScorePatch } from '../../../sound';
 import { createGate } from '../../gate';
+import { createGraph, type Output } from '../../graph';
 
 export interface ScoreSound {
   /** Points landing at `time`, from a kill that made the combo `combo`. */
@@ -27,41 +21,46 @@ export const createScoreSound = ({
   beatSeconds,
   patch = SOUND_DESIGN.score,
 }: {
-  output: ToneAudioNode;
+  output: Output;
   key: Key;
   beatSeconds: number;
   patch?: ScorePatch;
 }): ScoreSound => {
-  const channel = new Channel({ volume: patch.level }).connect(output);
-  const echo = new FeedbackDelay({
-    delayTime: beatSeconds * patch.echoBeats,
-    feedback: patch.echoFeedback,
-    wet: patch.echoWet,
-  }).connect(channel);
-  const filter = new Filter({
+  const graph = createGraph();
+  const channel = graph.channel(patch.level, output);
+  const echo = graph.feedbackDelay(
+    {
+      delayTime: beatSeconds * patch.echoBeats,
+      feedback: patch.echoFeedback,
+      wet: patch.echoWet,
+    },
+    channel,
+  );
+  const filter = graph.filter({
     type: 'lowpass',
     frequency: patch.brightnessHz,
-  }).connect(echo);
+    output: echo,
+  }).input;
   const envelope = {
     attack: 0.002,
     decay: patch.decay,
     sustain: 0,
     release: 0.05,
   };
-  const pluck = createGate({ envelope, output: filter });
-  const shimmer = createGate({
+  const pluck = createGate(graph, { envelope, output: filter });
+  const shimmer = createGate(graph, {
     envelope,
     volume: patch.shimmerLevel,
     output: filter,
   });
-  const osc = new Oscillator({ type: patch.waveform })
-    .connect(pluck.input)
-    .start();
-  const shimmerOsc = new Oscillator({ type: patch.waveform })
-    .connect(shimmer.input)
-    .start();
-
-  const nodes = [osc, shimmerOsc, pluck, shimmer, filter, echo, channel];
+  const osc = graph.oscillator(
+    { type: patch.waveform, frequency: 440 },
+    pluck.input,
+  );
+  const shimmerOsc = graph.oscillator(
+    { type: patch.waveform, frequency: 440 },
+    shimmer.input,
+  );
 
   return {
     play: (time, combo) => {
@@ -72,6 +71,6 @@ export const createScoreSound = ({
       pluck.envelope.triggerAttackRelease(0.01, time);
       shimmer.envelope.triggerAttackRelease(0.01, time);
     },
-    dispose: () => nodes.forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

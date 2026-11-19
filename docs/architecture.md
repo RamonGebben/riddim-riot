@@ -231,10 +231,23 @@ voice a scale degree higher per combo step, an octave by ×8.
 ### Audio
 
 - **Gates, not instruments.** Every voice is built once from always-running
-  sources gated by `AmplitudeEnvelope`s (`audio/gate`). Tone's instruments
-  create nodes per note and leaked thousands a minute, which made the audio
+  sources gated by envelopes (`audio/gate`). Tone's instruments create
+  nodes per note and leaked thousands a minute, which made the audio
   crackle over time. Play now creates zero nodes; arming a weapon (start,
   loot) builds its voice once.
+- **A lean graph** (`audio/graph`). Voices are built from the context's own
+  nodes, one browser node each, with Tone's `Param` for automation (it adds
+  no nodes) and Tone's own waves, curves and mixes copied over: the
+  envelope, `FatOscillator`'s detune and phases, the `Filter` cascade, the
+  crossfades in `Distortion`, `FeedbackDelay` and `Reverb`, `Channel`'s
+  mono pan. Tone's classes cost many hidden nodes apiece and drove params
+  from signals, so a level ran ~1,350 browser nodes and phones couldn't
+  keep up; it now runs ~260 and sounds the same (every voice rendered
+  offline matches its Tone version, weapons to 0.01 dB). 20 s of a level's
+  whole graph renders offline in 0.9 s instead of 3.5 s in Chromium, 0.7 s
+  instead of 4.1 s in Firefox and 1.0 s instead of 3.3 s in WebKit (M-series
+  Mac). Sweep LFOs start with the Transport, or mid-level in phase with it
+  (loot), and read their rate then: BPM must be set before the start.
 - **Drums**: per-bar patterns generated from the seed (kick on 1 and snare on 3
   always, ghost kicks, hat shuffle, a snare roll every 4 bars), with the kick
   tuned to the level's root. The kick has a beater click and a sub tail on
@@ -325,6 +338,11 @@ session scratch files, not the repo. To redo them:
 - **Audio graph leaks:** wrap `BaseAudioContext.prototype.create*` with a
   `WeakRef` + `FinalizationRegistry` and force GC (`--js-flags=--expose-gc`).
   Play must create zero nodes.
+- **Audio CPU:** in the page, import the audio domain by Vite's URL for
+  Tone (the one `src/game/audio/gate` imports - a bare `'tone'` is a
+  second copy, and `Offline` then renders nothing), build a level's voices
+  inside `Offline` and time the render of 20 s. Count native nodes by
+  wrapping `create*` as above.
 - **Kick drift:** record kick times from `AudioParam.setValueAtTime` calls
   (the kick's pitch drop starts at 5× its root), and per frame `currentTime`,
   `getOutputTimestamp()` and the `uKick` uniform (wrap `uniform1f`). Compare

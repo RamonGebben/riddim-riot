@@ -1,6 +1,6 @@
-import { Channel, Filter, Noise, type ToneAudioNode } from 'tone';
 import { SOUND_DESIGN, type ReloadPatch } from '../../../sound';
 import { createGate } from '../../gate';
+import { createGraph, type Output } from '../../graph';
 
 export interface ReloadSound {
   click: (time: number) => void;
@@ -14,47 +14,39 @@ export interface ReloadSound {
  * instead of fighting the next shot.
  */
 export const createReloadSound = (
-  output: ToneAudioNode,
+  output: Output,
   patch: ReloadPatch = SOUND_DESIGN.reload,
 ): ReloadSound => {
-  const channel = new Channel({ volume: patch.level }).connect(output);
+  const graph = createGraph();
+  const channel = graph.channel(patch.level, output);
 
-  const clickNoise = new Noise('white').start();
-  const clickFilter = new Filter({
-    type: 'bandpass',
-    frequency: patch.clickHz,
-    Q: 3,
-  });
-  const click = createGate({
+  const click = createGate(graph, {
     envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 },
     volume: patch.clickLevel,
     output: channel,
   });
-  clickNoise.chain(clickFilter, click.input);
+  graph.noise('white').connect(
+    graph.filter({
+      type: 'bandpass',
+      frequency: patch.clickHz,
+      Q: 3,
+      output: click.input,
+    }).input,
+  );
 
-  const rumbleNoise = new Noise('brown').start();
-  const rumbleFilter = new Filter({
-    type: 'lowpass',
-    frequency: patch.rumbleFrom,
-    rolloff: -24,
-    Q: 4,
-  });
-  const rumble = createGate({
+  const rumble = createGate(graph, {
     envelope: { attack: 0.2, decay: 0.05, sustain: 0.8, release: 0.03 },
     volume: patch.rumbleLevel,
     output: channel,
   });
-  rumbleNoise.chain(rumbleFilter, rumble.input);
-
-  const nodes = [
-    clickNoise,
-    clickFilter,
-    click,
-    rumbleNoise,
-    rumbleFilter,
-    rumble,
-    channel,
-  ];
+  const rumbleFilter = graph.filter({
+    type: 'lowpass',
+    frequency: patch.rumbleFrom,
+    rolloff: -24,
+    Q: 4,
+    output: rumble.input,
+  });
+  graph.noise('brown').connect(rumbleFilter.input);
 
   return {
     click: time => {
@@ -70,6 +62,6 @@ export const createReloadSound = (
       );
       rumble.envelope.triggerAttackRelease(duration, time);
     },
-    dispose: () => nodes.forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

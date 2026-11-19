@@ -34,6 +34,12 @@ Running and controls are in `README.md`.
   source nodes on every note, and some are never released: the graph grows
   until the audio crackles. Build voices from always-running sources gated by
   `createGate` (`src/game/audio/gate`), so a hit only reschedules envelopes.
+- **Build voices on `createGraph`** (`src/game/audio/graph`), not Tone's
+  node classes. Those hide many browser nodes each (an `Oscillator` is 11,
+  an `LFO` 28, a `Filter` 15) and drive params from signals: the game ran
+  ~1,350 nodes, more than a phone could render. The graph makes one native
+  node per node and automates through Tone's `Param` (no nodes), so curves
+  stay Tone's. A voice's `dispose` is its graph's.
 - **Weapon loudness is measured, not estimated.** `measureWeaponLoudness`
   renders a bar offline when a weapon is armed. `Offline` swaps Tone's global
   context while building its graph, so never run two at once (the loadout

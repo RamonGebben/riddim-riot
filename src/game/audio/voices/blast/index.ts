@@ -1,13 +1,7 @@
-import {
-  Channel,
-  Filter,
-  Noise,
-  Oscillator,
-  type ToneAudioNode,
-  type Unit,
-} from 'tone';
+import { Frequency, type Unit } from 'tone';
 import { SOUND_DESIGN, type BlastPatch } from '../../../sound';
 import { createGate } from '../../gate';
+import { createGraph, type Output } from '../../graph';
 import { createSaturator } from '../../saturate';
 
 export interface BlastSound {
@@ -25,13 +19,14 @@ export const createBlastSound = ({
   root,
   patch = SOUND_DESIGN.blast,
 }: {
-  output: ToneAudioNode;
+  output: Output;
   root: Unit.Frequency;
   patch?: BlastPatch;
 }): BlastSound => {
-  const channel = new Channel({ volume: patch.level }).connect(output);
+  const graph = createGraph();
+  const channel = graph.channel(patch.level, output);
 
-  const boom = createGate({
+  const boom = createGate(graph, {
     envelope: {
       attack: 0.001,
       decay: patch.boomDecay,
@@ -41,17 +36,13 @@ export const createBlastSound = ({
     volume: patch.boomLevel,
     output: channel,
   });
-  const saturation = createSaturator(patch.boomSaturation).connect(boom.input);
-  const boomOsc = new Oscillator({ type: 'sine' }).connect(saturation).start();
-  const boomHz = boomOsc.toFrequency(root);
+  const boomHz = Frequency(root).toFrequency();
+  const boomOsc = graph.oscillator(
+    { type: 'sine', frequency: boomHz },
+    createSaturator(graph, patch.boomSaturation, boom.input),
+  );
 
-  const noise = new Noise('brown').start();
-  const noiseFilter = new Filter({
-    type: 'lowpass',
-    frequency: patch.noiseHz,
-    rolloff: -24,
-  });
-  const rush = createGate({
+  const rush = createGate(graph, {
     envelope: {
       attack: 0.002,
       decay: patch.noiseDecay,
@@ -61,9 +52,13 @@ export const createBlastSound = ({
     volume: patch.noiseLevel,
     output: channel,
   });
-  noise.chain(noiseFilter, rush.input);
-
-  const nodes = [boomOsc, saturation, boom, noise, noiseFilter, rush, channel];
+  const noiseFilter = graph.filter({
+    type: 'lowpass',
+    frequency: patch.noiseHz,
+    rolloff: -24,
+    output: rush.input,
+  });
+  graph.noise('brown').connect(noiseFilter.input);
 
   return {
     play: time => {
@@ -82,6 +77,6 @@ export const createBlastSound = ({
       boom.envelope.triggerAttackRelease(0.05, time);
       rush.envelope.triggerAttackRelease(0.03, time);
     },
-    dispose: () => nodes.forEach(node => node.dispose()),
+    dispose: graph.dispose,
   };
 };

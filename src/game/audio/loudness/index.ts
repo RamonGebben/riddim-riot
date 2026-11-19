@@ -1,4 +1,4 @@
-import { Gain, getTransport, Offline } from 'tone';
+import { getDestination, getTransport, Offline } from 'tone';
 import { STEPS_PER_BAR, STEPS_PER_DIVISION } from '../../grid';
 import { SOUND_DESIGN, type SoundDesign } from '../../sound';
 import type { Weapon } from '../../weapons';
@@ -27,7 +27,7 @@ export const measureWeaponLoudness = async (
     () => {
       getTransport().bpm.value = bpm;
       const voice = createWeaponVoice({
-        output: new Gain(1).toDestination(),
+        output: getDestination(),
         sound: weapon.sound,
         beatSeconds: stepSeconds * 4,
         design,
