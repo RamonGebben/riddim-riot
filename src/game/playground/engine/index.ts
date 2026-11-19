@@ -30,7 +30,7 @@ import { degreeToMidi, midiToHz, type Key } from '../../music';
 import { createRng } from '../../rng';
 import { MAX_MULTIPLIER } from '../../sim/combo';
 import { createWeaponSlot, type WeaponSlot } from '../../sim';
-import type { Section } from '../../sim/waves';
+import type { Section } from '../../sim/survival';
 import type { SoundDesign } from '../../sound';
 import type { Weapon } from '../../weapons';
 

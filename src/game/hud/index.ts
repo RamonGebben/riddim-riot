@@ -1,10 +1,10 @@
-import {
-  isExitOpen,
-  PLAYER_MAX_HP,
-  type World,
-  type WorldStatus,
-} from '../sim/world';
+import { PLAYER_MAX_HP, type World, type WorldStatus } from '../sim/world';
 import { comboActive } from '../sim/combo';
+import {
+  songPosition,
+  type SongPart,
+  type SurvivalPhase,
+} from '../sim/survival';
 import { nearestPickup } from '../sim/loot';
 import type { WeaponRecipe } from '../weapons';
 
@@ -18,9 +18,14 @@ export interface HudView {
   score: number;
   /** The live combo, or 0 once it has lapsed. */
   combo: number;
-  wavesCleared: number;
-  wavesToClear: number;
-  exitOpen: boolean;
+  /** Where the level is: waiting at the circle through to its exit open. */
+  phase: SurvivalPhase;
+  /** The song part playing, once the slam has started the song. */
+  part: SongPart | null;
+  /** Seconds left in the part. */
+  secondsLeft: number | null;
+  /** The boss is up. */
+  boss: boolean;
   /** The weapon the player is standing on, if any. */
   pickup: string | null;
 }
@@ -32,9 +37,10 @@ export const initialHud = (
   status: 'playing',
   maxHp: PLAYER_MAX_HP,
   combo: 0,
-  wavesCleared: 0,
-  wavesToClear: 0,
-  exitOpen: false,
+  phase: 'waiting',
+  part: null,
+  secondsLeft: null,
+  boss: false,
   pickup: null,
   ...carry,
 });
@@ -45,7 +51,15 @@ export const hudOf = (
   nameOf: (recipe: WeaponRecipe) => string,
   /** The beat being heard, to tell a live combo from a lapsed one. */
   beat = 0,
+  /** For turning the beats left in the part into a countdown. */
+  beatSeconds = 0,
 ): HudView => {
+  const at = songPosition(world.survival, {
+    bar: Math.floor(beat / 4),
+    song: world.rules.song,
+  });
+  // Counted in beats so it ticks down steadily, not a bar at a time.
+  const beatsLeft = at ? (at.bars - at.bar) * 4 - (beat % 4) : null;
   const underfoot = nearestPickup(world.pickups, world.player.position);
   return {
     status: world.status,
@@ -55,9 +69,10 @@ export const hudOf = (
     kills: world.kills,
     score: world.score,
     combo: comboActive(world.combo, beat) ? world.combo.count : 0,
-    wavesCleared: world.waves.cleared,
-    wavesToClear: world.rules.wavesToClear,
-    exitOpen: isExitOpen(world),
+    phase: world.survival.phase,
+    part: at?.part ?? null,
+    secondsLeft: beatsLeft === null ? null : Math.ceil(beatsLeft * beatSeconds),
+    boss: world.enemies.some(enemy => enemy.kind === 'boss'),
     pickup: underfoot ? nameOf(underfoot.recipe) : null,
   };
 };

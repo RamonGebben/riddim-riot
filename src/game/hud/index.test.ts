@@ -17,11 +17,25 @@ describe('hudOf', () => {
       kills: 7,
       score: 0,
       combo: 0,
-      wavesCleared: 0,
-      wavesToClear: 4,
-      exitOpen: false,
+      phase: 'waiting',
+      part: null,
+      secondsLeft: null,
+      boss: false,
       pickup: null,
     });
+  });
+
+  it('names the song part and counts it down, beat by beat', () => {
+    const world = createWorld(generateLevel(1), rulesFor({ level: 1 }));
+    const playing = {
+      ...world,
+      survival: { ...world.survival, phase: 'song' as const, startBar: 2 },
+    };
+    // The 16-bar intro from bar 2 ends on beat 72; at 0.5 s a beat.
+    const intro = hudOf(playing, () => 'gun', 8, 0.5);
+    expect(intro).toMatchObject({ part: 'intro', secondsLeft: 32 });
+    expect(hudOf(playing, () => 'gun', 71, 0.5).secondsLeft).toBe(1);
+    expect(hudOf(playing, () => 'gun', 72, 0.5).part).toBe('breakdown');
   });
 
   it('names the weapon the player is standing on', () => {

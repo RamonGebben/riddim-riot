@@ -9,6 +9,19 @@ import { Overlay } from './components/Overlay';
 import { Prompt } from './components/Prompt';
 import { Surface } from './components/Surface';
 
+/** Where a level is, from waiting at the circle to its exit open. */
+export type LevelPhase = 'waiting' | 'charging' | 'song' | 'clear';
+
+export type SongPart =
+  | 'intro'
+  | 'breakdown'
+  | 'buildup'
+  | 'drop1'
+  | 'drop2'
+  | 'bridge'
+  | 'drop3'
+  | 'outro';
+
 export interface RunProps {
   status: 'playing' | 'dead' | 'cleared';
   level: number;
@@ -18,9 +31,13 @@ export interface RunProps {
   score: number;
   /** The live combo; shown from 2 up. */
   combo: number;
-  wavesCleared: number;
-  wavesToClear: number;
-  exitOpen: boolean;
+  phase: LevelPhase;
+  /** The song part playing, once the song has started. */
+  part: SongPart | null;
+  /** Seconds left in the part. */
+  secondsLeft: number | null;
+  /** The boss is up. */
+  boss: boolean;
   /** The weapon the player is standing on, if any. */
   pickup: string | null;
 }
@@ -42,6 +59,35 @@ export interface GameScreenProps {
   onNextLevel: () => void;
 }
 
+const CIRCLE_PROMPTS = {
+  waiting: 'Step into the circle to start',
+  charging: null,
+  song: null,
+  clear: 'Step into the circle to leave',
+} satisfies Record<LevelPhase, string | null>;
+
+const clock = (seconds: number) =>
+  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+
+const PART_NAMES = {
+  intro: 'intro',
+  breakdown: 'breakdown',
+  buildup: 'build-up',
+  drop1: 'drop 1',
+  drop2: 'drop 2',
+  bridge: 'bridge',
+  drop3: 'drop 3',
+  outro: 'outro',
+} satisfies Record<SongPart, string>;
+
+const phaseLabel = ({ phase, part, secondsLeft, boss }: RunProps) => {
+  if (phase === 'waiting') return 'ready';
+  if (phase === 'charging') return 'charging';
+  if (phase === 'clear') return 'exit open';
+  const label = `${part ? PART_NAMES[part] : ''} ${clock(secondsLeft ?? 0)}`;
+  return boss ? `${label} · boss` : label;
+};
+
 export const GameScreen = ({
   seed,
   musicalKey,
@@ -54,7 +100,13 @@ export const GameScreen = ({
   onNewRun,
   onNextLevel,
 }: GameScreenProps) => {
-  const waves = Math.min(run.wavesCleared, run.wavesToClear);
+  const prompt = run.pickup ? (
+    <>
+      <kbd>F</kbd> take {run.pickup}
+    </>
+  ) : (
+    CIRCLE_PROMPTS[run.phase]
+  );
   return (
     <>
       <Surface ref={surfaceRef} aria-label="Play area">
@@ -63,11 +115,7 @@ export const GameScreen = ({
           weapon
         </Hint>
       </Surface>
-      {run.pickup && (
-        <Prompt>
-          <kbd>F</kbd> take {run.pickup}
-        </Prompt>
-      )}
+      {prompt && run.status === 'playing' && <Prompt>{prompt}</Prompt>}
       <Loadout {...loadout} />
       <Hud>
         <span>
@@ -81,7 +129,7 @@ export const GameScreen = ({
               <Combo>×{run.combo}</Combo> ·{' '}
             </>
           )}
-          {run.exitOpen ? 'exit open' : `waves ${waves}/${run.wavesToClear}`}
+          {phaseLabel(run)}
         </span>
         <Button onClick={onStop}>Stop</Button>
       </Hud>
@@ -103,7 +151,6 @@ export const GameScreen = ({
         <Overlay
           heading={`Level ${run.level} cleared`}
           stats={[
-            `${run.wavesCleared} waves`,
             `${run.kills} kills`,
             `${run.score.toLocaleString('en')} points`,
           ]}

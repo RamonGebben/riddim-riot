@@ -8,7 +8,7 @@ import {
   type ToneAudioNode,
 } from 'tone';
 import { degreeToMidi, midiToHz, type Key } from '../../music';
-import type { Section } from '../../sim/waves';
+import type { Section } from '../../sim/survival';
 import { SOUND_DESIGN, type ArrangementPatch } from '../../sound';
 import { createGate } from '../gate';
 import type { MusicBus } from '../musicBus';
@@ -22,6 +22,11 @@ export interface Arrangement {
   /** Play a drop's hit or a riser on its own, for auditioning. */
   drop: (time: number) => void;
   riser: (time: number) => void;
+  /**
+   * The circle charging: a riser over `seconds` with the track's filter
+   * riding open under it, into the slam's drop.
+   */
+  charge: (time: number, seconds: number) => void;
   dispose: () => void;
 }
 
@@ -138,8 +143,8 @@ export const createArrangement = ({
   let current: Section = 'calm';
   musicBus.open(OPENNESS.calm, 0, 0);
 
-  const startRiser = (time: number) => {
-    const length = barSeconds * 2;
+  const startRiser = (time: number, length = barSeconds * 2) => {
+    riser.envelope.attack = length * 0.9;
     riserFilter.frequency.cancelScheduledValues(time);
     riserFilter.frequency.setValueAtTime(patch.riserFrom, time);
     riserFilter.frequency.exponentialRampToValueAtTime(
@@ -194,7 +199,11 @@ export const createArrangement = ({
       current = section;
     },
     drop,
-    riser: startRiser,
+    riser: time => startRiser(time),
+    charge: (time, seconds) => {
+      startRiser(time, seconds);
+      musicBus.open(OPENNESS.build, time, seconds);
+    },
     dispose: () => nodes.forEach(node => node.dispose()),
   };
 };

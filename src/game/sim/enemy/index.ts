@@ -11,6 +11,8 @@ export const DASH_SECONDS = 0.18;
 /** How long a step's hop takes; the rest of the beat it stands still. */
 export const HOP_SECONDS = 0.11;
 export const MAX_ENEMIES = 30;
+/** The last drop's boss: a big hopper that soaks hits and steps on half beats. */
+export const BOSS_RADIUS = ENEMY_RADIUS * 2.2;
 
 /**
  * Movement is stored as the current hop - where from, where to, and the
@@ -19,9 +21,13 @@ export const MAX_ENEMIES = 30;
  */
 /**
  * Hoppers walk a tile every beat. Chargers line up on the snare (beat 3)
- * and dash on the next downbeat, so they're read by the rhythm.
+ * and dash on the next downbeat, so they're read by the rhythm. The boss
+ * walks on beats 1 and 3, shrugs off contact and always drops good loot.
  */
-export type EnemyKind = 'hopper' | 'charger';
+export type EnemyKind = 'hopper' | 'charger' | 'boss';
+
+export const radiusOf = (enemy: Pick<Enemy, 'kind'>): number =>
+  enemy.kind === 'boss' ? BOSS_RADIUS : ENEMY_RADIUS;
 
 export interface Enemy {
   id: number;
@@ -101,3 +107,26 @@ export const spawnWave = ({
     };
   });
 };
+
+/** The boss, appearing at `time` on `position`. */
+export const spawnBoss = ({
+  id,
+  position,
+  time,
+  hp,
+}: {
+  id: number;
+  position: Vec;
+  time: number;
+  hp: number;
+}): Enemy => ({
+  id,
+  kind: 'boss',
+  hp,
+  from: position,
+  to: position,
+  hopAt: time,
+  hopSeconds: HOP_SECONDS * 2,
+  spawnAt: time,
+  aim: null,
+});

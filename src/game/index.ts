@@ -30,6 +30,7 @@ import { rulesFor } from './sim/world';
 import { createPulse } from './render/pulse';
 import { levelSeed, nextLevel, type RunState } from './run';
 import { createWeaponSlot } from './sim';
+import { MAX_MULTIPLIER } from './sim/combo';
 import { SOUND_DESIGN } from './sound';
 import { spreadAngle, weaponFrom, type WeaponRecipe } from './weapons';
 
@@ -194,6 +195,7 @@ export const startGame = async ({
   });
 
   let lastTick: Tick | null = null;
+  let drumsIn = false;
   /** Did a press land within the beat window of the active weapon's grid? */
   const onBeat = () => {
     if (!lastTick) return false;
@@ -211,7 +213,10 @@ export const startGame = async ({
     bus.on('tick', tick => {
       lastTick = tick;
     }),
-    bus.on('tick', drums.onTick),
+    // Silent until the circle's slam brings them in (see `startDrums`).
+    bus.on('tick', tick => {
+      if (drumsIn) drums.onTick(tick);
+    }),
     bus.on('tick', loadout.onTick),
     bus.on('tick', tick => {
       if (tick.sixteenth === 0) pulses.beat.hit(tick.time);
@@ -249,6 +254,14 @@ export const startGame = async ({
           duck: time => musicBus.duck(time, DUCK_SECONDS),
           dead: musicBus.muffle,
           section: arrangement.onBar,
+          charge: arrangement.charge,
+          dropHit: arrangement.drop,
+          heal: time => score.play(time, MAX_MULTIPLIER),
+          startDrums: tick => {
+            // The slam's own tick has already gone by the drums: play it.
+            if (!drumsIn) drums.onTick(tick);
+            drumsIn = true;
+          },
         },
         stepSeconds,
         audioNow: immediate,

@@ -1,6 +1,11 @@
 import type { Key } from '../../music';
 import { rollWeapon } from '../roll';
-import type { OscillatorPart, Weapon } from '../types';
+import type {
+  FxPart,
+  ManufacturerPart,
+  OscillatorPart,
+  Weapon,
+} from '../types';
 
 /**
  * What a weapon is, apart from the key it plays in: a seed and an optional
@@ -10,7 +15,12 @@ import type { OscillatorPart, Weapon } from '../types';
 export interface WeaponRecipe {
   seed: number;
   oscillator?: OscillatorPart;
+  /** Boss loot pins the heavier maker and an FX, so it's always a good roll. */
+  manufacturer?: ManufacturerPart;
+  fx?: FxPart;
 }
 
-export const weaponFrom = (recipe: WeaponRecipe, key: Key): Weapon =>
-  rollWeapon(recipe.seed, key, { pins: { oscillator: recipe.oscillator } });
+export const weaponFrom = (
+  { seed, oscillator, manufacturer, fx }: WeaponRecipe,
+  key: Key,
+): Weapon => rollWeapon(seed, key, { pins: { oscillator, manufacturer, fx } });

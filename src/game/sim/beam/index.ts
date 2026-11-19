@@ -1,6 +1,6 @@
 import { isWall, TILE_SIZE, tileOf, type Tilemap } from '../../level';
 import { add, length, scale, subtract, type Vec } from '../../vec';
-import { ENEMY_RADIUS, enemyPosition, isSpawned, type Enemy } from '../enemy';
+import { enemyPosition, isSpawned, radiusOf, type Enemy } from '../enemy';
 import { PLAYER_RADIUS, type Player } from '../player';
 import type { PendingShot } from '../world';
 
@@ -77,7 +77,7 @@ export const resolveBeams = (
         enemy.hp > 0 &&
         isSpawned(enemy, now) &&
         distanceToRay(enemyPosition(enemy, now), beam) <=
-          beam.radius + ENEMY_RADIUS
+          beam.radius + radiusOf(enemy)
           ? { ...enemy, hp: enemy.hp - beam.damage }
           : enemy,
       ),

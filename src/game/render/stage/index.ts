@@ -1,6 +1,6 @@
 import { Application, Container } from 'pixi.js';
 import type { Level } from '../../level';
-import { isExitOpen, type World } from '../../sim/world';
+import type { World } from '../../sim/world';
 import { add, type Vec } from '../../vec';
 import { worldOffset } from '../camera';
 import { createEnemiesView } from '../enemiesView';
@@ -23,6 +23,8 @@ export interface Frame {
   shot: number;
   hit: number;
   drop: number;
+  /** For the circle's one-bar charge. */
+  barSeconds: number;
 }
 
 export interface Stage {
@@ -80,8 +82,12 @@ export const createStage = async (
     render: frame => {
       const offset = add(worldOffset(frame.camera, viewport()), frame.shake);
       layers.position.set(Math.round(offset.x), Math.round(offset.y));
-      levelView.update({ ...frame, exitOpen: isExitOpen(frame.world) });
-      pickups.update({ ...frame, pickups: frame.world.pickups });
+      levelView.update({ ...frame, survival: frame.world.survival });
+      pickups.update({
+        ...frame,
+        pickups: frame.world.pickups,
+        hearts: frame.world.hearts,
+      });
       enemies.update(frame.world.enemies, frame.now);
       player.update({ ...frame, player: frame.world.player });
       fx.update({

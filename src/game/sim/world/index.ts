@@ -21,7 +21,9 @@ import {
   ENEMY_HP,
   ENEMY_RADIUS,
   MAX_ENEMIES,
+  HOP_SECONDS,
   planHop,
+  spawnBoss,
   spawnWave,
   type Enemy,
 } from '../enemy';
@@ -38,8 +40,25 @@ import {
   type Projectile,
 } from '../projectile';
 import { NO_COMBO, registerKill, type Combo } from '../combo';
-import { dropsOnKill, lootRecipe, type Pickup } from '../loot';
-import { advanceWaves, INITIAL_WAVES, waveSize, type Waves } from '../waves';
+import {
+  BOSS_HEARTS,
+  dropOnKill,
+  goodLootRecipe,
+  heartsInReach,
+  lootRecipe,
+  type Heart,
+  type Pickup,
+} from '../loot';
+import {
+  advanceSurvival,
+  INITIAL_SURVIVAL,
+  songFor,
+  songFrom,
+  stepIn,
+  waveSize,
+  type SongSection,
+  type Survival,
+} from '../survival';
 
 /** A shot scheduled on the audio clock; it leaves the barrel at `time`. */
 export interface PendingShot {
@@ -53,16 +72,18 @@ export interface PendingShot {
 export interface WaveRules {
   /** 1-based level within the run; waves grow with it. */
   level: number;
-  /** Bars of breathing room before the first wave. */
-  quietBars: number;
-  /** Waves to clear before the exit opens. */
-  wavesToClear: number;
+  /** The song the level plays, part by part (see `songFor`). */
+  song: Array<SongSection>;
   enemyHp: number;
+  bossHp: number;
   /** Share of each wave after the first that comes as chargers. */
   chargerChance: number;
-  /** Stress test: top the level up to the enemy cap every bar. */
+  /** Stress test: skip the circle and top the level up to the cap every bar. */
   fill: boolean;
 }
+
+/** The boss appears at least this far away, so it walks in on the drop. */
+const BOSS_MIN_TILES = 8;
 
 /** Each level is a little longer and a little tougher than the last. */
 export const rulesFor = ({
@@ -73,9 +94,9 @@ export const rulesFor = ({
   stress?: boolean;
 }): WaveRules => ({
   level,
-  quietBars: stress ? 0 : level === 1 ? 2 : 1,
-  wavesToClear: 2 + level,
+  song: songFor(level),
   enemyHp: ENEMY_HP + 0.5 * (level - 1),
+  bossHp: 30 + 12 * (level - 1),
   chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
 });
@@ -95,11 +116,10 @@ export interface World {
   kills: number;
   score: number;
   combo: Combo;
-  waves: Waves;
+  survival: Survival;
   enemies: Array<Enemy>;
   pickups: Array<Pickup>;
-  /** Where the latest kill fell - a cleared wave drops its reward there. */
-  lastKill: Vec | null;
+  hearts: Array<Heart>;
   projectiles: Array<Projectile>;
   /** Beam ticks still being drawn; their damage landed when they fired. */
   beams: Array<Beam>;
@@ -111,14 +131,14 @@ export interface World {
 }
 
 const INVULNERABLE_SECONDS = 0.6;
-/** How close to the exit pad's centre counts as standing on it. */
-const EXIT_RADIUS = 40;
+/** How close to the pad's centre counts as standing in the circle. */
+export const PAD_RADIUS = 48;
 export const PLAYER_MAX_HP = 5;
 /**
- * Waves appear this many tiles away, walking: off-screen, usually a room
- * or two over, so they arrive on the beat rather than pop in close.
+ * Enemies can appear anywhere, close too - their marker pulses first - but
+ * never right on top of the player.
  */
-const SPAWN_DISTANCE = { min: 10, max: 18 };
+const SPAWN_MIN_TILES = 4;
 
 export const createWorld = (
   level: Level,
@@ -139,10 +159,10 @@ export const createWorld = (
   kills,
   score,
   combo: NO_COMBO,
-  waves: INITIAL_WAVES,
+  survival: rules.fill ? songFrom(0) : INITIAL_SURVIVAL,
   enemies: [],
   pickups: [],
-  lastKill: null,
+  hearts: [],
   projectiles: [],
   beams: [],
   pendingShots: [],
@@ -199,6 +219,10 @@ export const onBeat = (
   const distance = (enemy: Enemy) => distanceAt(map, field, tileOf(enemy.to));
   const special = new Map(
     world.enemies.flatMap(enemy => {
+      // The boss lumbers: it only steps on beats 1 and 3.
+      if (enemy.kind === 'boss') {
+        return beat % 2 === 1 ? [[enemy.id, enemy] as const] : [];
+      }
       if (enemy.kind !== 'charger') return [];
       const acted = chargerBeat(world, enemy, {
         time,
@@ -228,7 +252,12 @@ export const onBeat = (
       return {
         hops: new Map(acc.hops).set(
           enemy.id,
-          planHop(enemy, tileCenter(next), time),
+          planHop(
+            enemy,
+            tileCenter(next),
+            time,
+            enemy.kind === 'boss' ? HOP_SECONDS * 2 : HOP_SECONDS,
+          ),
         ),
         taken,
       };
@@ -247,18 +276,20 @@ export const onBeat = (
   };
 };
 
-/** Floor tiles a fresh wave may appear on: far enough, and unoccupied. */
+/** Floor tiles a fresh wave may appear on: not too close, and unoccupied. */
 const spawnSpots = (world: World): Array<Vec> => {
   const { map } = world.level;
-  const field = distanceField(map, tileOf(world.player.position));
   const occupied = new Set(
     world.enemies.map(enemy => tileKey(tileOf(enemy.to))),
   );
-  return field.flatMap((distance, index) => {
+  return map.tiles.flatMap((tile, index) => {
     const pos = { x: index % map.width, y: Math.floor(index / map.width) };
-    const inRange =
-      distance >= SPAWN_DISTANCE.min && distance <= SPAWN_DISTANCE.max;
-    return inRange && !occupied.has(tileKey(pos)) ? [tileCenter(pos)] : [];
+    if (tile === 'wall' || occupied.has(tileKey(pos))) return [];
+    const center = tileCenter(pos);
+    const near =
+      length(subtract(center, world.player.position)) <
+      SPAWN_MIN_TILES * TILE_SIZE;
+    return near ? [] : [center];
   });
 };
 
@@ -279,15 +310,59 @@ export const takePickup = (world: World, id: number): World => ({
   pickups: world.pickups.filter(pickup => pickup.id !== id),
 });
 
-const dropLoot = (world: World, position: Vec): World =>
-  placePickup(world, lootRecipe(world.level.seed, world.nextId), position);
+const placeHeart = (world: World, position: Vec): World => ({
+  ...world,
+  hearts: [...world.hearts, { id: world.nextId, position }],
+  nextId: world.nextId + 1,
+});
+
+/** Hearts scattered a little around where the boss fell. */
+const HEART_SCATTER = 36;
+
+/** What a kill leaves behind (see `dropOnKill`); the boss always pays out. */
+const dropLoot = (world: World, enemy: Enemy, position: Vec): World => {
+  const { seed } = world.level;
+  if (enemy.kind === 'boss') {
+    const armed = placePickup(
+      world,
+      goodLootRecipe(seed, world.nextId),
+      position,
+    );
+    return Array.from({ length: BOSS_HEARTS }, (_, i) => i).reduce(
+      (acc, i) =>
+        placeHeart(acc, {
+          x:
+            position.x +
+            HEART_SCATTER * Math.cos((i / BOSS_HEARTS) * Math.PI * 2),
+          y:
+            position.y +
+            HEART_SCATTER * Math.sin((i / BOSS_HEARTS) * Math.PI * 2) +
+            HEART_SCATTER,
+        }),
+      armed,
+    );
+  }
+  const drop = dropOnKill(seed, enemy.id);
+  if (drop === 'weapon') {
+    return placePickup(world, lootRecipe(seed, world.nextId), position);
+  }
+  return drop === 'heart' ? placeHeart(world, position) : world;
+};
 
 export const isExitOpen = (world: World): boolean =>
-  world.waves.cleared >= world.rules.wavesToClear;
+  world.survival.phase === 'clear';
+
+const onPad = (world: World, position: Vec) =>
+  length(subtract(position, world.level.pad)) <= PAD_RADIUS;
 
 const spawn = (
   world: World,
-  { count, time, rng }: { count: number; time: number; rng: Rng },
+  {
+    count,
+    time,
+    rng,
+    chargerChance,
+  }: { count: number; time: number; rng: Rng; chargerChance: number },
 ): World => {
   if (count === 0) return world;
   const wave = spawnWave({
@@ -297,9 +372,7 @@ const spawn = (
     candidates: spawnSpots(world),
     time,
     hp: world.rules.enemyHp,
-    // The first wave of a level is hoppers only, to read the beat first.
-    chargerChance:
-      world.rules.fill || world.waves.sent > 1 ? world.rules.chargerChance : 0,
+    chargerChance,
   });
   return {
     ...world,
@@ -309,34 +382,76 @@ const spawn = (
 };
 
 /**
- * On every bar line: the wave lifecycle moves on (see `advanceWaves`), so
- * waves arrive, clear and return on the song's structure.
+ * On every bar line: the level moves on (see `advanceSurvival`), so the
+ * charge, the slam and every wave land on the song's structure. Spawns
+ * appear `telegraphSeconds` after the bar, their markers pulsing until then.
  */
 export const onBar = (
   world: World,
-  { bar, time, rng }: { bar: number; time: number; rng: Rng },
+  {
+    bar,
+    time,
+    rng,
+    telegraphSeconds = 0,
+  }: { bar: number; time: number; rng: Rng; telegraphSeconds?: number },
 ): World => {
   if (world.status !== 'playing') return world;
   const { rules } = world;
   const alive = world.enemies.length;
+  const spawnAt = time + telegraphSeconds;
   if (rules.fill) {
-    return spawn(world, { count: MAX_ENEMIES - alive, time, rng });
+    return spawn(world, {
+      count: MAX_ENEMIES - alive,
+      time: spawnAt,
+      rng,
+      chargerChance: rules.chargerChance,
+    });
   }
 
-  const next = advanceWaves(world.waves, {
+  const next = advanceSurvival(world.survival, {
     bar,
+    time,
     alive,
-    quietBars: rules.quietBars,
+    bossAlive: world.enemies.some(enemy => enemy.kind === 'boss'),
+    song: rules.song,
   });
-  const justCleared = next.waves.cleared > world.waves.cleared;
-  const rewarded = justCleared
-    ? dropLoot(world, world.lastKill ?? world.player.position)
-    : world;
-  const advanced = { ...rewarded, waves: next.waves };
+  const advanced = { ...world, survival: next.survival };
   if (!next.spawn) return advanced;
-  const size = waveSize({ sent: world.waves.sent, level: rules.level, alive });
-  const count = next.spawn === 'wave' ? size : Math.ceil(size / 2);
-  return spawn(advanced, { count, time, rng });
+  const { wave, boss } = next.spawn;
+  const sent = world.survival.sent;
+  const waved = wave
+    ? spawn(advanced, {
+        count: waveSize({ sent, level: rules.level, alive, extra: wave.extra }),
+        time: spawnAt,
+        rng,
+        chargerChance: wave.chargers ? rules.chargerChance : 0,
+      })
+    : advanced;
+  return boss ? spawnTheBoss(waved, { time: spawnAt, rng }) : waved;
+};
+
+const spawnTheBoss = (
+  world: World,
+  { time, rng }: { time: number; rng: Rng },
+): World => {
+  const far = spawnSpots(world).filter(
+    spot =>
+      length(subtract(spot, world.player.position)) >=
+      BOSS_MIN_TILES * TILE_SIZE,
+  );
+  const spots = far.length > 0 ? far : spawnSpots(world);
+  if (spots.length === 0) return world;
+  const boss = spawnBoss({
+    id: world.nextId,
+    position: rng.pick(spots),
+    time,
+    hp: world.rules.bossHp,
+  });
+  return {
+    ...world,
+    enemies: [...world.enemies, boss],
+    nextId: world.nextId + 1,
+  };
 };
 
 export interface FrameResult {
@@ -344,6 +459,8 @@ export interface FrameResult {
   kills: Array<Vec>;
   /** Crushed shots that burst this frame. */
   blasts: Array<Blast>;
+  /** Hearts picked up this frame. */
+  healed: Array<Vec>;
   /** Where an enemy hit the player, if one did this frame. */
   playerHit: Vec | null;
 }
@@ -364,7 +481,7 @@ export const stepWorld = (
 ): FrameResult => {
   // A finished run freezes where it ended.
   if (world.status !== 'playing') {
-    return { world, kills: [], blasts: [], playerHit: null };
+    return { world, kills: [], blasts: [], playerHit: null, healed: [] };
   }
 
   const { map } = world.level;
@@ -395,12 +512,14 @@ export const stepWorld = (
   const contacts = resolveContacts(player.position, hits.enemies, now);
   const canBeHit = now >= world.invulnerableUntil;
   const playerHit = canBeHit ? (contacts.touched[0]?.position ?? null) : null;
-  const hp = playerHit ? world.hp - 1 : world.hp;
-  const onExit =
-    isExitOpen(world) &&
-    length(subtract(player.position, world.level.exit)) <= EXIT_RADIUS;
+  const hurt = playerHit ? world.hp - 1 : world.hp;
+  // Walking over a heart heals - but only with health to heal.
+  const reachable = heartsInReach(world.hearts, player.position);
+  const healed = hurt > 0 ? reachable.slice(0, world.maxHp - hurt) : [];
+  const hp = hurt + healed.length;
+  const standingIn = onPad(world, player.position);
+  const onExit = isExitOpen(world) && standingIn;
   const status = hp <= 0 ? 'dead' : onExit ? 'cleared' : 'playing';
-  const killedAt = hits.killed.map(kill => kill.position);
   // Every kill this frame lands on the same beat, each extending the chain.
   const scored = hits.killed.reduce(
     acc => {
@@ -409,14 +528,15 @@ export const stepWorld = (
     },
     { combo: world.combo, score: world.score },
   );
-  const looted = hits.killed
-    .filter(kill => dropsOnKill(world.level.seed, kill.enemy.id))
-    .reduce((acc, kill) => dropLoot(acc, kill.position), world);
+  const looted = hits.killed.reduce(
+    (acc, kill) => dropLoot(acc, kill.enemy, kill.position),
+    world,
+  );
 
   return {
     world: {
       ...looted,
-      lastKill: killedAt[killedAt.length - 1] ?? world.lastKill,
+      survival: standingIn ? stepIn(world.survival, now) : world.survival,
       status,
       hp,
       kills: world.kills + hits.killed.length,
@@ -428,6 +548,7 @@ export const stepWorld = (
         beam => beam.expiresAt > now,
       ),
       enemies: contacts.enemies,
+      hearts: looted.hearts.filter(heart => !healed.includes(heart)),
       pendingShots: world.pendingShots.filter(shot => shot.time > now),
       invulnerableUntil: playerHit
         ? now + INVULNERABLE_SECONDS
@@ -436,5 +557,6 @@ export const stepWorld = (
     kills: hits.killed.map(kill => kill.position),
     blasts,
     playerHit,
+    healed: healed.map(heart => heart.position),
   };
 };

@@ -24,9 +24,10 @@ const meta = {
       kills: 12,
       score: 1800,
       combo: 3,
-      wavesCleared: 1,
-      wavesToClear: 3,
-      exitOpen: false,
+      phase: 'song',
+      part: 'drop1',
+      secondsLeft: 42,
+      boss: false,
       pickup: null,
     },
     onStop: fn(),
@@ -43,6 +44,7 @@ type Story = StoryObj<typeof meta>;
 export const Playing: Story = {
   play: async ({ args, canvas, userEvent }) => {
     await expect(canvas.getByText(/mouse aim and fire/)).toBeVisible();
+    await expect(canvas.getByText(/drop 1 0:42/)).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }));
     await expect(args.onStop).toHaveBeenCalled();
   },
@@ -58,9 +60,10 @@ export const RunEnded: Story = {
       kills: 31,
       score: 4650,
       combo: 0,
-      wavesCleared: 1,
-      wavesToClear: 4,
-      exitOpen: false,
+      phase: 'song',
+      part: 'drop1',
+      secondsLeft: 42,
+      boss: false,
       pickup: null,
     },
   },
@@ -81,9 +84,10 @@ export const LevelCleared: Story = {
       kills: 24,
       score: 3600,
       combo: 0,
-      wavesCleared: 3,
-      wavesToClear: 3,
-      exitOpen: true,
+      phase: 'clear',
+      part: 'outro',
+      secondsLeft: null,
+      boss: false,
       pickup: null,
     },
   },
@@ -103,15 +107,65 @@ export const OnAWeapon: Story = {
       kills: 9,
       score: 1350,
       combo: 0,
-      wavesCleared: 1,
-      wavesToClear: 3,
-      exitOpen: false,
+      phase: 'song',
+      part: 'drop1',
+      secondsLeft: 42,
+      boss: false,
       pickup: 'Vandal Laser 1/8 Echo',
     },
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('status')).toHaveTextContent(
       'F take Vandal Laser 1/8 Echo',
+    );
+  },
+};
+
+export const AtTheCircle: Story = {
+  args: {
+    run: {
+      status: 'playing',
+      level: 1,
+      hp: 5,
+      maxHp: 5,
+      kills: 0,
+      score: 0,
+      combo: 0,
+      phase: 'waiting',
+      part: null,
+      secondsLeft: null,
+      boss: false,
+      pickup: null,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Step into the circle to start',
+    );
+  },
+};
+
+export const ExitOpen: Story = {
+  args: {
+    run: {
+      status: 'playing',
+      level: 2,
+      hp: 2,
+      maxHp: 5,
+      kills: 60,
+      score: 9100,
+      combo: 0,
+      phase: 'clear',
+      part: 'outro',
+      secondsLeft: null,
+      boss: false,
+      pickup: null,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/exit open/)).toBeVisible();
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Step into the circle to leave',
     );
   },
 };

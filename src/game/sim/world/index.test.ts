@@ -3,6 +3,7 @@ import {
   distanceAt,
   distanceField,
   generateLevel,
+  isWall,
   tileCenter,
   tileOf,
   TILE_SIZE,
@@ -67,28 +68,78 @@ describe('createWorld', () => {
   });
 });
 
-describe('onBar', () => {
-  it('runs waves on the song: intro, fight, clear, next wave', () => {
-    const rng = createRng(1);
-    const world = createWorld(level);
-    expect(onBar(world, { bar: 1, time: 1, rng }).enemies).toEqual([]);
-    const fighting = onBar(world, { bar: 2, time: 2, rng });
-    expect(fighting.enemies).toHaveLength(3);
-    expect(fighting.waves.phase).toBe('fight');
+const stepInto = (world: World, at: { x: number; y: number }, now = 1) =>
+  stepWorld(
+    { ...world, player: { ...world.player, position: at } },
+    { input: still, dt: 1 / 60, now },
+  ).world;
 
-    const cleared = onBar(
-      { ...fighting, enemies: [] },
-      { bar: 5, time: 5, rng },
-    );
-    expect(cleared.waves).toMatchObject({ phase: 'cleared', cleared: 1 });
-    const next = onBar(cleared, { bar: 9, time: 9, rng });
-    expect(next.enemies).toHaveLength(5);
+/** Stepped in, charged over a bar and slammed: the fight is on at bar 2. */
+const fighting = (rules = rulesFor({ level: 1 })) => {
+  const charged = onBar(stepInto(createWorld(level, rules), level.pad), {
+    bar: 1,
+    time: 2,
+    rng: createRng(1),
+  });
+  return onBar(charged, { bar: 2, time: 4, rng: createRng(1) });
+};
+
+describe('the circle', () => {
+  it('waits for the player, sending nobody', () => {
+    const rng = createRng(1);
+    const idle = onBar(createWorld(level), { bar: 40, time: 80, rng });
+    expect(idle.enemies).toEqual([]);
+    expect(idle.survival.phase).toBe('waiting');
   });
 
+  it('charges once the player steps in, and slams a bar line later', () => {
+    const stepped = stepInto(createWorld(level), level.pad, 1.2);
+    expect(stepped.survival).toMatchObject({
+      phase: 'charging',
+      steppedAt: 1.2,
+    });
+    const slammed = fighting();
+    expect(slammed.survival).toMatchObject({ phase: 'song', startBar: 2 });
+    expect(slammed.enemies).toHaveLength(2);
+  });
+
+  it('ignores the player standing anywhere else', () => {
+    const elsewhere = stepInto(createWorld(level), start);
+    expect(elsewhere.survival.phase).toBe('waiting');
+  });
+});
+
+describe('onBar', () => {
   it('gives enemies more hit points on later levels', () => {
-    const world = createWorld(level, rulesFor({ level: 3 }));
-    const fighting = onBar(world, { bar: 1, time: 1, rng: createRng(1) });
-    fighting.enemies.forEach(enemy => expect(enemy.hp).toBe(3));
+    fighting(rulesFor({ level: 3 })).enemies.forEach(enemy =>
+      expect(enemy.hp).toBe(3),
+    );
+  });
+
+  it('brings the boss on the last drop, far from the player', () => {
+    const playing = fighting();
+    const drop3 = onBar(
+      { ...playing, survival: { ...playing.survival, lastWaveBar: 81 } },
+      { bar: 82, time: 164, rng: createRng(3) },
+    );
+    const boss = drop3.enemies.find(enemy => enemy.kind === 'boss');
+    expect(boss?.hp).toBe(30);
+    const away = Math.hypot(
+      boss!.to.x - drop3.player.position.x,
+      boss!.to.y - drop3.player.position.y,
+    );
+    expect(away).toBeGreaterThanOrEqual(8 * TILE_SIZE);
+  });
+
+  it('opens the exit in the outro once the boss is down', () => {
+    const playing = fighting();
+    const outro = {
+      ...playing,
+      enemies: [],
+      survival: { ...playing.survival, bossSent: true, lastWaveBar: 114 },
+    };
+    const open = onBar(outro, { bar: 114, time: 228, rng: createRng(3) });
+    expect(isExitOpen(open)).toBe(true);
   });
 
   it('fills the level to the enemy cap in stress mode, from the first bar', () => {
@@ -100,25 +151,39 @@ describe('onBar', () => {
     ).toHaveLength(30);
   });
 
-  it('spawns 10-18 tiles away by walking distance, on floor', () => {
-    const world = onBar(createWorld(level), {
-      bar: 20,
-      time: 1,
-      rng: createRng(2),
-    });
+  it('spawns anywhere on floor, but never right on top of the player', () => {
+    const world = fighting();
     expect(world.enemies.length).toBeGreaterThan(0);
     world.enemies.forEach(enemy => {
-      expect(walk(enemy.to)).toBeGreaterThanOrEqual(10);
-      expect(walk(enemy.to)).toBeLessThanOrEqual(18);
+      expect(isWall(level.map, tileOf(enemy.to))).toBe(false);
+      const away = Math.hypot(
+        enemy.to.x - world.player.position.x,
+        enemy.to.y - world.player.position.y,
+      );
+      expect(away).toBeGreaterThanOrEqual(4 * TILE_SIZE);
     });
+  });
+
+  it('telegraphs spawns: they appear a moment after the bar line', () => {
+    const charged = onBar(stepInto(createWorld(level), level.pad), {
+      bar: 1,
+      time: 2,
+      rng: createRng(1),
+    });
+    const slammed = onBar(charged, {
+      bar: 2,
+      time: 4,
+      rng: createRng(1),
+      telegraphSeconds: 0.8,
+    });
+    slammed.enemies.forEach(enemy => expect(enemy.spawnAt).toBe(4.8));
   });
 });
 
 describe('onBeat', () => {
   it('hops each enemy one tile closer along the flow field', () => {
-    const far = createWorld(level);
-    const spawned = onBar(far, { bar: 20, time: 0, rng: createRng(4) });
-    const hopped = onBeat(spawned, { time: 1, beat: 0 });
+    const spawned = fighting();
+    const hopped = onBeat(spawned, { time: 5, beat: 0 });
     hopped.enemies.forEach((enemy, i) => {
       const before = spawned.enemies[i];
       expect(walk(enemy.to)).toBe(walk(before.to) - 1);
@@ -209,17 +274,17 @@ describe('stepWorld', () => {
   });
 
   it('stops projectiles at walls', () => {
-    const t = tileOf(start);
-    // The start room is open; its east border wall is a few tiles away.
-    const world = queueShot(createWorld(level), shot(0));
-    const flown = Array.from({ length: 30 }, (_, i) => i).reduce(
+    // Long-lived shots aimed at the arena's east wall.
+    const world = queueShot(createWorld(level), {
+      ...shot(0),
+      spec: { ...shot(0).spec, lifetime: 5 },
+    });
+    const flown = Array.from({ length: 150 }, (_, i) => i).reduce(
       (current, i) =>
         stepWorld(current, { input: still, dt: 1 / 60, now: i / 60 }).world,
       world,
     );
-    flown.projectiles.forEach(projectile =>
-      expect(tileOf(projectile.position).x).toBeLessThan(t.x + 9),
-    );
+    expect(flown.projectiles).toEqual([]);
   });
 
   it('counts kills', () => {
@@ -286,16 +351,42 @@ describe('stepWorld', () => {
     expect(after.world).toBe(dead);
   });
 
-  it('drops a weapon where the last kill fell when a wave clears', () => {
-    const rng = createRng(1);
-    const fighting = onBar(createWorld(level), { bar: 2, time: 2, rng });
-    const lastKill = { x: 300, y: 400 };
-    const cleared = onBar(
-      { ...fighting, enemies: [], lastKill },
-      { bar: 5, time: 5, rng },
+  it('drops a good weapon and hearts where the boss falls', () => {
+    const at = { x: start.x + 50, y: start.y };
+    const boss: Enemy = { ...enemyAt(9, at, 1), kind: 'boss' };
+    const { world } = stepWorld(
+      queueShot(withEnemies(createWorld(level), [boss]), shot(1)),
+      { input: still, dt: 1 / 60, now: 1 },
     );
-    expect(cleared.pickups).toHaveLength(1);
-    expect(cleared.pickups[0].position).toEqual(lastKill);
+    expect(world.pickups).toHaveLength(1);
+    expect(world.pickups[0].recipe).toMatchObject({ manufacturer: 'vandal' });
+    expect(world.hearts).toHaveLength(2);
+  });
+
+  it('heals on walking over a heart, only with health to heal', () => {
+    const heart = { id: 99, position: start };
+    const hurt = { ...createWorld(level), hp: 3, hearts: [heart] };
+    const healed = stepWorld(hurt, { input: still, dt: 1 / 60, now: 1 });
+    expect(healed.world.hp).toBe(4);
+    expect(healed.world.hearts).toEqual([]);
+    expect(healed.healed).toEqual([start]);
+
+    const full = { ...createWorld(level), hearts: [heart] };
+    const kept = stepWorld(full, { input: still, dt: 1 / 60, now: 1 });
+    expect(kept.world.hp).toBe(PLAYER_MAX_HP);
+    expect(kept.world.hearts).toEqual([heart]);
+  });
+
+  it('lets the boss shrug off contact: it hits, but stays', () => {
+    const near = { x: start.x + 10, y: start.y };
+    const boss: Enemy = { ...enemyAt(1, near, 30), kind: 'boss' };
+    const hit = stepWorld(withEnemies(createWorld(level), [boss]), {
+      input: still,
+      dt: 1 / 60,
+      now: 1,
+    });
+    expect(hit.world.hp).toBe(PLAYER_MAX_HP - 1);
+    expect(hit.world.enemies).toHaveLength(1);
   });
 
   it('puts weapons down and picks them up', () => {
@@ -306,10 +397,11 @@ describe('stepWorld', () => {
     expect(takePickup(world, world.pickups[0].id).pickups).toEqual([]);
   });
 
-  it('keeps the exit shut until enough waves are cleared', () => {
+  it('only lets the player out once the final wave has fallen', () => {
     const onPad = {
-      ...createWorld(level),
-      player: { ...createWorld(level).player, position: level.exit },
+      ...fighting(),
+      enemies: [],
+      player: { ...createWorld(level).player, position: level.pad },
     };
     const shut = stepWorld(onPad, { input: still, dt: 1 / 60, now: 1 });
     expect(isExitOpen(onPad)).toBe(false);
@@ -317,7 +409,7 @@ describe('stepWorld', () => {
 
     const ready = {
       ...onPad,
-      waves: { ...onPad.waves, cleared: onPad.rules.wavesToClear },
+      survival: { ...onPad.survival, phase: 'clear' as const },
     };
     expect(isExitOpen(ready)).toBe(true);
     expect(

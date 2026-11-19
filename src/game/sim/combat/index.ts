@@ -1,5 +1,5 @@
 import { length, subtract, type Vec } from '../../vec';
-import { ENEMY_RADIUS, enemyPosition, isSpawned, type Enemy } from '../enemy';
+import { enemyPosition, isSpawned, radiusOf, type Enemy } from '../enemy';
 import { PLAYER_RADIUS } from '../player';
 import type { Splash } from '../../weapons';
 import type { Projectile } from '../projectile';
@@ -34,7 +34,7 @@ export const resolveHits = (
           overlaps(
             projectile.position,
             enemyPosition(enemy, now),
-            projectile.radius + ENEMY_RADIUS,
+            projectile.radius + radiusOf(enemy),
           ),
       );
       if (!target) {
@@ -68,7 +68,7 @@ export const resolveHits = (
 
 export interface ContactResult {
   enemies: Array<Enemy>;
-  /** Enemies that reached the player - they burst on contact. */
+  /** Enemies that reached the player - they burst on contact, bar the boss. */
   touched: Array<{ enemy: Enemy; position: Vec }>;
 }
 
@@ -79,10 +79,14 @@ export const resolveContacts = (
 ): ContactResult => {
   const touches = (enemy: Enemy) =>
     isSpawned(enemy, now) &&
-    overlaps(player, enemyPosition(enemy, now), PLAYER_RADIUS + ENEMY_RADIUS);
+    overlaps(
+      player,
+      enemyPosition(enemy, now),
+      PLAYER_RADIUS + radiusOf(enemy),
+    );
 
   return {
-    enemies: enemies.filter(enemy => !touches(enemy)),
+    enemies: enemies.filter(enemy => enemy.kind === 'boss' || !touches(enemy)),
     touched: enemies
       .filter(touches)
       .map(enemy => ({ enemy, position: enemyPosition(enemy, now) })),

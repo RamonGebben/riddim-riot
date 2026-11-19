@@ -73,12 +73,13 @@ src/
     rng/              mulberry32 + deriveSeed for independent streams
     music/            keys, scales, degree → MIDI, rollKey
     palette/          the four 6-colour level palettes
-    level/            room grid, room templates, tilemap, BFS distance field
+    level/            arena generator, tilemap, BFS distance field
     weapons/          parts pool, rollWeapon, recipes, spread, weapon types
     loadout/          3 slots: switching, holstering, swapping in loot
     hud/              HudView: what React shows, published on change only
     sim/              pure simulation: trigger, weaponSlot, player, enemy,
-                      projectile, combat, collision, waves, loot, combo, world
+                      projectile, beam, splash, combat, collision,
+                      survival, loot, combo, world
     input/            keyboard/mouse: move vector, trigger, weapon keys
     audio/            drums, music bus, arrangement, weapon/reload/impact
                       voices, gate, loudness measurement, heardTime
@@ -96,7 +97,9 @@ an optional pinned engine). Level 1 plays the run seed; later levels get
 `deriveSeed(seed, 20, level)` for a fresh layout, key and palette. Recipes
 are re-rolled in each level's key, so a loadout transposes for free.
 
-`startGame({ run })` plays one level. When the player takes the exit, the HUD
+`startGame({ run })` plays one level. It opens quiet: only the pad bed
+plays (no drums) and weapons fire on its pulse, until the player steps
+into the circle. When the player takes the exit, the HUD
 goes to `cleared`, and **Next level** calls `play(game.nextRun())`, which
 stops this game and starts the next. Death offers **Try again** (same run
 seed, level 1) or **New run** (fresh seed). React only re-renders on HUD
@@ -109,27 +112,34 @@ the only mutable reference:
 
 - `onBeat(world, { time, beat })`: hoppers hop one tile along the flow field
   (`level/field`, a BFS from the player's tile), nearest first, never onto an
-  occupied tile, so queues flow through doorways. Chargers line up on beat 3
+  occupied tile, so queues flow round cover. Chargers line up on beat 3
   (the snare) when within 8 tiles, showing a tell, and dash 4 tiles on the
-  next downbeat; otherwise they walk on beat 2.
-- `onBar(world, { bar, time, rng })`: advances the wave lifecycle
-  (`sim/waves`): a quiet intro (2 bars on level 1), then waves. A wave is
-  fought until a bar line finds nobody left, which clears it and drops a
-  weapon. The next wave comes 4 bars later, and a fight longer than 8 bars
-  gets reinforcements. Waves grow per wave and per level (cap 14, 30 alive)
-  and spawn 10-18 tiles away by walking distance. Chargers make up 25% of
-  waves after a level's first, rising with the level.
+  next downbeat; otherwise they walk on beat 2. The boss steps on beats 1
+  and 3 only.
+- `onBar(world, { bar, time, rng, telegraphSeconds })`: advances the level
+  (`sim/survival`). It waits until the player steps into the circle; the
+  next bar line starts a one-bar charge (riser, filling ring) and the bar
+  after slams: shockwave, drop hit, drums in, and the song starts. The song
+  is intro 16, breakdown 8, build-up 8, drop 1 16, drop 2 16, bridge 16,
+  drop 3 32-48 (longer per level) and outro 16 bars, and each part sends
+  waves at its own pace and size (sparse in the intro and breakdown, every
+  2 bars through the build-up, every 4 with extra enemies in the drops,
+  none in the outro; sooner once the floor is clear). Drop 3 opens with the
+  boss, 8+ tiles away. Once the boss is down and the outro is playing, the
+  circle opens as the exit. Spawns can land anywhere 4+ tiles from the
+  player; a marker pulses there for 2 beats first (`telegraphSeconds`).
 - `stepWorld(world, { input, dt, now, beat })`: per frame, the player moves
   (420 px/s, sliding along walls), shots whose time has sounded leave the
   barrel, projectiles fly and die on walls, beam ticks hit everything along
   their ray (`sim/beam`), then hits, Crush blasts (`sim/splash`) and
   contacts resolve.
   Kills score into the combo, may drop loot, and hits cost one of 5 HP (then
-  0.6 s of invulnerability). At 0 HP the world is `dead`; on the open exit
+  0.6 s of invulnerability). Walking over a heart heals one, only below full
+  health. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
   it's `cleared`. Either way it freezes.
 
-`WaveRules` (from `rulesFor({ level, stress })`) set the quiet bars, waves to
-clear (2 + level), enemy HP (+0.5 a level) and charger share. An enemy stores
+`WaveRules` (from `rulesFor({ level, stress })`) set the song, enemy HP
+(+0.5 a level), boss HP (30, +12 a level) and charger share. An enemy stores
 its current hop (`from`, `to`, `hopAt`, `hopSeconds`), so its position is a
 pure function of the clock and lands exactly on the beat.
 
@@ -169,8 +179,9 @@ pure function of the clock and lands exactly on the beat.
   (0.35 s), moves sub ownership (the others are high-passed at 180 Hz) and
   carries a held trigger over. `replaceActive` swaps loot in. A new run
   opens with one of each engine.
-- **Loot** (`sim/loot`): a cleared wave always drops a weapon where the last
-  kill fell; any kill has a 6% chance. Rolls are seeded per level. **F** on a
+- **Loot** (`sim/loot`): any kill has a 10% chance of a weapon, else 8% of
+  a heart. The boss always drops a good weapon (Vandal with an FX, pinned
+  through `WeaponRecipe`) and two hearts. Rolls are seeded per level. **F** on a
   weapon swaps it into the active slot and drops the old one in its place.
 
 ### Scoring (`sim/combo`)
@@ -202,10 +213,12 @@ voice a scale degree higher per combo step, an octave by ×8.
   shut on death) and a limiter. Every kick pumps (`pump`) the pad bed
   (`bed`) and the weapons (`weapons`) by the `mix` patch: the sidechain.
 - **Arrangement** (`audio/arrangement`): each bar line picks a section from
-  the wave lifecycle. _calm_ in the intro (track at 700 Hz), _groove_ while few
-  enemies are up (3.2 kHz), _build_ at 8+ alive (filter riding open over 2
-  bars, a noise riser every 2 bars), _drop_ for the phrase after a cleared
-  wave (wide open; a crash and a sub boom on the root, a palette flash).
+  the song part: _calm_ before the slam, in the breakdown and the outro
+  (track at 700 Hz), _groove_ in the intro and bridge (3.2 kHz), _build_ in
+  the build-up (filter riding open over 2 bars, a noise riser every 2
+  bars), _drop_ in every drop (wide open; a crash and a sub boom on the
+  root, a palette flash, struck again when one drop follows another).
+  `charge` plays the circle's one-bar riser.
   Under it a detuned saw chord in key and high air fill the bed, louder as
   the fight builds and pulled back in the drop.
 - **Loudness** (`audio/loudness`): each weapon is rendered for a bar offline
@@ -238,19 +251,23 @@ without reloading the page.
 
 ### Levels
 
-`generateLevel(seed)` builds a 3×3 room grid. A Spelunky-style walk lays the
-main path from the top row to the bottom row; side rooms link in after, so
-every room is reachable. Rooms are 17×11 tiles (64 px each) from six
-handmade templates, randomly mirrored and with optional walls. Each keeps
-its centre lines clear so 3-wide doors always connect. The seed also picks
-the key and palette, each from its own `deriveSeed` stream so changing one
-never reshuffles another. The exit pad sits in the last room on the path and
-lights up once enough waves are cleared.
+`generateLevel(seed)` builds one walled arena (`level/arena`), 37×25 tiles
+of 64 px (about twice a laptop screen each way; the camera follows). Each
+level picks one cover style: _blocks_ (2-3 mirrored pairs of big blocks to
+circle) or _scattered_ (pillars and short walls, four-way symmetric, to
+weave through). Pieces never touch each other or the border, so no floor
+is ever walled off. The circle sits at the centre with a clear zone, and
+the player spawns 4 tiles below it. The seed also picks the style, key and
+palette, each from its own `deriveSeed` stream so changing one never
+reshuffles another.
 
 ### Rendering
 
-Pixi v8 on WebGL: a static level view (with the exit pad), pooled pickup and
-enemy sprites (hopper diamonds, charger wedges with a dash tell), a
+Pixi v8 on WebGL: a static level view with the circle (breathing and
+rippling while it waits, filling over the charge, dim during the song,
+open as the exit), pooled pickup sprites (weapons and hearts) and enemy
+sprites (hopper diamonds, charger wedges with a dash tell, the big boss, and
+a spawn marker before each appears), a
 per-frame fx layer (projectiles, kill bursts), and one fullscreen filter
 (`raveFilter`) doing chromatic aberration, single-pass bloom, a vignette, the
 red hit flash and the drop's palette flash, all driven by the pulses. The
@@ -273,13 +290,15 @@ session scratch files, not the repo. To redo them:
   `getOutputTimestamp()` and the `uKick` uniform (wrap `uniform1f`). Compare
   each kick's first lit frame with its audible time.
 - **Loudness:** render each rolled weapon with `Offline` and compare RMS.
-- **The loop by bot:** standing still clears a level-1 wave by contact in
-  ~10 s, which exercises waves, the drop, loot under the player and death.
+- **The loop by bot:** walk up into the circle (hold W until the HUD says
+  charging), then stand still: waves reach the player by contact.
 
 ## Roadmap
 
 Done since the PoC: health and death, the run loop, intensity-driven
-arrangement, weapon loot, the charger, and combo, on-beat and swap bonuses.
+arrangement, weapon loot, the charger, combo, on-beat and swap bonuses, the
+sound playground, layered sound, the beam, Crush blasts, arena levels with
+the start circle, song-structured survival, the boss and hearts.
 
 Next is **sound design**, in the playground (`/playground.html`). Tune by
 ear and save; the game and the weapon generator use what's saved. That's
@@ -292,11 +311,10 @@ Gameplay ideas still open:
 
 - Balance pass from real play: HP, wave sizes, charger range, drop rates.
 - A level-transition that keeps the music running instead of an overlay.
-- A run-end goal (a final level or a boss) and a high score.
-- Contact bursts currently count towards clearing a wave; consider making
-  only kills count.
+- A run-end goal (a final level) and a high score.
+- The boss is a big hopper for now: give it attacks or phases of its own.
 
 Known gaps: holstered weapons refill silently (the brief wants a quiet fill
 layer), no active reload, manufacturers only pick saw or square (no FM or
-wavetable engines yet), BPM is fixed at 140, and reaching the exit is only
-covered by unit tests, not an end-to-end test.
+wavetable engines yet), BPM is fixed at 140, and the boss and the exit are
+only covered by unit tests: reaching them takes the whole ~4-minute song.

@@ -22,7 +22,7 @@ import {
 } from '../render';
 import { createRng, deriveSeed } from '../rng';
 import type { Level } from '../level';
-import { sectionFor, type Section } from '../sim/waves';
+import { sectionFor, songPosition, type Section } from '../sim/survival';
 import { nearestPickup } from '../sim/loot';
 import { weaponFrom, type WeaponRecipe } from '../weapons';
 import {
@@ -57,11 +57,23 @@ export interface PlaySounds {
   duck: (time: number) => void;
   /** The run is over: muffle the music for good. */
   dead: (time: number) => void;
+  /** The circle's charge: a riser over `seconds` into the slam. */
+  charge: (time: number, seconds: number) => void;
+  /** A drop's crash and boom, for a drop that follows another. */
+  dropHit: (time: number) => void;
+  /** A heart picked up. */
+  heal: (time: number) => void;
+  /** The fight is on: bring the drums in from this tick. */
+  startDrums: (tick: Tick) => void;
   /** Every bar line: the section the track should play. */
   section: (section: Section, at: { time: number; bar: number }) => void;
 }
 
 const SHAKE_PIXELS = 7;
+/** A spawn's marker pulses for two beats before it appears. */
+const TELEGRAPH_BEATS = 2;
+/** The slam's shockwave, out from the circle across the arena. */
+const SLAM_RADIUS = 900;
 const KILL_SHAKE_PIXELS = 5;
 const DROP_SHAKE_PIXELS = 14;
 /** A dropped frame or a background tab shouldn't teleport the player. */
@@ -134,6 +146,9 @@ export const startPlay = async ({
   let bursts: Array<Burst> = [];
   let lastTick: Tick | null = null;
   let lastSection: Section = 'calm';
+  let drumsIn = false;
+  const beatSeconds = stepSeconds * STEPS_PER_BEAT;
+  const barSeconds = beatSeconds * 4;
   const names = new Map<number, string>();
   const nameOf = (recipe: WeaponRecipe) => {
     const known = names.get(recipe.seed);
@@ -152,11 +167,39 @@ export const startPlay = async ({
     }
     if (tick.stepInBar !== 0) return;
     const rng = createRng(deriveSeed(seed, tick.bar, SPAWN_STREAM));
-    world = onBar(world, { bar: tick.bar, time: tick.time, rng });
+    const before = world.survival;
+    world = onBar(world, {
+      bar: tick.bar,
+      time: tick.time,
+      rng,
+      telegraphSeconds: TELEGRAPH_BEATS * beatSeconds,
+    });
     if (world.status !== 'playing') return;
-    const section = sectionFor(world.waves, world.enemies.length);
-    if (section === 'drop' && lastSection !== 'drop')
+    const { survival } = world;
+    if (before.chargeAt === null && survival.chargeAt !== null) {
+      sounds.charge(tick.time, barSeconds);
+    }
+    if (before.phase === 'charging' && survival.phase === 'song') {
+      bursts = [
+        ...bursts,
+        { position: level.pad, time: tick.time, radius: SLAM_RADIUS },
+      ];
+    }
+    const fighting =
+      survival.phase !== 'waiting' && survival.phase !== 'charging';
+    if (fighting && !drumsIn) {
+      drumsIn = true;
+      sounds.startDrums(tick);
+    }
+    const song = { bar: tick.bar, song: rules.song };
+    const section = sectionFor(survival, song);
+    const at = songPosition(survival, song);
+    const newDrop = section === 'drop' && at?.bar === 0;
+    if (section === 'drop' && (lastSection !== 'drop' || newDrop)) {
       pulses.drop.hit(tick.time);
+    }
+    // Drop into drop: the arrangement only hits on entering one.
+    if (newDrop && lastSection === 'drop') sounds.dropHit(tick.time);
     sounds.section(section, { time: tick.time, bar: tick.bar });
     lastSection = section;
   };
@@ -216,6 +259,14 @@ export const startPlay = async ({
     });
     // Kills in one frame share a slot: one note for where the combo got to.
     if (killed.length > 0) sounds.score(killed[0].time, world.combo.count);
+    if (result.healed.length > 0) {
+      const time = nextSlot(audioNow());
+      sounds.heal(time);
+      bursts = [
+        ...bursts,
+        ...result.healed.map(position => ({ position, time })),
+      ];
+    }
     if (result.playerHit) {
       sounds.duck(audioNow());
       pulses.hit.hit(now);
@@ -223,7 +274,7 @@ export const startPlay = async ({
     const ended = world.status !== 'playing' && hud.status === 'playing';
     if (ended) trigger.release();
     if (ended && world.status === 'dead') sounds.dead(audioNow());
-    const nextHud = hudOf(world, nameOf, beat);
+    const nextHud = hudOf(world, nameOf, beat, beatSeconds);
     if (!sameHud(hud, nextHud)) {
       hud = nextHud;
       onHud(hud);
@@ -249,6 +300,7 @@ export const startPlay = async ({
       shot: pulses.shot.valueAt(now),
       hit: pulses.hit.valueAt(now),
       drop,
+      barSeconds,
     });
   });
 

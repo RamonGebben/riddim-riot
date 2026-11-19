@@ -3,10 +3,10 @@ import { length, normalize, scale, subtract, type Vec } from '../../vec';
 import type { Splash } from '../../weapons';
 import { moveCircle } from '../collision';
 import {
-  ENEMY_RADIUS,
   enemyPosition,
   isSpawned,
   planHop,
+  radiusOf,
   type Enemy,
 } from '../enemy';
 
@@ -38,14 +38,18 @@ export const resolveBlasts = (
         if (enemy.hp <= 0 || !isSpawned(enemy, now)) return enemy;
         const at = enemyPosition(enemy, now);
         const away = subtract(at, center);
-        if (length(away) > splash.radius + ENEMY_RADIUS) return enemy;
+        if (length(away) > splash.radius + radiusOf(enemy)) return enemy;
+        // Too heavy to shove: the boss only takes the damage.
+        if (enemy.kind === 'boss') {
+          return { ...enemy, hp: enemy.hp - splash.damage };
+        }
         // Dead centre has no "away": shove it along x.
         const direction = length(away) > 0 ? normalize(away) : { x: 1, y: 0 };
         const landing = moveCircle(
           map,
           at,
           scale(direction, splash.knockback),
-          ENEMY_RADIUS,
+          radiusOf(enemy),
         );
         const shoved = planHop(enemy, landing, now, KNOCKBACK_SECONDS);
         return {

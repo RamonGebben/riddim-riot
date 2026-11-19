@@ -14,19 +14,23 @@ pnpm dev            # http://localhost:5173
 
 Press **Press to start** (browsers only start audio from a click), then play.
 
-Each level is a song: survive the waves, clear enough of them to light the
-exit pad, and step on it for the next level (new layout, key and palette).
-Your health, score and weapons carry over. Five hits and the run is over.
+Each level is an arena and a song. Step into the circle in the middle: it
+charges for a bar and slams the music in. Then survive the song (intro,
+breakdown, build-up, three drops with a bridge, outro), with waves pacing
+it. The last drop brings a boss that always drops a good weapon. Once it's
+down and the outro plays, the circle opens: step in for the next level
+(new arena, key and palette). Health, score and weapons carry over, hearts
+dropped by enemies heal you, and five hits end the run.
 
 You start with one of each engine: a wobble, a laser and a beam. The beam
 fires continuously while held, for up to a bar before it overheats into a
 recharge; letting go cools it. Weapons with **Crush** burst on every hit,
 damaging and shoving back everything around it.
 
-| URL         | What it does                                                                  |
-| ----------- | ----------------------------------------------------------------------------- |
-| `/?seed=42` | Play a specific level. A number or any word (`?seed=wobble`)                  |
-| `/?stress`  | Fill the level to the 30-enemy cap from the first bar, for performance checks |
+| URL         | What it does                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------- |
+| `/?seed=42` | Play a specific level. A number or any word (`?seed=wobble`)                                      |
+| `/?stress`  | Skip the circle and fill the level to the 30-enemy cap from the first bar, for performance checks |
 
 ## Sound playground
 

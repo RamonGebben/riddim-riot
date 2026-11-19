@@ -7,7 +7,7 @@ import {
   type FireMode,
   type Playground as Engine,
 } from '~/game/playground';
-import type { Section } from '~/game/sim/waves';
+import type { Section } from '~/game/sim/survival';
 import {
   BASE_DESIGN,
   mergeDesign,

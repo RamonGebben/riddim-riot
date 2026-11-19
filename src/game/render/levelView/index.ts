@@ -1,16 +1,26 @@
 import { Container, Graphics } from 'pixi.js';
 import { isWall, TILE_SIZE, type Level } from '../../level';
 import type { Palette } from '../../palette';
+import type { Vec } from '../../vec';
+import type { Survival } from '../../sim/survival';
+import { PAD_RADIUS } from '../../sim/world';
 
 export interface LevelView {
   view: Container;
-  /** The exit pad: dim while shut, breathing with the beat once open. */
-  update: (state: { beat: number; exitOpen: boolean }) => void;
+  /** The circle, through its states (see `drawCircle`). */
+  update: (state: {
+    survival: Survival;
+    now: number;
+    beat: number;
+    barSeconds: number;
+  }) => void;
 }
+
+const RING = PAD_RADIUS + 10;
 
 /**
  * The tilemap, drawn once: floor with a faint grid, walls with a bright edge
- * wherever they meet floor, and the exit pad.
+ * wherever they meet floor, and the circle at the centre.
  */
 export const createLevelView = (level: Level, palette: Palette): LevelView => {
   const { map } = level;
@@ -57,21 +67,66 @@ export const createLevelView = (level: Level, palette: Palette): LevelView => {
   );
   ground.stroke({ width: 3, color: palette.accent, alpha: 0.55 });
 
-  const exit = new Graphics()
-    .circle(0, 0, TILE_SIZE * 0.9)
-    .stroke({ width: 4, color: palette.player, alpha: 0.8 })
-    .circle(0, 0, TILE_SIZE * 0.45)
-    .fill({ color: palette.player, alpha: 0.25 });
-  exit.position.set(level.exit.x, level.exit.y);
+  const circle = new Graphics();
 
   const view = new Container();
-  view.addChild(ground, exit);
+  view.addChild(ground, circle);
 
   return {
     view,
-    update: ({ beat, exitOpen }) => {
-      exit.scale.set(exitOpen ? 1 + beat * 0.15 : 0.8);
-      exit.alpha = exitOpen ? 0.6 + beat * 0.4 : 0.2;
-    },
+    update: state => drawCircle(circle, palette, level.pad, state),
   };
+};
+
+/**
+ * Waiting, it breathes on the beat and sends ripples out to draw the eye.
+ * Stepped in, it lights up; from the next bar line its ring fills over a
+ * bar into the slam. During the fight it's a dim mark on the floor, and
+ * once the final wave falls it opens as the exit.
+ */
+const drawCircle = (
+  circle: Graphics,
+  palette: Palette,
+  center: Vec,
+  { survival, now, beat, barSeconds }: Parameters<LevelView['update']>[0],
+) => {
+  circle.clear();
+  circle.position.set(center.x, center.y);
+  const { phase, chargeAt } = survival;
+
+  if (phase === 'song') {
+    circle.circle(0, 0, RING).stroke({ width: 3, color: palette.grid });
+    return;
+  }
+
+  if (phase === 'charging') {
+    const fill =
+      chargeAt === null
+        ? 0
+        : Math.min(Math.max((now - chargeAt) / barSeconds, 0), 1);
+    const jitter = fill * 3;
+    circle
+      .circle(0, 0, RING * (0.3 + 0.7 * fill))
+      .fill({ color: palette.player, alpha: 0.2 + 0.4 * fill })
+      .circle(0, 0, RING)
+      .stroke({ width: 4, color: palette.player, alpha: 0.5 });
+    if (fill > 0) {
+      circle
+        .arc(0, 0, RING, -Math.PI / 2, -Math.PI / 2 + fill * Math.PI * 2)
+        .stroke({ width: 10 + jitter, color: palette.accent, cap: 'round' });
+    }
+    circle.position.x += Math.sin(now * 90) * jitter * 0.3;
+    return;
+  }
+
+  // Waiting or open: breathe, with a ripple going out each bar.
+  const open = phase === 'clear';
+  const ripple = (now / (barSeconds || 1)) % 1;
+  circle
+    .circle(0, 0, RING * (1 + ripple * 1.2))
+    .stroke({ width: 3, color: palette.player, alpha: 0.6 * (1 - ripple) })
+    .circle(0, 0, RING * (1 + beat * 0.12))
+    .stroke({ width: 5, color: open ? palette.accent : palette.player })
+    .circle(0, 0, RING * 0.5)
+    .fill({ color: palette.player, alpha: 0.2 + beat * 0.3 });
 };
