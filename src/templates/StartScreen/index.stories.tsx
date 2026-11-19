@@ -9,6 +9,8 @@ const meta = {
     musicalKey: 'F minor',
     bpm: 140,
     isStarting: false,
+    step: null,
+    error: null,
     onStart: fn(),
   },
   parameters: { layout: 'fullscreen' },
@@ -27,10 +29,26 @@ export const Idle: Story = {
 };
 
 export const Starting: Story = {
-  args: { isStarting: true },
+  args: { isStarting: true, step: 'weapons' },
   play: async ({ canvas }) => {
     await expect(
       canvas.getByRole('button', { name: 'Press to start' }),
     ).toBeDisabled();
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Measuring your weapons…',
+    );
+  },
+};
+
+export const Failed: Story = {
+  args: { error: 'AudioContext was not allowed to start' },
+  play: async ({ args, canvas, userEvent }) => {
+    await expect(canvas.getByRole('alert')).toHaveTextContent(
+      "Couldn't start: AudioContext was not allowed to start",
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Press to start' }),
+    );
+    await expect(args.onStart).toHaveBeenCalled();
   },
 };

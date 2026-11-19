@@ -7,6 +7,7 @@ import {
   type HudView,
   type LoadoutView,
   type RunState,
+  type StartStep,
 } from '~/game';
 import { GameScreen } from '~/templates/GameScreen';
 import { StartScreen } from '~/templates/StartScreen';
@@ -16,6 +17,37 @@ import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
 type SessionStatus = 'idle' | 'starting' | 'playing';
 
 const randomSeed = () => getSeed('');
+
+/** Far longer than a phone takes to build a level; past it, say where. */
+const START_TIMEOUT_MS = 20_000;
+
+/**
+ * Rejects if `starting` hasn't settled in time, naming the step it's on.
+ * A game that turns up after that is stopped, not left playing unseen.
+ */
+const withTimeout = (starting: Promise<Game>, step: () => StartStep | null) =>
+  new Promise<Game>((resolve, reject) => {
+    let late = false;
+    const timer = setTimeout(() => {
+      late = true;
+      reject(
+        new Error(
+          `stuck at "${step() ?? 'start'}" after ${START_TIMEOUT_MS / 1000} s`,
+        ),
+      );
+    }, START_TIMEOUT_MS);
+    starting.then(
+      started => {
+        clearTimeout(timer);
+        if (late) started.stop();
+        else resolve(started);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 
 export const App = () => {
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
@@ -28,9 +60,13 @@ export const App = () => {
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
   const [paused, setPaused] = useState(false);
+  const [startStep, setStartStep] = useState<StartStep | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
   // Bumped on every (re)start, so the stage re-attaches to the new game.
   const [session, setSession] = useState(0);
   const game = useRef<Game | null>(null);
+  // The watchdog reads the step outside React's render.
+  const step = useRef<StartStep | null>(null);
   const surface = useRef<HTMLElement>(null);
 
   useEffect(() => () => game.current?.stop(), []);
@@ -95,12 +131,31 @@ export const App = () => {
     game.current?.stop();
     setPaused(false);
     setStatus('starting');
+    setStartError(null);
     setRun(next);
-    // Audio starts first: a fullscreen request uses up the click, and an
-    // AudioContext started after it stays silent.
-    const starting = startGame({ run: next, stress });
-    void goLandscape();
-    game.current = await starting;
+    try {
+      // Audio starts first: a fullscreen request uses up the click, and an
+      // AudioContext started after it stays silent.
+      const starting = startGame({
+        run: next,
+        stress,
+        onStep: current => {
+          step.current = current;
+          setStartStep(current);
+        },
+      });
+      void goLandscape();
+      game.current = await withTimeout(starting, () => step.current);
+    } catch (error) {
+      // Without this a failed start leaves the button pressed for good.
+      console.error(error);
+      game.current = null;
+      setStartError(error instanceof Error ? error.message : String(error));
+      setStartStep(null);
+      setStatus('idle');
+      return;
+    }
+    setStartStep(null);
     setLoadout(game.current.loadout());
     setHud(game.current.hud());
     setSession(current => current + 1);
@@ -145,6 +200,8 @@ export const App = () => {
       musicalKey={level.key}
       bpm={level.bpm}
       isStarting={status === 'starting'}
+      step={startStep}
+      error={startError}
       onStart={() => play(run)}
     />
   );
