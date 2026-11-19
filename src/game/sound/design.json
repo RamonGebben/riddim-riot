@@ -11,8 +11,33 @@
     "sweepFloor": 160,
     "phase": 270,
     "rolloff": -24,
-    "subLevel": -6,
-    "subRelease": 0.05
+    "layers": {
+      "crossoverHz": 110,
+      "sub": {
+        "level": -3,
+        "octavesDown": 1,
+        "saturation": 0.15,
+        "release": 0.05
+      },
+      "stack": {
+        "level": -6,
+        "octave": -1,
+        "detune": 18
+      },
+      "growl": {
+        "level": -9,
+        "octave": 1,
+        "floorHz": 400,
+        "peak": 1.6,
+        "q": 5,
+        "saturation": 0.5
+      },
+      "click": {
+        "level": -14,
+        "hz": 2600,
+        "decay": 0.018
+      }
+    }
   },
   "laser": {
     "envelope": {
@@ -24,19 +49,54 @@
     "pitchDrop": 4,
     "pitchDropSeconds": 0.07,
     "shimmerDepth": 0.45,
-    "rolloff": -12
+    "rolloff": -12,
+    "layers": {
+      "crossoverHz": 160,
+      "sub": {
+        "level": -6,
+        "octavesDown": 2,
+        "saturation": 0.1,
+        "release": 0.05
+      },
+      "stack": {
+        "level": -9,
+        "octave": -1,
+        "detune": 12
+      },
+      "growl": {
+        "level": -16,
+        "octave": 1,
+        "floorHz": 900,
+        "peak": 1.4,
+        "q": 4,
+        "saturation": 0.4
+      },
+      "click": {
+        "level": -12,
+        "hz": 4200,
+        "decay": 0.012
+      }
+    }
   },
   "weaponMix": {
     "articulation": 0.9,
     "driveWet": 0.6,
     "holsterFadeSeconds": 0.35,
     "subCutHz": 180,
-    "targetDb": -20
+    "targetDb": -20,
+    "glueThreshold": -18,
+    "glueRatio": 3
   },
   "parts": {
     "manufacturers": {
-      "vandal": { "waveform": "sawtooth", "drive": 0.2 },
-      "lumen": { "waveform": "square", "drive": 0 }
+      "vandal": {
+        "waveform": "sawtooth",
+        "drive": 0.2
+      },
+      "lumen": {
+        "waveform": "square",
+        "drive": 0
+      }
     },
     "engines": {
       "wobble": {
@@ -52,8 +112,13 @@
         "resonance": [1, 4]
       }
     },
-    "crush": { "drive": [0.35, 0.65] },
-    "echo": { "feedback": [0.2, 0.4], "wet": [0.25, 0.4] }
+    "crush": {
+      "drive": [0.35, 0.65]
+    },
+    "echo": {
+      "feedback": [0.2, 0.4],
+      "wet": [0.25, 0.4]
+    }
   },
   "drums": {
     "level": -4,
@@ -61,7 +126,12 @@
       "pitchMultiple": 5,
       "pitchSeconds": 0.045,
       "decay": 0.45,
-      "level": 0
+      "level": 0,
+      "clickHz": 3500,
+      "clickDecay": 0.008,
+      "clickLevel": -12,
+      "subDecay": 0.7,
+      "subLevel": -8
     },
     "snare": {
       "noiseHz": 1800,
@@ -71,10 +141,21 @@
       "bodyDecay": 0.12,
       "bodyLevel": -10,
       "roomDecay": 1.4,
-      "roomWet": 0.22
+      "roomWet": 0.22,
+      "clapHz": 1300,
+      "clapDecay": 0.09,
+      "clapLevel": -8
     },
-    "hat": { "hz": 7500, "decay": 0.04, "level": -14 },
-    "openHat": { "hz": 6000, "decay": 0.3, "level": -19 }
+    "hat": {
+      "hz": 7500,
+      "decay": 0.04,
+      "level": -14
+    },
+    "openHat": {
+      "hz": 6000,
+      "decay": 0.3,
+      "level": -19
+    }
   },
   "impact": {
     "level": -9,
@@ -85,7 +166,14 @@
     "thumpMultiple": 4,
     "thumpSeconds": 0.06,
     "thumpDecay": 0.22,
-    "thumpLevel": 0
+    "thumpLevel": 0,
+    "snapHz": 5000,
+    "snapDecay": 0.025,
+    "snapLevel": -6,
+    "bodyOctave": 1,
+    "bodyDecay": 0.09,
+    "bodySaturation": 0.6,
+    "bodyLevel": -8
   },
   "reload": {
     "level": -8,
@@ -106,6 +194,37 @@
     "crashDecay": 1.6,
     "crashLevel": -2,
     "boomDecay": 1.1,
-    "boomLevel": 4
+    "boomLevel": 4,
+    "pad": {
+      "degrees": [0, 2, 4, 6],
+      "octave": 3,
+      "level": -20,
+      "hz": 1400,
+      "detune": 22,
+      "calm": -4,
+      "groove": 0,
+      "build": 2,
+      "drop": -6
+    },
+    "air": {
+      "level": -30,
+      "hz": 7000
+    }
+  },
+  "mix": {
+    "bedPumpDb": -12,
+    "weaponPumpDb": -4,
+    "pumpSeconds": 0.24
+  },
+  "score": {
+    "level": -14,
+    "waveform": "triangle",
+    "octave": 4,
+    "decay": 0.18,
+    "brightnessHz": 3500,
+    "shimmerLevel": -10,
+    "echoBeats": 0.75,
+    "echoFeedback": 0.3,
+    "echoWet": 0.25
   }
 }

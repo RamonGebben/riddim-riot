@@ -5,12 +5,14 @@ import {
   createImpactSound,
   createMusicBus,
   createReloadSound,
+  createScoreSound,
   createWeaponVoice,
   measureWeaponLoudness,
   type Arrangement,
   type Drums,
   type ImpactSound,
   type ReloadSound,
+  type ScoreSound,
   type WeaponVoice,
 } from '../../audio';
 import { createBus } from '../../bus';
@@ -23,6 +25,7 @@ import {
 } from '../../grid';
 import { degreeToMidi, midiToHz, type Key } from '../../music';
 import { createRng } from '../../rng';
+import { MAX_MULTIPLIER } from '../../sim/combo';
 import { createWeaponSlot, type WeaponSlot } from '../../sim';
 import type { Section } from '../../sim/waves';
 import type { SoundDesign } from '../../sound';
@@ -31,7 +34,7 @@ import type { Weapon } from '../../weapons';
 /** How the playground fires the weapon while you turn knobs. */
 export type FireMode = 'off' | 'hold' | 'mash';
 
-export type OneShot = 'impact' | 'reload' | 'riser' | 'drop';
+export type OneShot = 'impact' | 'score' | 'reload' | 'riser' | 'drop';
 
 export interface Playground {
   /**
@@ -91,6 +94,9 @@ export const createPlayground = async ({
   let arrangement: Arrangement | null = null;
   let impact: ImpactSound | null = null;
   let reload: ReloadSound | null = null;
+  let score: ScoreSound | null = null;
+  /** Each score press is the next kill in a combo, wrapping at the top. */
+  let combo = 0;
   let voice: WeaponVoice | null = null;
   let slot: WeaponSlot | null = null;
 
@@ -110,17 +116,24 @@ export const createPlayground = async ({
     arrangement?.dispose();
     impact?.dispose();
     reload?.dispose();
+    score?.dispose();
     drums = await createDrums({
       seed: 1,
       output: musicBus.input,
       kickHz: rootHz(),
       patch: design.drums,
+      onHit: hit => {
+        if (hit.voice === 'kick') {
+          musicBus.pump(hit.time, hit.velocity, design.mix);
+        }
+      },
     });
     arrangement = createArrangement({
       musicBus,
       output: musicBus.input,
       barSeconds: beatSeconds * 4,
       rootHz: rootHz(),
+      key,
       patch: design.arrangement,
     });
     impact = createImpactSound({
@@ -129,6 +142,12 @@ export const createPlayground = async ({
       patch: design.impact,
     });
     reload = createReloadSound(musicBus.direct, design.reload);
+    score = createScoreSound({
+      output: musicBus.direct,
+      key,
+      beatSeconds,
+      patch: design.score,
+    });
   };
 
   const buildWeapon = async (): Promise<number> => {
@@ -137,7 +156,7 @@ export const createPlayground = async ({
     const volume = await measureWeaponLoudness(armed, { bpm: BPM, design });
     voice?.dispose();
     voice = createWeaponVoice({
-      output: musicBus.direct,
+      output: musicBus.weapons,
       sound: armed.sound,
       beatSeconds,
       volume,
@@ -229,6 +248,12 @@ export const createPlayground = async ({
     },
     play: sound => {
       if (sound === 'impact') impact?.play(nextStep());
+      if (sound === 'score') {
+        combo = (combo % MAX_MULTIPLIER) + 1;
+        const time = nextStep();
+        impact?.play(time);
+        score?.play(time, combo);
+      }
       if (sound === 'reload') {
         const time = nextStep();
         reload?.click(time);
@@ -243,7 +268,7 @@ export const createPlayground = async ({
     },
     dispose: () => {
       clock.dispose();
-      [drums, arrangement, impact, reload, voice].forEach(node =>
+      [drums, arrangement, impact, reload, score, voice].forEach(node =>
         node?.dispose(),
       );
       meter.dispose();

@@ -5,6 +5,7 @@ import {
   createImpactSound,
   createMusicBus,
   createReloadSound,
+  createScoreSound,
   createWeaponVoice,
   heardTime,
   measureWeaponLoudness,
@@ -27,6 +28,7 @@ import { rulesFor } from './sim/world';
 import { createPulse } from './render/pulse';
 import { levelSeed, nextLevel, type RunState } from './run';
 import { createWeaponSlot } from './sim';
+import { SOUND_DESIGN } from './sound';
 import { spreadAngle, weaponFrom, type WeaponRecipe } from './weapons';
 
 export type { HudView } from './hud';
@@ -109,7 +111,9 @@ export const startGame = async ({
     output: musicBus.input,
     kickHz: rootHz(1),
     onHit: hit => {
-      if (hit.voice === 'kick') pulses.kick.hit(hit.time, hit.velocity);
+      if (hit.voice !== 'kick') return;
+      pulses.kick.hit(hit.time, hit.velocity);
+      musicBus.pump(hit.time, hit.velocity, SOUND_DESIGN.mix);
     },
   });
   const reloadSound = createReloadSound(musicBus.direct);
@@ -118,17 +122,23 @@ export const startGame = async ({
     output: musicBus.input,
     barSeconds: beatSeconds * 4,
     rootHz: rootHz(1),
+    key,
   });
   const impact = createImpactSound({
     output: musicBus.direct,
     root: rootHz(1),
+  });
+  const score = createScoreSound({
+    output: musicBus.direct,
+    key,
+    beatSeconds,
   });
 
   const arm = async (recipe: WeaponRecipe): Promise<Armed> => {
     const weapon = weaponFrom(recipe, key);
     const volume = await measureWeaponLoudness(weapon, { bpm: BPM });
     const voice = createWeaponVoice({
-      output: musicBus.direct,
+      output: musicBus.weapons,
       sound: weapon.sound,
       beatSeconds,
       volume,
@@ -227,6 +237,7 @@ export const startGame = async ({
         pulses,
         sounds: {
           impact: impact.play,
+          score: score.play,
           duck: time => musicBus.duck(time, DUCK_SECONDS),
           dead: musicBus.muffle,
           section: arrangement.onBar,
@@ -260,9 +271,15 @@ export const startGame = async ({
     stop: () => {
       unsubscribe.forEach(off => off());
       clock.dispose();
-      [drums, loadout, reloadSound, impact, arrangement, musicBus].forEach(
-        node => node.dispose(),
-      );
+      [
+        drums,
+        loadout,
+        reloadSound,
+        impact,
+        score,
+        arrangement,
+        musicBus,
+      ].forEach(node => node.dispose());
     },
   };
 };

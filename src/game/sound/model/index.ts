@@ -17,6 +17,43 @@ export interface EnvelopePatch {
   release: number;
 }
 
+/**
+ * The layers stacked on an engine so a shot is felt, not just heard: a clean
+ * sub under it, a detuned stack thickening the body, a saturated growl on
+ * top and a click for the hit. The body is high-passed at the crossover so
+ * the sub alone owns the lows - layered lows smear into mud.
+ */
+export interface WeaponLayersPatch {
+  crossoverHz: number;
+  sub: {
+    level: number;
+    /** Octaves below the riff note. */
+    octavesDown: number;
+    /** Adds harmonics so the sub reads on small speakers. */
+    saturation: number;
+    release: number;
+  };
+  stack: {
+    level: number;
+    /** Octave relative to the body; -1 is a reese under it. */
+    octave: number;
+    /** FatOscillator detune in cents. */
+    detune: number;
+  };
+  growl: {
+    level: number;
+    /** Octaves above the body. */
+    octave: number;
+    /** A band-pass swept by the same LFO, from here... */
+    floorHz: number;
+    /** ...up to this many times the cutoff. */
+    peak: number;
+    q: number;
+    saturation: number;
+  };
+  click: { level: number; hz: number; decay: number };
+}
+
 export interface WobblePatch {
   envelope: EnvelopePatch;
   /** FatOscillator voices and their detune in cents. */
@@ -27,9 +64,7 @@ export interface WobblePatch {
   /** LFO start phase in degrees; 270 opens each shot from closed. */
   phase: number;
   rolloff: -12 | -24 | -48;
-  /** Sine sub an octave down, in dB. */
-  subLevel: number;
-  subRelease: number;
+  layers: WeaponLayersPatch;
 }
 
 export interface LaserPatch {
@@ -40,6 +75,7 @@ export interface LaserPatch {
   /** The LFO's low end, as a share of the cutoff. */
   shimmerDepth: number;
   rolloff: -12 | -24 | -48;
+  layers: WeaponLayersPatch;
 }
 
 export interface WeaponMixPatch {
@@ -52,6 +88,19 @@ export interface WeaponMixPatch {
   subCutHz: number;
   /** Every weapon is normalized to this RMS over a bar of held fire. */
   targetDb: number;
+  /** A compressor gluing a weapon's layers into one sound. */
+  glueThreshold: number;
+  glueRatio: number;
+}
+
+/** The kick ducking everything sustained, so the beat breathes. */
+export interface MixPatch {
+  /** How far the kick pulls the pad and air bed down, in dB. */
+  bedPumpDb: number;
+  /** How far it pulls the weapons down. */
+  weaponPumpDb: number;
+  /** How long they take to swell back. */
+  pumpSeconds: number;
 }
 
 export interface ManufacturerSound {
@@ -81,6 +130,13 @@ export interface DrumsPatch {
     pitchSeconds: number;
     decay: number;
     level: number;
+    /** A noise click for the beater. */
+    clickHz: number;
+    clickDecay: number;
+    clickLevel: number;
+    /** A clean sine tail under the punch. */
+    subDecay: number;
+    subLevel: number;
   };
   snare: {
     noiseHz: number;
@@ -91,6 +147,10 @@ export interface DrumsPatch {
     bodyLevel: number;
     roomDecay: number;
     roomWet: number;
+    /** A clap: band-passed noise struck three times in quick succession. */
+    clapHz: number;
+    clapDecay: number;
+    clapLevel: number;
   };
   hat: { hz: number; decay: number; level: number };
   openHat: { hz: number; decay: number; level: number };
@@ -106,6 +166,30 @@ export interface ImpactPatch {
   thumpSeconds: number;
   thumpDecay: number;
   thumpLevel: number;
+  /** A bright snap on top. */
+  snapHz: number;
+  snapDecay: number;
+  snapLevel: number;
+  /** A saturated square on the root for the meat. */
+  bodyOctave: number;
+  bodyDecay: number;
+  bodySaturation: number;
+  bodyLevel: number;
+}
+
+/** Points landing: a pluck that climbs the scale as the combo grows. */
+export interface ScorePatch {
+  level: number;
+  waveform: 'sine' | 'triangle' | 'square' | 'sawtooth';
+  /** Octave of a combo of one. */
+  octave: number;
+  decay: number;
+  brightnessHz: number;
+  /** An octave-up shimmer on every note. */
+  shimmerLevel: number;
+  echoBeats: number;
+  echoFeedback: number;
+  echoWet: number;
 }
 
 export interface ReloadPatch {
@@ -130,6 +214,22 @@ export interface ArrangementPatch {
   crashLevel: number;
   boomDecay: number;
   boomLevel: number;
+  /** A chord bed filling the space between the drums and the bass. */
+  pad: {
+    /** Scale degrees of the chord. */
+    degrees: Array<number>;
+    octave: number;
+    level: number;
+    hz: number;
+    detune: number;
+    /** The bed's level per section, in dB. */
+    calm: number;
+    groove: number;
+    build: number;
+    drop: number;
+  };
+  /** High filtered noise in the same bed, for air. */
+  air: { level: number; hz: number };
 }
 
 export interface SoundDesign {
@@ -141,6 +241,8 @@ export interface SoundDesign {
   impact: ImpactPatch;
   reload: ReloadPatch;
   arrangement: ArrangementPatch;
+  mix: MixPatch;
+  score: ScorePatch;
 }
 
 /** The values the game shipped with before any tuning. */
@@ -152,8 +254,20 @@ export const BASE_DESIGN: SoundDesign = {
     sweepFloor: 160,
     phase: 270,
     rolloff: -24,
-    subLevel: -6,
-    subRelease: 0.05,
+    layers: {
+      crossoverHz: 110,
+      sub: { level: -3, octavesDown: 1, saturation: 0.15, release: 0.05 },
+      stack: { level: -6, octave: -1, detune: 18 },
+      growl: {
+        level: -9,
+        octave: 1,
+        floorHz: 400,
+        peak: 1.6,
+        q: 5,
+        saturation: 0.5,
+      },
+      click: { level: -14, hz: 2600, decay: 0.018 },
+    },
   },
   laser: {
     envelope: { attack: 0.002, decay: 0.12, sustain: 0.35, release: 0.05 },
@@ -161,6 +275,20 @@ export const BASE_DESIGN: SoundDesign = {
     pitchDropSeconds: 0.07,
     shimmerDepth: 0.45,
     rolloff: -12,
+    layers: {
+      crossoverHz: 160,
+      sub: { level: -6, octavesDown: 2, saturation: 0.1, release: 0.05 },
+      stack: { level: -9, octave: -1, detune: 12 },
+      growl: {
+        level: -16,
+        octave: 1,
+        floorHz: 900,
+        peak: 1.4,
+        q: 4,
+        saturation: 0.4,
+      },
+      click: { level: -12, hz: 4200, decay: 0.012 },
+    },
   },
   weaponMix: {
     articulation: 0.9,
@@ -168,6 +296,8 @@ export const BASE_DESIGN: SoundDesign = {
     holsterFadeSeconds: 0.35,
     subCutHz: 180,
     targetDb: -20,
+    glueThreshold: -18,
+    glueRatio: 3,
   },
   parts: {
     manufacturers: {
@@ -193,7 +323,17 @@ export const BASE_DESIGN: SoundDesign = {
   },
   drums: {
     level: -4,
-    kick: { pitchMultiple: 5, pitchSeconds: 0.045, decay: 0.45, level: 0 },
+    kick: {
+      pitchMultiple: 5,
+      pitchSeconds: 0.045,
+      decay: 0.45,
+      level: 0,
+      clickHz: 3500,
+      clickDecay: 0.008,
+      clickLevel: -12,
+      subDecay: 0.7,
+      subLevel: -8,
+    },
     snare: {
       noiseHz: 1800,
       noiseDecay: 0.2,
@@ -203,6 +343,9 @@ export const BASE_DESIGN: SoundDesign = {
       bodyLevel: -10,
       roomDecay: 1.4,
       roomWet: 0.22,
+      clapHz: 1300,
+      clapDecay: 0.09,
+      clapLevel: -8,
     },
     hat: { hz: 7500, decay: 0.04, level: -14 },
     openHat: { hz: 6000, decay: 0.3, level: -19 },
@@ -217,6 +360,13 @@ export const BASE_DESIGN: SoundDesign = {
     thumpSeconds: 0.06,
     thumpDecay: 0.22,
     thumpLevel: 0,
+    snapHz: 5000,
+    snapDecay: 0.025,
+    snapLevel: -6,
+    bodyOctave: 1,
+    bodyDecay: 0.09,
+    bodySaturation: 0.6,
+    bodyLevel: -8,
   },
   reload: {
     level: -8,
@@ -238,6 +388,30 @@ export const BASE_DESIGN: SoundDesign = {
     crashLevel: -2,
     boomDecay: 1.1,
     boomLevel: 4,
+    pad: {
+      degrees: [0, 2, 4, 6],
+      octave: 3,
+      level: -20,
+      hz: 1400,
+      detune: 22,
+      calm: -4,
+      groove: 0,
+      build: 2,
+      drop: -6,
+    },
+    air: { level: -30, hz: 7000 },
+  },
+  mix: { bedPumpDb: -12, weaponPumpDb: -4, pumpSeconds: 0.24 },
+  score: {
+    level: -14,
+    waveform: 'triangle',
+    octave: 4,
+    decay: 0.18,
+    brightnessHz: 3500,
+    shimmerLevel: -10,
+    echoBeats: 0.75,
+    echoFeedback: 0.3,
+    echoWet: 0.25,
   },
 };
 

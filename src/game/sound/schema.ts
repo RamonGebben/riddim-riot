@@ -64,13 +64,81 @@ const range = (
 
 const ROLLOFFS = [-12, -24, -48];
 
+const layers = (engine: 'wobble' | 'laser', title: string): FieldGroup => {
+  const at = (...rest: DesignPath): DesignPath => [engine, 'layers', ...rest];
+  return {
+    id: `${engine}Layers`,
+    title,
+    description:
+      'What stacks around the body: a clean sub, a detuned stack, a growl on top and a click for the hit.',
+    fields: [
+      num(
+        at('crossoverHz'),
+        'Crossover',
+        [20, 400, 5],
+        'Hz',
+        'The body is high-passed here so the sub alone owns the lows',
+      ),
+      num(at('sub', 'level'), 'Sub level', [-40, 6, 0.5], 'dB'),
+      {
+        kind: 'choice',
+        path: at('sub', 'octavesDown'),
+        label: 'Sub octaves down',
+        options: [1, 2, 3],
+      },
+      num(
+        at('sub', 'saturation'),
+        'Sub saturation',
+        [0, 1, 0.01],
+        undefined,
+        'Harmonics so the sub reads on small speakers',
+      ),
+      num(at('sub', 'release'), 'Sub release', [0.005, 1, 0.005], 's'),
+      num(at('stack', 'level'), 'Stack level', [-40, 6, 0.5], 'dB'),
+      {
+        kind: 'choice',
+        path: at('stack', 'octave'),
+        label: 'Stack octave',
+        options: [-1, 0, 1],
+      },
+      num(
+        at('stack', 'detune'),
+        'Stack detune',
+        [0, 100, 1],
+        'ct',
+        'Two voices through the body filter; -1 octave is a reese',
+      ),
+      num(at('growl', 'level'), 'Growl level', [-40, 6, 0.5], 'dB'),
+      {
+        kind: 'choice',
+        path: at('growl', 'octave'),
+        label: 'Growl octave',
+        options: [0, 1, 2],
+      },
+      num(at('growl', 'floorHz'), 'Growl sweep floor', [50, 4000, 10], 'Hz'),
+      num(
+        at('growl', 'peak'),
+        'Growl sweep peak',
+        [0.2, 4, 0.05],
+        '×',
+        'Times the rolled cutoff',
+      ),
+      num(at('growl', 'q'), 'Growl focus', [0.1, 20, 0.1]),
+      num(at('growl', 'saturation'), 'Growl saturation', [0, 1, 0.01]),
+      num(at('click', 'level'), 'Click level', [-40, 6, 0.5], 'dB'),
+      num(at('click', 'hz'), 'Click pitch', [200, 12000, 10], 'Hz'),
+      num(at('click', 'decay'), 'Click decay', [0.002, 0.2, 0.001], 's'),
+    ],
+  };
+};
+
 /** Every knob in the playground, grouped the way the sound is built. */
 export const DESIGN_SCHEMA: Array<FieldGroup> = [
   {
     id: 'wobble',
     title: 'Wobble engine',
     description:
-      'A detuned oscillator through a resonant low-pass swept by a tempo-synced LFO, over a sine sub.',
+      'The body: a detuned oscillator through a resonant low-pass swept by a tempo-synced LFO.',
     fields: [
       ...envelope(['wobble', 'envelope']),
       num(['wobble', 'voices'], 'Unison voices', [1, 8, 1]),
@@ -95,10 +163,9 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
         label: 'Filter slope',
         options: ROLLOFFS,
       },
-      num(['wobble', 'subLevel'], 'Sub level', [-40, 6, 0.5], 'dB'),
-      num(['wobble', 'subRelease'], 'Sub release', [0.005, 1, 0.005], 's'),
     ],
   },
+  layers('wobble', 'Wobble layers'),
   {
     id: 'laser',
     title: 'Laser engine',
@@ -134,6 +201,7 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       },
     ],
   },
+  layers('laser', 'Laser layers'),
   {
     id: 'weaponMix',
     title: 'Weapon mix',
@@ -162,6 +230,25 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
         'dB',
         'RMS over a bar of held fire',
       ),
+      num(
+        ['weaponMix', 'glueThreshold'],
+        'Glue threshold',
+        [-60, 0, 0.5],
+        'dB',
+        'A compressor squeezing the layers into one sound',
+      ),
+      num(['weaponMix', 'glueRatio'], 'Glue ratio', [1, 20, 0.1], '×'),
+    ],
+  },
+  {
+    id: 'mix',
+    title: 'Sidechain',
+    description:
+      'The kick ducks the pad bed and the weapons, so the beat breathes.',
+    fields: [
+      num(['mix', 'bedPumpDb'], 'Bed duck', [-40, 0, 0.5], 'dB'),
+      num(['mix', 'weaponPumpDb'], 'Weapon duck', [-40, 0, 0.5], 'dB'),
+      num(['mix', 'pumpSeconds'], 'Swell back', [0.02, 1, 0.01], 's'),
     ],
   },
   {
@@ -253,6 +340,37 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       ),
       num(['drums', 'kick', 'decay'], 'Kick decay', [0.05, 2, 0.01], 's'),
       num(
+        ['drums', 'kick', 'clickHz'],
+        'Kick click pitch',
+        [200, 12000, 10],
+        'Hz',
+      ),
+      num(
+        ['drums', 'kick', 'clickDecay'],
+        'Kick click decay',
+        [0.001, 0.1, 0.001],
+        's',
+      ),
+      num(
+        ['drums', 'kick', 'clickLevel'],
+        'Kick click level',
+        [-40, 12, 0.5],
+        'dB',
+      ),
+      num(
+        ['drums', 'kick', 'subDecay'],
+        'Kick sub tail',
+        [0.05, 3, 0.01],
+        's',
+        'A longer, quieter decay on the same sine',
+      ),
+      num(
+        ['drums', 'kick', 'subLevel'],
+        'Kick sub level',
+        [-40, 12, 0.5],
+        'dB',
+      ),
+      num(
         ['drums', 'snare', 'noiseHz'],
         'Snare noise high-pass',
         [200, 8000, 10],
@@ -290,6 +408,9 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
         's',
       ),
       num(['drums', 'snare', 'roomWet'], 'Snare room mix', [0, 1, 0.01]),
+      num(['drums', 'snare', 'clapHz'], 'Clap pitch', [200, 8000, 10], 'Hz'),
+      num(['drums', 'snare', 'clapDecay'], 'Clap decay', [0.01, 1, 0.005], 's'),
+      num(['drums', 'snare', 'clapLevel'], 'Clap level', [-40, 12, 0.5], 'dB'),
       num(['drums', 'hat', 'hz'], 'Hat high-pass', [2000, 16000, 50], 'Hz'),
       num(['drums', 'hat', 'decay'], 'Hat decay', [0.005, 0.3, 0.005], 's'),
       num(['drums', 'hat', 'level'], 'Hat level', [-40, 6, 0.5], 'dB'),
@@ -312,7 +433,7 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
     id: 'impact',
     title: 'Kill impact',
     description:
-      'A noise crunch over a sub thump on the root, scheduled on the next 1/16.',
+      'A snap and a noise crunch over a saturated body and a sub thump on the root, scheduled on the next 1/16. Both pitches share the thump drop.',
     fields: [
       num(['impact', 'level'], 'Level', [-40, 6, 0.5], 'dB'),
       num(['impact', 'crunchHz'], 'Crunch pitch', [100, 8000, 10], 'Hz'),
@@ -328,6 +449,46 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       ),
       num(['impact', 'thumpDecay'], 'Thump decay', [0.02, 2, 0.01], 's'),
       num(['impact', 'thumpLevel'], 'Thump level', [-40, 12, 0.5], 'dB'),
+      num(['impact', 'snapHz'], 'Snap high-pass', [500, 16000, 50], 'Hz'),
+      num(['impact', 'snapDecay'], 'Snap decay', [0.002, 0.3, 0.001], 's'),
+      num(['impact', 'snapLevel'], 'Snap level', [-40, 12, 0.5], 'dB'),
+      {
+        kind: 'choice',
+        path: ['impact', 'bodyOctave'],
+        label: 'Body octave',
+        options: [0, 1, 2, 3],
+      },
+      num(['impact', 'bodyDecay'], 'Body decay', [0.01, 1, 0.005], 's'),
+      num(['impact', 'bodySaturation'], 'Body saturation', [0, 1, 0.01]),
+      num(['impact', 'bodyLevel'], 'Body level', [-40, 12, 0.5], 'dB'),
+    ],
+  },
+  {
+    id: 'score',
+    title: 'Score',
+    description:
+      'A pluck on every kill that climbs the scale with the combo - an octave by the top multiplier.',
+    fields: [
+      num(['score', 'level'], 'Level', [-40, 6, 0.5], 'dB'),
+      {
+        kind: 'choice',
+        path: ['score', 'waveform'],
+        label: 'Waveform',
+        options: ['sine', 'triangle', 'square', 'sawtooth'],
+      },
+      num(['score', 'octave'], 'Octave', [2, 7, 1]),
+      num(['score', 'decay'], 'Decay', [0.02, 2, 0.01], 's'),
+      num(['score', 'brightnessHz'], 'Brightness', [200, 16000, 10], 'Hz'),
+      num(['score', 'shimmerLevel'], 'Octave shimmer', [-40, 6, 0.5], 'dB'),
+      num(
+        ['score', 'echoBeats'],
+        'Echo time',
+        [0.125, 2, 0.125],
+        undefined,
+        'In beats; 0.75 is a dotted 1/8',
+      ),
+      num(['score', 'echoFeedback'], 'Echo feedback', [0, 0.9, 0.01]),
+      num(['score', 'echoWet'], 'Echo mix', [0, 1, 0.01]),
     ],
   },
   {
@@ -378,6 +539,45 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       num(['arrangement', 'crashLevel'], 'Crash level', [-40, 12, 0.5], 'dB'),
       num(['arrangement', 'boomDecay'], 'Boom decay', [0.1, 4, 0.05], 's'),
       num(['arrangement', 'boomLevel'], 'Boom level', [-40, 12, 0.5], 'dB'),
+    ],
+  },
+  {
+    id: 'bed',
+    title: 'Pad and air bed',
+    description:
+      'A detuned saw chord and high noise filling the space between drums and bass, pumped by the kick.',
+    fields: [
+      {
+        kind: 'degrees',
+        path: ['arrangement', 'pad', 'degrees'],
+        label: 'Chord degrees',
+        hint: 'Scale degrees, 0 is the root',
+      },
+      num(['arrangement', 'pad', 'octave'], 'Pad octave', [1, 6, 1]),
+      num(['arrangement', 'pad', 'level'], 'Pad level', [-60, 6, 0.5], 'dB'),
+      num(['arrangement', 'pad', 'hz'], 'Pad filter', [100, 12000, 10], 'Hz'),
+      num(['arrangement', 'pad', 'detune'], 'Pad detune', [0, 100, 1], 'ct'),
+      num(['arrangement', 'air', 'level'], 'Air level', [-60, 6, 0.5], 'dB'),
+      num(
+        ['arrangement', 'air', 'hz'],
+        'Air high-pass',
+        [1000, 18000, 50],
+        'Hz',
+      ),
+      num(['arrangement', 'pad', 'calm'], 'Bed in calm', [-40, 12, 0.5], 'dB'),
+      num(
+        ['arrangement', 'pad', 'groove'],
+        'Bed in groove',
+        [-40, 12, 0.5],
+        'dB',
+      ),
+      num(
+        ['arrangement', 'pad', 'build'],
+        'Bed in build',
+        [-40, 12, 0.5],
+        'dB',
+      ),
+      num(['arrangement', 'pad', 'drop'], 'Bed in drop', [-40, 12, 0.5], 'dB'),
     ],
   },
 ];

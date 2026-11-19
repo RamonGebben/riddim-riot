@@ -5,3 +5,4 @@ export * from './gate';
 export * from './loudness';
 export * from './heardTime';
 export * from './arrangement';
+export * from './saturate';

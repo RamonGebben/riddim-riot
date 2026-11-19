@@ -8,6 +8,7 @@ import {
 } from 'tone';
 import { SOUND_DESIGN, type ImpactPatch } from '../../../sound';
 import { createGate } from '../../gate';
+import { createSaturator } from '../../saturate';
 
 export interface ImpactSound {
   play: (time: number) => void;
@@ -15,8 +16,9 @@ export interface ImpactSound {
 }
 
 /**
- * A kill: a crunchy noise hit over a sub thump on the root, so a string of
- * kills lands as a percussion line in key rather than random noise.
+ * A kill: a bright snap and a crunchy noise hit over a saturated body and a
+ * sub thump on the root, so a string of kills lands as a percussion line in
+ * key rather than random noise.
  */
 export const createImpactSound = ({
   output,
@@ -62,7 +64,50 @@ export const createImpactSound = ({
   });
   thumpOsc.connect(thump.input);
 
-  const nodes = [noise, crunchFilter, crunch, thumpOsc, thump, channel];
+  const snapFilter = new Filter({ type: 'highpass', frequency: patch.snapHz });
+  const snap = createGate({
+    envelope: {
+      attack: 0.001,
+      decay: patch.snapDecay,
+      sustain: 0,
+      release: 0.01,
+    },
+    volume: patch.snapLevel,
+    output: channel,
+  });
+  noise.chain(snapFilter, snap.input);
+
+  const bodyHz = thumpHz * 2 ** patch.bodyOctave;
+  const body = createGate({
+    envelope: {
+      attack: 0.001,
+      decay: patch.bodyDecay,
+      sustain: 0,
+      release: 0.02,
+    },
+    volume: patch.bodyLevel,
+    output: channel,
+  });
+  const bodySaturation = createSaturator(patch.bodySaturation).connect(
+    body.input,
+  );
+  const bodyOsc = new Oscillator({ type: 'square', frequency: bodyHz })
+    .connect(bodySaturation)
+    .start();
+
+  const nodes = [
+    noise,
+    crunchFilter,
+    crunch,
+    thumpOsc,
+    thump,
+    snapFilter,
+    snap,
+    bodyOsc,
+    bodySaturation,
+    body,
+    channel,
+  ];
 
   return {
     play: time => {
@@ -72,7 +117,15 @@ export const createImpactSound = ({
         thumpHz,
         time + patch.thumpSeconds,
       );
+      bodyOsc.frequency.cancelScheduledValues(time);
+      bodyOsc.frequency.setValueAtTime(bodyHz * patch.thumpMultiple, time);
+      bodyOsc.frequency.exponentialRampToValueAtTime(
+        bodyHz,
+        time + patch.thumpSeconds,
+      );
+      snap.envelope.triggerAttackRelease(0.005, time);
       crunch.envelope.triggerAttackRelease(0.06, time);
+      body.envelope.triggerAttackRelease(0.03, time);
       thump.envelope.triggerAttackRelease(0.1, time);
     },
     dispose: () => nodes.forEach(node => node.dispose()),

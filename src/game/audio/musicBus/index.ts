@@ -1,8 +1,13 @@
-import { Filter, Gain, Limiter, type ToneAudioNode } from 'tone';
+import { dbToGain, Filter, Gain, Limiter, type ToneAudioNode } from 'tone';
+import type { MixPatch } from '../../sound';
 
 export interface MusicBus {
   /** The track - drums and arrangement - opened and closed by `open`. */
   input: ToneAudioNode;
+  /** Part of the track like `input`, but pumped by the kick: the bed. */
+  bed: ToneAudioNode;
+  /** Like `direct`, but pumped by the kick: the weapons. */
+  weapons: ToneAudioNode;
   /**
    * Past the arrangement filter: the player's weapons and kills stay clear
    * however filtered the track is. Still ducked when hit.
@@ -12,6 +17,11 @@ export interface MusicBus {
   open: (hz: number, time: number, seconds: number) => void;
   /** Muffle everything at `time`, then open back up over `seconds`. */
   duck: (time: number, seconds: number) => void;
+  /**
+   * Sidechain: pull the bed and weapons down on a kick at `time`, by
+   * `velocity` of the patch's depth, and let them swell back.
+   */
+  pump: (time: number, velocity: number, patch: MixPatch) => void;
   /** Muffle everything from `time` on, and stay there. */
   muffle: (time: number) => void;
   dispose: () => void;
@@ -36,10 +46,37 @@ export const createMusicBus = (): MusicBus => {
     Q: 1,
   }).connect(duckFilter);
   const input = new Gain(0.9).connect(arrangementFilter);
+  const bedPump = new Gain(1).connect(arrangementFilter);
+  const bed = new Gain(0.9).connect(bedPump);
+  const weaponPump = new Gain(1).connect(direct);
+  const weapons = new Gain(1).connect(weaponPump);
+
+  const pumpDown = (
+    gain: Gain,
+    depthDb: number,
+    time: number,
+    seconds: number,
+  ) => {
+    gain.gain.cancelAndHoldAtTime(time);
+    // A few milliseconds down: a step would click on a held note.
+    gain.gain.linearRampToValueAtTime(dbToGain(depthDb), time + 0.005);
+    gain.gain.linearRampToValueAtTime(1, time + seconds);
+  };
 
   return {
     input,
+    bed,
+    weapons,
     direct,
+    pump: (time, velocity, patch) => {
+      pumpDown(bedPump, patch.bedPumpDb * velocity, time, patch.pumpSeconds);
+      pumpDown(
+        weaponPump,
+        patch.weaponPumpDb * velocity,
+        time,
+        patch.pumpSeconds,
+      );
+    },
     open: (hz, time, seconds) => {
       arrangementFilter.frequency.cancelScheduledValues(time);
       if (seconds <= 0) arrangementFilter.frequency.setValueAtTime(hz, time);
@@ -59,8 +96,16 @@ export const createMusicBus = (): MusicBus => {
       duckFilter.frequency.exponentialRampToValueAtTime(DUCKED_HZ, time + 1.5);
     },
     dispose: () =>
-      [input, arrangementFilter, direct, duckFilter, limiter].forEach(node =>
-        node.dispose(),
-      ),
+      [
+        input,
+        bed,
+        bedPump,
+        weapons,
+        weaponPump,
+        arrangementFilter,
+        direct,
+        duckFilter,
+        limiter,
+      ].forEach(node => node.dispose()),
   };
 };

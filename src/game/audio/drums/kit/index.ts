@@ -15,6 +15,8 @@ export interface DrumKit {
   dispose: () => void;
 }
 
+const CLAP_STRIKES = [0, 0.011, 0.022];
+
 /** A pitch that drops from `multiple`× down to `to` - the "boom" in a kick. */
 const pitchDrop = (
   oscillator: Oscillator,
@@ -47,6 +49,24 @@ export const createDrumKit = async (
     output: channel,
   });
   kickOsc.connect(kick.input);
+  const kickClickFilter = new Filter({
+    type: 'bandpass',
+    frequency: k.clickHz,
+  });
+  const kickClick = createGate({
+    envelope: { attack: 0.001, decay: k.clickDecay, sustain: 0, release: 0.01 },
+    volume: k.clickLevel,
+    output: channel,
+  });
+  noise.chain(kickClickFilter, kickClick.input);
+  // The tail rides the same oscillator: a second sine would drift out of
+  // phase with the punch and cancel it on some hits.
+  const kickSub = createGate({
+    envelope: { attack: 0.004, decay: k.subDecay, sustain: 0, release: 0.05 },
+    volume: k.subLevel,
+    output: channel,
+  });
+  kickOsc.connect(kickSub.input);
 
   const snareRoom = new Reverb({ decay: s.roomDecay, wet: s.roomWet }).connect(
     channel,
@@ -69,6 +89,13 @@ export const createDrumKit = async (
     output: snareRoom,
   });
   snareOsc.connect(snareBody.input);
+  const clapFilter = new Filter({ type: 'bandpass', frequency: s.clapHz });
+  const clap = createGate({
+    envelope: { attack: 0.001, decay: s.clapDecay, sustain: 0, release: 0.02 },
+    volume: s.clapLevel,
+    output: snareRoom,
+  });
+  noise.chain(clapFilter, clap.input);
 
   const hatFilter = new Filter(h.hz, 'highpass');
   const hat = createGate({
@@ -93,11 +120,22 @@ export const createDrumKit = async (
         time,
       );
       kick.envelope.triggerAttackRelease(0.2, time, velocity);
+      kickClick.envelope.triggerAttackRelease(0.004, time, velocity);
+      kickSub.envelope.triggerAttackRelease(0.2, time, velocity);
     },
     snare: (time, velocity) => {
       pitchDrop(snareOsc, { to: s.bodyHz, multiple: 2, seconds: 0.015 }, time);
       snareNoise.envelope.triggerAttackRelease(0.1, time, velocity);
       snareBody.envelope.triggerAttackRelease(0.05, time, velocity);
+      // A clap is a few hands a hair apart: three quick strikes, the last
+      // left to ring.
+      CLAP_STRIKES.forEach((offset, strike) =>
+        clap.envelope.triggerAttackRelease(
+          strike < CLAP_STRIKES.length - 1 ? 0.004 : 0.02,
+          time + offset,
+          velocity,
+        ),
+      );
     },
     hat: (time, velocity) => {
       // A closed hat chokes a ringing open one, like a real hi-hat.
@@ -111,13 +149,18 @@ export const createDrumKit = async (
   const nodes = [
     noise,
     kickOsc,
+    kickClickFilter,
     snareOsc,
+    clapFilter,
     snareFilter,
     snareRoom,
     hatFilter,
     openHatFilter,
     channel,
     kick,
+    kickClick,
+    kickSub,
+    clap,
     snareNoise,
     snareBody,
     hat,

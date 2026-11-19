@@ -68,6 +68,7 @@ export interface PlaygroundScreenProps {
 
 const ONE_SHOT_LABELS = {
   impact: 'Impact',
+  score: 'Kill + score',
   reload: 'Reload',
   riser: 'Riser',
   drop: 'Drop hit',
@@ -181,16 +182,18 @@ export const PlaygroundScreen = ({
               onChange={track.onSection}
             />
             <Buttons>
-              {(['impact', 'reload', 'riser', 'drop'] as const).map(sound => (
-                <Button
-                  key={sound}
-                  type="button"
-                  $variant="quiet"
-                  onClick={() => track.onOneShot(sound)}
-                >
-                  {ONE_SHOT_LABELS[sound]}
-                </Button>
-              ))}
+              {(['impact', 'score', 'reload', 'riser', 'drop'] as const).map(
+                sound => (
+                  <Button
+                    key={sound}
+                    type="button"
+                    $variant="quiet"
+                    onClick={() => track.onOneShot(sound)}
+                  >
+                    {ONE_SHOT_LABELS[sound]}
+                  </Button>
+                ),
+              )}
             </Buttons>
             <Meter read={track.readLevel} />
           </Panel>

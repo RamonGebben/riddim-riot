@@ -1,4 +1,13 @@
-import { Channel, Filter, Noise, Oscillator, type ToneAudioNode } from 'tone';
+import {
+  Channel,
+  FatOscillator,
+  Filter,
+  Noise,
+  Oscillator,
+  Volume,
+  type ToneAudioNode,
+} from 'tone';
+import { degreeToMidi, midiToHz, type Key } from '../../music';
 import type { Section } from '../../sim/waves';
 import { SOUND_DESIGN, type ArrangementPatch } from '../../sound';
 import { createGate } from '../gate';
@@ -28,13 +37,17 @@ const opennessOf = (patch: ArrangementPatch) =>
 /**
  * Combat intensity driving the track: a quiet room is filtered, piling
  * enemies open the filter over a riser, and a cleared wave lands a drop -
- * a crash and a sub boom on the bar line. Everything changes on bars only.
+ * a crash and a sub boom on the bar line. Under it all a chord pad and air
+ * fill the bed, pumped by the kick (`musicBus.bed`), louder as the fight
+ * builds and pulled back in the drop to leave the bass room. Everything
+ * changes on bars only.
  */
 export const createArrangement = ({
   musicBus,
   output,
   barSeconds,
   rootHz,
+  key,
   patch = SOUND_DESIGN.arrangement,
 }: {
   musicBus: MusicBus;
@@ -42,6 +55,8 @@ export const createArrangement = ({
   barSeconds: number;
   /** The level's root in octave 1, for the drop's sub boom. */
   rootHz: number;
+  /** The level's key, for the pad's chord. */
+  key: Key;
   patch?: ArrangementPatch;
 }): Arrangement => {
   const OPENNESS = opennessOf(patch);
@@ -95,6 +110,31 @@ export const createArrangement = ({
   });
   boomOsc.connect(boom.input);
 
+  const bed = new Volume(patch.pad.calm).connect(musicBus.bed);
+  const padLevel = new Volume(patch.pad.level).connect(bed);
+  const padFilter = new Filter({
+    type: 'lowpass',
+    frequency: patch.pad.hz,
+  }).connect(padLevel);
+  const pad = patch.pad.degrees.map(degree =>
+    new FatOscillator({
+      type: 'sawtooth',
+      frequency: midiToHz(degreeToMidi(key, degree, patch.pad.octave)),
+      count: 2,
+      spread: patch.pad.detune,
+      // Each note at its share, so a bigger chord isn't a louder one.
+      volume: -20 * Math.log10(Math.max(patch.pad.degrees.length, 1)),
+    })
+      .connect(padFilter)
+      .start(),
+  );
+  const airLevel = new Volume(patch.air.level).connect(bed);
+  const airFilter = new Filter({
+    type: 'highpass',
+    frequency: patch.air.hz,
+  }).connect(airLevel);
+  noise.connect(airFilter);
+
   let current: Section = 'calm';
   musicBus.open(OPENNESS.calm, 0, 0);
 
@@ -125,6 +165,12 @@ export const createArrangement = ({
     crash,
     boomOsc,
     boom,
+    ...pad,
+    padFilter,
+    padLevel,
+    airFilter,
+    airLevel,
+    bed,
     channel,
   ];
 
@@ -143,6 +189,7 @@ export const createArrangement = ({
           section === 'drop' ? 0 : barSeconds,
         );
       }
+      if (entering) bed.volume.rampTo(patch.pad[section], barSeconds, time);
       if (entering && section === 'drop') drop(time);
       current = section;
     },
