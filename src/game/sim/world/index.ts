@@ -48,7 +48,7 @@ import {
 import { fireProjectile, flyProjectiles, type Projectile } from '../projectile';
 import { NO_COMBO, registerKill, type Combo } from '../combo';
 import {
-  attractLoot,
+  attractHearts,
   BONUS_HEARTS,
   BOSS_HEARTS,
   dropOnKill,
@@ -401,18 +401,14 @@ const spawnSpots = (world: World): Array<Vec> => {
   });
 };
 
-/** Put a weapon on the ground; `resting` if the player put it there. */
+/** Put a weapon on the ground. */
 export const placePickup = (
   world: World,
   recipe: WeaponRecipe,
   position: Vec,
-  { resting = false }: { resting?: boolean } = {},
 ): World => ({
   ...world,
-  pickups: [
-    ...world.pickups,
-    { id: world.nextId, position, recipe, ...(resting ? { resting } : {}) },
-  ],
+  pickups: [...world.pickups, { id: world.nextId, position, recipe }],
   nextId: world.nextId + 1,
 });
 
@@ -686,14 +682,14 @@ export const stepWorld = (
     (struck[0] ? hostilePosition(struck[0], now) : null);
   const playerHit = canBeHit ? touched : null;
   const hurt = playerHit ? world.hp - 1 : world.hp;
-  // Loot drifts in; walking over a heart heals, stacking bonus hearts on
-  // top of full health up to the cap.
-  const attracted = attractLoot(world, {
+  // Hearts drift in; walking over one heals, stacking bonus hearts on top
+  // of full health up to the cap.
+  const hearts = attractHearts(world.hearts, {
     player: player.position,
     dt,
     canHeal: hurt > 0 && hurt < hpCap(world),
   });
-  const reachable = heartsInReach(attracted.hearts, player.position);
+  const reachable = heartsInReach(hearts, player.position);
   const healed = hurt > 0 ? reachable.slice(0, hpCap(world) - hurt) : [];
   const hp = hurt + healed.length;
   const standingIn = onPad(world, player.position);
@@ -709,7 +705,7 @@ export const stepWorld = (
   );
   const looted = hits.killed.reduce(
     (acc, kill) => dropLoot(acc, kill.enemy, kill.position),
-    { ...world, ...attracted },
+    { ...world, hearts },
   );
   // A dead boss's orbs fizzle with it.
   const bossDown = hits.killed.some(kill => kill.enemy.kind === 'boss');

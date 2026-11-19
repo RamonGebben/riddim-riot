@@ -197,10 +197,9 @@ the only mutable reference:
   Kills score into the combo, may drop loot, and hits cost one of 5 HP (then
   0.6 s of invulnerability). Walking over a heart heals one; at full health
   it stacks a bonus heart on top (up to 3, `BONUS_HEARTS`), lost first and
-  carried between levels, so saving health pays off. Loot within 170 px
-  drifts in (`sim/loot` `attractLoot`): hearts while there's room to heal,
-  and only the nearest weapon, never one the player just put down, so drops
-  don't pile up underfoot. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
+  carried between levels, so saving health pays off. Hearts within 170 px
+  drift in while there's room to heal (`sim/loot` `attractHearts`); weapons
+  stay where they fell, so taking one is a choice. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
   it's `cleared`. Either way it freezes.
 
 `WaveRules` (from `rulesFor({ level, stress })`) set the song, boss HP

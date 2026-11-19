@@ -422,16 +422,11 @@ describe('stepWorld', () => {
     expect(left.position).toEqual(far.position);
   });
 
-  it("doesn't pull back a weapon the player just put down", () => {
+  it('leaves weapons where they fell', () => {
     const beside = { x: start.x + 60, y: start.y };
-    const dropped = placePickup(createWorld(level), { seed: 7 }, beside, {
-      resting: true,
-    });
+    const dropped = placePickup(createWorld(level), { seed: 7 }, beside);
     const after = stepWorld(dropped, { input: still, dt: 1 / 60, now: 1 });
     expect(after.world.pickups[0].position).toEqual(beside);
-    const fresh = placePickup(createWorld(level), { seed: 7 }, beside);
-    const drawn = stepWorld(fresh, { input: still, dt: 1 / 60, now: 1 });
-    expect(drawn.world.pickups[0].position.x).toBeLessThan(beside.x);
   });
 
   it('bursts a slow shot at the end of its range', () => {
