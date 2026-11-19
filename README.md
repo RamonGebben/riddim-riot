@@ -27,11 +27,11 @@ fires continuously while held, for up to a bar before it overheats into a
 recharge; letting go cools it. Weapons with **Crush** burst on every hit,
 damaging and shoving back everything around it.
 
-| URL                  | What it does                                                                                                             |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `/?seed=42`          | Play a specific level. A number or any word (`?seed=wobble`)                                                             |
-| `/?stress`           | Skip the circle and fill the level to the 30-enemy cap from the first bar, for performance checks                        |
-| `/?latency=playback` | Ask for a bigger audio buffer (`interactive`, `balanced` - the default - or `playback`), for chasing crackle on a device |
+| URL                  | What it does                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/?seed=42`          | Play a specific level. A number or any word (`?seed=wobble`)                                                                                           |
+| `/?stress`           | Skip the circle and fill the level to the 30-enemy cap from the first bar, for performance checks                                                      |
+| `/?latency=playback` | Pick the audio buffer: `interactive`, `balanced` (desktop default) or `playback` (touch-screen default, as Firefox on phones crackles on smaller ones) |
 
 ## Sound playground
 
