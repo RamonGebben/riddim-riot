@@ -3,8 +3,12 @@ import { TOUCH_SCREEN } from '~/utils/landscape';
 
 export const List = styled.ol`
   position: fixed;
-  inset-block-end: ${({ theme }) => theme.spacing('base')};
-  inset-inline-start: ${({ theme }) => theme.spacing('base')};
+  inset-block-end: calc(
+    ${({ theme }) => theme.spacing('base')} + env(safe-area-inset-bottom, 0px)
+  );
+  inset-inline-start: calc(
+    ${({ theme }) => theme.spacing('base')} + env(safe-area-inset-left, 0px)
+  );
   z-index: ${({ theme }) => theme.zIndex('sticky')};
   display: grid;
   gap: ${({ theme }) => theme.spacing('xs')};
@@ -18,7 +22,11 @@ export const List = styled.ol`
   /* Beside the right thumb that swipes through it, below the HUD. */
   @media ${TOUCH_SCREEN} {
     inset-block: calc(${({ theme }) => theme.spacing('l')} * 3.5) auto;
-    inset-inline: auto ${({ theme }) => theme.spacing('base')};
+    inset-inline: auto
+      calc(
+        ${({ theme }) => theme.spacing('base')} +
+          env(safe-area-inset-right, 0px)
+      );
     justify-items: end;
   }
 `;

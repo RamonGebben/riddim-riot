@@ -22,7 +22,9 @@ Running and controls are in `README.md`.
   audio with `startAudio` (`src/game/audio`), never Tone's `start()`: it
   hands Tone a native AudioContext, as Tone's own standardized-audio-context
   wrapper has no `getOutputTimestamp()` and the heard clock would silently
-  equal the audio clock.
+  equal the audio clock. Call it first in the click, before anything that
+  spends the gesture: a fullscreen request does, and a context started
+  after it stays suspended (the start screen hung on phones).
 - **Keep Tone out of pure modules.** `grid`, `rng`, `bus` and pattern
   generators must not import `tone` (directly or through a domain `index.ts`
   that does), so they run in the Node `unit` Vitest project.
