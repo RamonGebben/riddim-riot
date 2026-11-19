@@ -66,6 +66,7 @@ export const App = () => {
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
   const [paused, setPaused] = useState(false);
+  const [soundBlocked, setSoundBlocked] = useState(false);
   const [startStep, setStartStep] = useState<StartStep | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   // Bumped on every (re)start, so the stage re-attaches to the new game.
@@ -83,7 +84,9 @@ export const App = () => {
     const unsubscribe = [
       game.current.onLoadout(setLoadout),
       game.current.onHud(setHud),
+      game.current.onSound(setSoundBlocked),
     ];
+    setSoundBlocked(game.current.soundBlocked());
     return () => {
       unsubscribe.forEach(off => off());
       detach();
@@ -193,6 +196,8 @@ export const App = () => {
         onStop={handleStop}
         onPause={pause}
         onResume={resume}
+        soundBlocked={soundBlocked}
+        onRetrySound={() => game.current?.retrySound()}
         onRetry={() => play(newRun(run.seed))}
         onNewRun={() => play(newRun(randomSeed()))}
         onNextLevel={handleNextLevel}

@@ -68,6 +68,11 @@ Tone Transport ──tick (1/16, with its scheduled audio time)──▶ bus
   exactly where it stopped; the frame loop skips frames meanwhile, and the
   heard clock is clamped to the audio clock so it can't jump across the
   pause.
+- **Sound the browser holds back freezes the game too.** If the context
+  isn't running and the player didn't pause (no output device, autoplay
+  rules, a phone call), the game holds still like a pause and shows
+  "Sound couldn't start" with a Start sound button - a press, which
+  browsers need. It clears itself on the context's `statechange`.
 - Visual envelopes (`render/pulse`) store hit times and are read at the heard
   time each frame, so a kick, beat, shot, kill, hit or drop flash can't drift
   from its sound.

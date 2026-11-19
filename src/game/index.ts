@@ -68,6 +68,16 @@ export interface Game {
   pause: () => void;
   /** Must be called from a user gesture, like `startGame`. */
   resume: () => void;
+  /**
+   * The browser is holding the sound back (no output device, autoplay
+   * rules, a phone call). The game waits, frozen like a pause, until it
+   * starts; a pause the player asked for doesn't count.
+   */
+  soundBlocked: () => boolean;
+  /** Called whenever `soundBlocked` may have changed; returns off. */
+  onSound: (listener: (blocked: boolean) => void) => () => void;
+  /** Try to start the sound again. Must be called from a user gesture. */
+  retrySound: () => void;
   loadout: () => LoadoutView;
   /** Called on every weapon switch or reroll; returns unsubscribe. */
   onLoadout: (listener: (view: LoadoutView) => void) => () => void;
@@ -222,21 +232,31 @@ export const startGame = async ({
   // game (Transport, scheduled sound, hops, pulses) is read off it, so the
   // game picks up on resume exactly where it stopped.
   let paused = false;
+  const soundBlocked = () => !paused && !audio.running();
+  /** Paused, or waiting on the sound: the game holds still either way. */
+  const frozen = () => paused || soundBlocked();
+  const soundListeners = new Set<(blocked: boolean) => void>();
+  const tellSound = () =>
+    soundListeners.forEach(listener => listener(soundBlocked()));
+  const offAudio = audio.onChange(tellSound);
   const pause = () => {
     if (paused) return;
     paused = true;
     loadout.release();
     void audio.suspend();
+    tellSound();
   };
   const resume = () => {
     if (!paused) return;
     paused = false;
-    void audio.resume();
+    // Told once the resume settles, so a moment of starting up doesn't
+    // flash "sound blocked"; a refused resume is told after the wait.
+    void audio.resume().then(tellSound);
   };
 
   const trigger = {
     press: () => {
-      if (!paused) loadout.press({ onBeat: onBeat() });
+      if (!frozen()) loadout.press({ onBeat: onBeat() });
     },
     release: loadout.release,
   };
@@ -278,9 +298,9 @@ export const startGame = async ({
           hudListeners.forEach(listener => listener(view));
         },
         onWeaponAction: action => {
-          if (!paused) loadout.act(action);
+          if (!frozen()) loadout.act(action);
         },
-        isPaused: () => paused,
+        isPaused: frozen,
         swapWeapon: loadout.replaceActive,
         pulses,
         sounds: {
@@ -312,10 +332,18 @@ export const startGame = async ({
       };
     },
     takeWeapon: () => {
-      if (!paused) takeWeapon();
+      if (!frozen()) takeWeapon();
     },
     pause,
     resume,
+    soundBlocked,
+    onSound: listener => {
+      soundListeners.add(listener);
+      return () => soundListeners.delete(listener);
+    },
+    retrySound: () => {
+      void audio.resume().then(tellSound);
+    },
     loadout: loadout.view,
     hud: () => hud,
     nextRun: () =>
@@ -335,6 +363,8 @@ export const startGame = async ({
       return () => listeners.delete(listener);
     },
     stop: () => {
+      offAudio();
+      soundListeners.clear();
       unsubscribe.forEach(off => off());
       clock.dispose();
       [

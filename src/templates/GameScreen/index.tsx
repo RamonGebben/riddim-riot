@@ -56,11 +56,15 @@ export interface GameScreenProps {
   loadout: LoadoutProps;
   /** Frozen mid-level, waiting for Resume. */
   paused: boolean;
+  /** The browser is holding the sound back, so the game waits for it. */
+  soundBlocked: boolean;
   /** The element the game attaches its input and canvas to. */
   surfaceRef?: Ref<HTMLElement>;
   onStop: () => void;
   onPause: () => void;
   onResume: () => void;
+  /** Try to start the sound again; it's a press, which browsers require. */
+  onRetrySound: () => void;
   /** Start the same run over. */
   onRetry: () => void;
   /** Start over on a fresh seed. */
@@ -106,10 +110,12 @@ export const GameScreen = ({
   run,
   loadout,
   paused,
+  soundBlocked,
   surfaceRef,
   onStop,
   onPause,
   onResume,
+  onRetrySound,
   onRetry,
   onNewRun,
   onNextLevel,
@@ -162,6 +168,19 @@ export const GameScreen = ({
           <Button onClick={onStop}>Stop</Button>
         </HudActions>
       </Hud>
+      {soundBlocked && !paused && run.status === 'playing' && (
+        <Overlay
+          heading="Sound couldn't start"
+          stats={[
+            'The game runs on the music, so it waits for it.',
+            'Check that sound can play on this device, then try again.',
+          ]}
+          actions={[
+            { label: 'Start sound', onClick: onRetrySound },
+            { label: 'Quit', onClick: onStop },
+          ]}
+        />
+      )}
       {paused && run.status === 'playing' && (
         <Overlay
           heading="Paused"

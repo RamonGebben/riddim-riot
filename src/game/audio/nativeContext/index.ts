@@ -2,9 +2,14 @@ import { Context, getContext, setContext, type BaseContext } from 'tone';
 
 export interface Audio {
   suspend: () => Promise<void>;
+  /** Settles once running, or after a short wait if the browser refuses. */
   resume: () => Promise<void>;
   /** `getOutputTimestamp()` of the browser's context, if it can be reached. */
   outputTimestamp: () => AudioTimestamp | undefined;
+  /** Sound is coming out: the context's clock is moving. */
+  running: () => boolean;
+  /** Called whenever the context starts, stops or is held back; returns off. */
+  onChange: (listener: () => void) => () => void;
 }
 
 /** Long enough for a resume the browser allows; a refused one never settles. */
@@ -25,6 +30,13 @@ const nativeOf = (raw: object): AudioContext | null => {
   return inner instanceof AudioContext && 'getOutputTimestamp' in inner
     ? inner
     : null;
+};
+
+const resumeWithin = async (context: BaseContext) => {
+  await Promise.race([
+    context.resume(),
+    new Promise(resolve => setTimeout(resolve, RESUME_WAIT_MS)),
+  ]);
 };
 
 const resumeOnNextGesture = (context: BaseContext) => {
@@ -63,16 +75,20 @@ export const startAudio = async ({
         suspend: async () => {
           if ('close' in raw) await raw.suspend();
         },
-        resume: () => context.resume(),
+        resume: () => resumeWithin(context),
         outputTimestamp: () => native?.getOutputTimestamp(),
+        running: () => context.state === 'running',
+        onChange: listener => {
+          context.on('statechange', listener);
+          return () => {
+            context.off('statechange', listener);
+          };
+        },
       },
     };
   }
   const { context, audio } = realtime;
-  await Promise.race([
-    context.resume(),
-    new Promise(resolve => setTimeout(resolve, RESUME_WAIT_MS)),
-  ]);
+  await resumeWithin(context);
   if (context.state !== 'running') resumeOnNextGesture(context);
   return audio;
 };

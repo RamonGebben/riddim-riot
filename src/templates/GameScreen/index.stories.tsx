@@ -38,6 +38,8 @@ const meta = {
     paused: false,
     onPause: fn(),
     onResume: fn(),
+    soundBlocked: false,
+    onRetrySound: fn(),
   },
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof GameScreen>;
@@ -53,6 +55,19 @@ export const Playing: Story = {
     await expect(args.onStop).toHaveBeenCalled();
     await userEvent.click(canvas.getByRole('button', { name: 'Pause' }));
     await expect(args.onPause).toHaveBeenCalled();
+  },
+};
+
+export const SoundBlocked: Story = {
+  args: { soundBlocked: true },
+  play: async ({ args, canvas, userEvent }) => {
+    await expect(
+      canvas.getByRole('heading', { name: "Sound couldn't start" }),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Start sound' }));
+    await expect(args.onRetrySound).toHaveBeenCalled();
+    await userEvent.click(canvas.getByRole('button', { name: 'Quit' }));
+    await expect(args.onStop).toHaveBeenCalled();
   },
 };
 
