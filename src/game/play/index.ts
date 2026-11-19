@@ -23,7 +23,12 @@ import {
 } from '../render';
 import { createRng, deriveSeed } from '../rng';
 import type { Level } from '../level';
-import { sectionFor, songPosition, type Section } from '../sim/survival';
+import {
+  sectionFor,
+  songPosition,
+  type Section,
+  type SongPart,
+} from '../sim/survival';
 import { nearestPickup } from '../sim/loot';
 import { add, scale } from '../vec';
 import { weaponFrom, type WeaponRecipe } from '../weapons';
@@ -70,8 +75,11 @@ export interface PlaySounds {
   volley: (time: number) => void;
   /** The fight is on: bring the drums in from this tick. */
   startDrums: (tick: Tick) => void;
-  /** Every bar line: the section the track should play. */
-  section: (section: Section, at: { time: number; bar: number }) => void;
+  /** Every bar line: the section the track should play, and its song part. */
+  section: (
+    section: Section,
+    at: { time: number; bar: number; part: SongPart | null },
+  ) => void;
 }
 
 const SHAKE_PIXELS = 7;
@@ -101,6 +109,8 @@ const SPAWN_STREAM = 1;
 export interface Play {
   /** Take the weapon underfoot - F, or the touch screen's button. */
   takeWeapon: () => void;
+  /** Dash on the next frame - the touch screen's button for Space. */
+  dash: () => void;
   detach: () => void;
 }
 
@@ -162,6 +172,7 @@ export const startPlay = async ({
   const touch = attachTouchControls(element, { trigger });
 
   let world = createWorld(level, rules, carry);
+  let dashPressed = false;
   let camera = world.player.position;
   /** What's on screen, for spawning where it can be seen. */
   let view: View = { center: camera, size: stage.view().size };
@@ -237,7 +248,11 @@ export const startPlay = async ({
     }
     // Drop into drop: the arrangement only hits on entering one.
     if (newDrop && lastSection === 'drop') sounds.dropHit(tick.time);
-    sounds.section(section, { time: tick.time, bar: tick.bar });
+    sounds.section(section, {
+      time: tick.time,
+      bar: tick.bar,
+      part: at?.part ?? null,
+    });
     lastSection = section;
   };
 
@@ -270,11 +285,15 @@ export const startPlay = async ({
       ? add(world.player.position, scale(stickAim, STICK_AIM_PIXELS))
       : screenToWorld(scale(controls.pointer(), 1 / zoom), camera, size);
     const move = touch.active() ? touch.move() : controls.move();
+    const dash = controls.takeDash() || dashPressed;
+    dashPressed = false;
+    const dashedAt = world.dash.until;
     const result = stepWorld(world, {
-      input: { move, aimAt },
+      input: { move, aimAt, dash },
       dt,
       now,
       beat,
+      beatSeconds,
     });
     world = result.world;
     camera = clampCamera(
@@ -319,7 +338,10 @@ export const startPlay = async ({
     if (ended) trigger.release();
     // Dead or out the exit, the music closes down behind the screen.
     if (ended) sounds.dead(audioNow());
-    const nextHud = hudOf(world, describe, beat, beatSeconds);
+    if (world.dash.until !== dashedAt) {
+      bursts = [...bursts, { position: world.player.position, time: now }];
+    }
+    const nextHud = hudOf(world, describe, beat, beatSeconds, now);
     if (!sameHud(hud, nextHud)) {
       hud = nextHud;
       onHud(hud);
@@ -351,6 +373,9 @@ export const startPlay = async ({
 
   return {
     takeWeapon,
+    dash: () => {
+      dashPressed = true;
+    },
     detach: () => {
       unsubscribe.forEach(off => off());
       detachTrigger();

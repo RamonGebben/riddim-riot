@@ -486,6 +486,35 @@ describe('stepWorld', () => {
     expect(hit.world.hostiles).toEqual([]);
   });
 
+  it('dashes along the stick, then waits out its cooldown in beats', () => {
+    const go = { ...still, move: { x: 0, y: -1 }, dash: true };
+    const dashed = stepWorld(createWorld(level), {
+      input: go,
+      dt: 1 / 60,
+      now: 1,
+      beatSeconds: 0.5,
+    });
+    const moved = start.y - dashed.world.player.position.y;
+    expect(moved).toBeGreaterThan(20);
+    expect(dashed.world.dash.readyAt).toBeCloseTo(2);
+    const again = stepWorld(dashed.world, {
+      input: go,
+      dt: 1 / 60,
+      now: 1.5,
+      beatSeconds: 0.5,
+    });
+    expect(again.world.dash).toBe(dashed.world.dash);
+  });
+
+  it('passes through enemies and orbs while dashing', () => {
+    const near = { x: start.x + 10, y: start.y };
+    const world = withEnemies(createWorld(level), [enemyAt(1, near)]);
+    const dashing = { ...world, dash: { ...world.dash, until: 2, readyAt: 3 } };
+    const through = stepWorld(dashing, { input: still, dt: 1 / 60, now: 1 });
+    expect(through.world.hp).toBe(PLAYER_MAX_HP);
+    expect(through.world.enemies).toHaveLength(1);
+  });
+
   it('lets the boss shrug off contact: it hits, but stays', () => {
     const near = { x: start.x + 10, y: start.y };
     const boss: Enemy = { ...enemyAt(1, near, 30), kind: 'boss' };

@@ -269,7 +269,8 @@
       "calm": -4,
       "groove": 0,
       "build": 2,
-      "drop": -6
+      "drop": -6,
+      "glide": 0.25
     },
     "air": {
       "level": -30,

@@ -275,8 +275,10 @@ export interface ArrangementPatch {
   boomLevel: number;
   /** A chord bed filling the space between the drums and the bass. */
   pad: {
-    /** Scale degrees of the chord. */
+    /** The chord's shape: scale degrees above each chord's root. */
     degrees: Array<number>;
+    /** How long the pad takes to glide into the next chord. */
+    glide: number;
     octave: number;
     level: number;
     hz: number;
@@ -291,6 +293,52 @@ export interface ArrangementPatch {
   air: { level: number; hz: number };
 }
 
+type Wave = 'sine' | 'triangle' | 'square' | 'sawtooth';
+
+/**
+ * The song's melodic layers over the progression: an arpeggio, a lead hook
+ * and offbeat chord stabs. They sit under the weapons - high-passed out of
+ * the bass, pumped by the kick and ducked while the player fires.
+ */
+export interface BackingPatch {
+  level: number;
+  /** Keeps the layers out of the weapons' low end. */
+  highpassHz: number;
+  /** How far a shot pulls the layers down, and how fast they come back. */
+  duckDb: number;
+  duckSeconds: number;
+  arp: {
+    waveform: Wave;
+    octave: number;
+    level: number;
+    /** The pluck's filter at rest, and where each note's envelope opens it. */
+    hz: number;
+    peakHz: number;
+    decay: number;
+  };
+  lead: {
+    octave: number;
+    level: number;
+    hz: number;
+    /** Cents across the lead's detuned saws. */
+    detune: number;
+    /** Seconds sliding from one note to the next. */
+    glide: number;
+    decay: number;
+    sustain: number;
+    release: number;
+    echoWet: number;
+    echoFeedback: number;
+  };
+  stabs: {
+    waveform: Wave;
+    octave: number;
+    level: number;
+    hz: number;
+    decay: number;
+  };
+}
+
 export interface SoundDesign {
   wobble: WobblePatch;
   laser: LaserPatch;
@@ -303,6 +351,7 @@ export interface SoundDesign {
   reload: ReloadPatch;
   recharge: RechargePatch;
   arrangement: ArrangementPatch;
+  backing: BackingPatch;
   mix: MixPatch;
   score: ScorePatch;
 }
@@ -493,6 +542,7 @@ export const BASE_DESIGN: SoundDesign = {
     boomLevel: 4,
     pad: {
       degrees: [0, 2, 4, 6],
+      glide: 0.25,
       octave: 3,
       level: -20,
       hz: 1400,
@@ -503,6 +553,39 @@ export const BASE_DESIGN: SoundDesign = {
       drop: -6,
     },
     air: { level: -30, hz: 7000 },
+  },
+  backing: {
+    level: -12,
+    highpassHz: 260,
+    duckDb: -6,
+    duckSeconds: 0.35,
+    arp: {
+      waveform: 'square',
+      octave: 4,
+      level: -10,
+      hz: 700,
+      peakHz: 4200,
+      decay: 0.16,
+    },
+    lead: {
+      octave: 5,
+      level: -3,
+      hz: 3800,
+      detune: 18,
+      glide: 0.04,
+      decay: 0.3,
+      sustain: 0.5,
+      release: 0.12,
+      echoWet: 0.25,
+      echoFeedback: 0.35,
+    },
+    stabs: {
+      waveform: 'sawtooth',
+      octave: 4,
+      level: -6,
+      hz: 2600,
+      decay: 0.09,
+    },
   },
   mix: { bedPumpDb: -12, weaponPumpDb: -4, pumpSeconds: 0.24 },
   score: {

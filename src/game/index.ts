@@ -1,6 +1,7 @@
 import { immediate, now } from 'tone';
 import {
   createArrangement,
+  createBacking,
   createBlastSound,
   createDrums,
   createImpactSound,
@@ -23,6 +24,7 @@ import {
   STEPS_PER_BEAT,
   STEPS_PER_DIVISION,
 } from './grid';
+import { chordAt, progressionFor, shiftFor, transposeInKey } from './harmony';
 import { createLoadout, type Armed, type LoadoutView } from './loadout';
 import { generateLevel } from './level';
 import { degreeToMidi, keyName, midiToHz } from './music';
@@ -39,6 +41,7 @@ export type { HudView } from './hud';
 export { levelSeed, newRun, type RunState } from './run';
 export type { LoadoutView } from './loadout';
 export { RUN_LEVELS } from './sim/world';
+export { attachBackdrop } from './backdrop';
 
 /** Fixed for the PoC; the level seed picks it later. */
 export const BPM = 140;
@@ -60,6 +63,21 @@ export const describeLevel = (run: RunState) => {
   return { key: keyName(key), palette: palette.name, bpm: BPM };
 };
 
+/** The run's weapons as the landing page previews them, in its key. */
+export const describeLoadout = (run: RunState) => {
+  const { key } = generateLevel(levelSeed(run));
+  return run.recipes.map(recipe => {
+    const { name, parts, projectile } = weaponFrom(recipe, key);
+    return {
+      name,
+      oscillator: parts.oscillator,
+      lfo: parts.lfo,
+      fx: parts.fx,
+      blasts: projectile.detonates === true,
+    };
+  });
+};
+
 export interface Game {
   /** Mount the stage and input on the play area; returns detach. */
   attach: (element: HTMLElement) => () => void;
@@ -72,6 +90,8 @@ export interface Game {
    */
   fireSlot: (slot: number) => void;
   releaseSlot: (slot: number) => void;
+  /** Dash: Space's twin, for the touch screen's button. */
+  dash: () => void;
   /** Freeze the whole game: music, clock, enemies and input. */
   pause: () => void;
   /** Must be called from a user gesture, like `startGame`. */
@@ -152,13 +172,35 @@ export const startGame = async ({
   });
   const reloadSound = createReloadSound(musicBus.direct);
   const rechargeSound = createRechargeSound(musicBus.direct);
+  // The level's chords: the pad, the backing layers and every weapon's
+  // riff follow them. They restart with the song, so a drop lands home.
+  const progression = progressionFor(seed, key);
+  let songStartBar = 0;
+  const chordBar = (bar: number) => bar - songStartBar;
   const arrangement = createArrangement({
     musicBus,
     output: musicBus.input,
     barSeconds: beatSeconds * 4,
     rootHz: rootHz(1),
     key,
+    progression,
   });
+  const backing = createBacking({
+    output: musicBus.bed,
+    key,
+    seed,
+    progression,
+    stepSeconds,
+  });
+  /** A riff note moved onto the chord of the bar being played. */
+  const onChord = (note: number) =>
+    lastTick
+      ? transposeInKey(
+          key,
+          note,
+          shiftFor(chordAt(progression, chordBar(lastTick.bar)).degree),
+        )
+      : note;
   const impact = createImpactSound({
     output: musicBus.direct,
     root: rootHz(1),
@@ -187,7 +229,8 @@ export const startGame = async ({
       spec: weapon.timing,
       voice: {
         fire: (time, duration, shot, accent) => {
-          voice.fire(time, duration, shot);
+          voice.fire(time, duration, shot, onChord);
+          backing.duck(time);
           const bonus = accent ? ACCENT[accent] : null;
           pulses.shot.hit(time, bonus?.flash ?? 1);
           const angle = spreadAngle(shot, projectile.spread);
@@ -289,6 +332,7 @@ export const startGame = async ({
   });
   clock.start();
   let takeWeapon = () => {};
+  let dash = () => {};
 
   return {
     attach: element => {
@@ -318,12 +362,17 @@ export const startGame = async ({
           blast: blast.play,
           duck: time => musicBus.duck(time, DUCK_SECONDS),
           dead: musicBus.muffle,
-          section: arrangement.onBar,
+          section: (section, at) => {
+            const bar = chordBar(at.bar);
+            arrangement.onBar(section, { ...at, chordBar: bar });
+            backing.onBar({ time: at.time, bar, part: at.part });
+          },
           charge: arrangement.charge,
           dropHit: arrangement.drop,
           heal: time => score.play(time, MAX_MULTIPLIER),
           volley: blast.play,
           startDrums: tick => {
+            songStartBar = tick.bar;
             // The slam's own tick has already gone by the drums: play it.
             if (!drumsIn) drums.onTick(tick);
             drumsIn = true;
@@ -335,14 +384,19 @@ export const startGame = async ({
       });
       void play.then(mounted => {
         takeWeapon = mounted.takeWeapon;
+        dash = mounted.dash;
       });
       return () => {
         takeWeapon = () => {};
+        dash = () => {};
         void play.then(mounted => mounted.detach());
       };
     },
     takeWeapon: () => {
       if (!frozen()) takeWeapon();
+    },
+    dash: () => {
+      if (!frozen()) dash();
     },
     fireSlot: slot => {
       if (frozen() || hud.status !== 'playing') return;
@@ -394,6 +448,7 @@ export const startGame = async ({
         blast,
         score,
         arrangement,
+        backing,
         musicBus,
       ].forEach(node => node.dispose());
     },

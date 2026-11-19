@@ -35,6 +35,8 @@ describe('hudOf', () => {
       songBar: null,
       boss: null,
       pickup: null,
+      dashCooldown: null,
+      dashKey: 0,
     });
   });
 

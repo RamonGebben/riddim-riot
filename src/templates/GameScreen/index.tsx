@@ -2,6 +2,7 @@ import type { Ref } from 'react';
 import { Icon } from '~/atoms/Icon';
 import { PAUSE_ICON } from '~/game/icons';
 import { Combo } from './components/Combo';
+import { DashButton } from './components/DashButton';
 import { Health } from './components/Health';
 import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
@@ -19,7 +20,7 @@ import { Score } from './components/Score';
 import { SongTrack } from './components/SongTrack';
 import { Surface } from './components/Surface';
 import { TakeButton } from './components/TakeButton';
-import { WeaponTag } from './components/WeaponTag';
+import { WeaponTag } from '~/molecules/WeaponTag';
 import type { LevelPhase, SongPart, WeaponFace } from './types';
 
 export type { LevelPhase, SongPart, WeaponFace } from './types';
@@ -49,6 +50,10 @@ export interface RunProps {
   boss: number | null;
   /** The weapon the player is standing on, if any. */
   pickup: WeaponFace | null;
+  /** Seconds until the dash is back; null when ready. */
+  dashCooldown: number | null;
+  /** Changes with every dash. */
+  dashKey: number;
 }
 
 export interface GameScreenProps {
@@ -80,6 +85,8 @@ export interface GameScreenProps {
   /** A slot button held: switch to it and fire; let go to stop. */
   onFireSlot: (slot: number) => void;
   onReleaseSlot: (slot: number) => void;
+  /** The touch screen's dash button (Space with a keyboard). */
+  onDash: () => void;
 }
 
 const CIRCLE_PROMPTS = {
@@ -138,6 +145,7 @@ export const GameScreen = ({
   onTakeWeapon,
   onFireSlot,
   onReleaseSlot,
+  onDash,
 }: GameScreenProps) => {
   const holding = loadout.slots[loadout.active];
   const prompt = run.pickup ? (
@@ -167,7 +175,7 @@ export const GameScreen = ({
             </PointerOnly>
             <PointerOnly $pointer="touch">
               left: aim, push further to move · right: tap or hold to fire ·
-              hold a weapon to fire it
+              hold a weapon to fire it · Dash button to dash
             </PointerOnly>
           </Hint>
         )}
@@ -184,6 +192,14 @@ export const GameScreen = ({
         onFire={onFireSlot}
         onRelease={onReleaseSlot}
       />
+      {run.status === 'playing' && (
+        <DashButton
+          cooldown={run.dashCooldown}
+          dashKey={run.dashKey}
+          paused={!playing}
+          onDash={onDash}
+        />
+      )}
       <Hud>
         <HudPanel>
           <Health hp={run.hp} maxHp={run.maxHp} />

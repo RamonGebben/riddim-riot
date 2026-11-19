@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  attachBackdrop,
   describeLevel,
+  describeLoadout,
   newRun,
   RUN_LEVELS,
   startGame,
@@ -58,6 +60,13 @@ const withTimeout = (starting: Promise<Game>, step: () => StartStep | null) =>
 
 export const App = () => {
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
+  /** The seed as typed on the start screen: a number or any word. */
+  const [seedText, setSeedText] = useState(
+    () =>
+      new URLSearchParams(window.location.search).get('seed') ??
+      String(run.seed),
+  );
+  const backdrop = useRef<HTMLDivElement>(null);
   // `?stress` fills the level with enemies, for checking performance.
   const [stress] = useState(() =>
     new URLSearchParams(window.location.search).has('stress'),
@@ -68,6 +77,7 @@ export const App = () => {
     }),
   );
   const level = useMemo(() => describeLevel(run), [run]);
+  const weapons = useMemo(() => describeLoadout(run), [run]);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
@@ -87,6 +97,22 @@ export const App = () => {
   const surface = useRef<HTMLElement>(null);
 
   useEffect(() => () => game.current?.stop(), []);
+
+  // The start screen's live level, redrawn when the seed changes.
+  const onStart = status !== 'playing' && !between;
+  useEffect(() => {
+    if (!onStart || !backdrop.current) return;
+    return attachBackdrop(backdrop.current, run);
+  }, [onStart, run]);
+
+  /** A new seed for the next run, kept in the URL so a reload keeps it. */
+  const chooseSeed = (text: string) => {
+    setSeedText(text);
+    const query = `?seed=${encodeURIComponent(text.trim())}`;
+    if (!text.trim()) return;
+    setRun(newRun(getSeed(query)));
+    window.history.replaceState(null, '', query);
+  };
 
   useEffect(() => {
     if (status !== 'playing' || !surface.current || !game.current) return;
@@ -238,6 +264,7 @@ export const App = () => {
         onTakeWeapon={() => game.current?.takeWeapon()}
         onFireSlot={slot => game.current?.fireSlot(slot)}
         onReleaseSlot={slot => game.current?.releaseSlot(slot)}
+        onDash={() => game.current?.dash()}
       />
     );
   }
@@ -252,7 +279,13 @@ export const App = () => {
     <StartScreen
       musicalKey={level.key}
       bpm={level.bpm}
+      levels={RUN_LEVELS}
       best={best}
+      seed={seedText}
+      weapons={weapons}
+      backdropRef={backdrop}
+      onSeed={chooseSeed}
+      onRollSeed={() => chooseSeed(String(randomSeed()))}
       isStarting={status === 'starting'}
       step={startStep}
       error={startError}

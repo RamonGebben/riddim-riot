@@ -7,7 +7,34 @@ const meta = {
   args: {
     musicalKey: 'F minor',
     bpm: 140,
+    levels: 5,
     best: 0,
+    seed: '42',
+    weapons: [
+      {
+        name: 'Vandal Wobble 1/8 Echo',
+        oscillator: 'wobble',
+        lfo: '1/8',
+        fx: 'echo',
+        blasts: false,
+      },
+      {
+        name: 'Lumen Laser 1/16',
+        oscillator: 'laser',
+        lfo: '1/16',
+        fx: null,
+        blasts: false,
+      },
+      {
+        name: 'Vandal Beam 1/2 Crush',
+        oscillator: 'beam',
+        lfo: '1/2',
+        fx: 'distortion',
+        blasts: false,
+      },
+    ],
+    onSeed: fn(),
+    onRollSeed: fn(),
     isStarting: false,
     step: null,
     error: null,
@@ -25,6 +52,18 @@ export const Idle: Story = {
       canvas.getByRole('button', { name: 'Press to start' }),
     );
     await expect(args.onStart).toHaveBeenCalled();
+  },
+};
+
+export const PickASeed: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Seed' }), 'x');
+    await expect(args.onSeed).toHaveBeenCalledWith('42x');
+    await userEvent.click(canvas.getByRole('button', { name: 'Roll' }));
+    await expect(args.onRollSeed).toHaveBeenCalled();
+    await expect(
+      canvas.getByRole('region', { name: 'Your loadout' }),
+    ).toHaveTextContent('Laser 1/16');
   },
 };
 

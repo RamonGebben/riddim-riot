@@ -69,6 +69,8 @@ const meta = {
       song: SONG,
       songBar: 30,
       boss: null,
+      dashCooldown: null,
+      dashKey: 0,
       pickup: null,
     },
     onStop: fn(),
@@ -78,6 +80,7 @@ const meta = {
     onTakeWeapon: fn(),
     onFireSlot: fn(),
     onReleaseSlot: fn(),
+    onDash: fn(),
     paused: false,
     onPause: fn(),
     onResume: fn(),
@@ -145,6 +148,8 @@ export const RunEnded: Story = {
       song: SONG,
       songBar: 30,
       boss: null,
+      dashCooldown: null,
+      dashKey: 0,
       pickup: null,
     },
   },
@@ -172,6 +177,8 @@ export const LevelCleared: Story = {
       song: SONG,
       songBar: 30,
       boss: null,
+      dashCooldown: null,
+      dashKey: 0,
       pickup: null,
     },
   },
@@ -198,6 +205,8 @@ export const OnAWeapon: Story = {
       song: SONG,
       songBar: 30,
       boss: null,
+      dashCooldown: null,
+      dashKey: 0,
       pickup: {
         name: 'Vandal Laser 1/8 Echo',
         oscillator: 'laser',
@@ -231,6 +240,8 @@ export const AtTheCircle: Story = {
       song: SONG,
       songBar: 30,
       boss: null,
+      dashCooldown: null,
+      dashKey: 0,
       pickup: null,
     },
   },
@@ -252,6 +263,16 @@ export const FiringASlot: Story = {
   },
 };
 
+export const Dashing: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.pointer({
+      keys: '[MouseLeft]',
+      target: canvas.getByRole('button', { name: 'Dash' }),
+    });
+    await expect(args.onDash).toHaveBeenCalled();
+  },
+};
+
 export const BonusHeartsAndBoss: Story = {
   args: {
     run: {
@@ -269,6 +290,8 @@ export const BonusHeartsAndBoss: Story = {
       song: SONG,
       songBar: 90,
       boss: 0.4,
+      dashCooldown: 0.86,
+      dashKey: 12,
       pickup: null,
     },
   },
@@ -279,6 +302,9 @@ export const BonusHeartsAndBoss: Story = {
     await expect(
       canvas.getByRole('meter', { name: 'Boss health' }),
     ).toHaveAttribute('aria-valuenow', '40');
+    await expect(
+      canvas.getByRole('button', { name: 'Dash, cooling down' }),
+    ).toBeVisible();
   },
 };
 
@@ -299,6 +325,8 @@ export const RunWon: Story = {
       song: SONG,
       songBar: 150,
       boss: null,
+      dashCooldown: null,
+      dashKey: 0,
       pickup: null,
     },
   },
@@ -329,6 +357,8 @@ export const ExitOpen: Story = {
       song: SONG,
       songBar: 30,
       boss: null,
+      dashCooldown: null,
+      dashKey: 0,
       pickup: null,
     },
   },

@@ -16,7 +16,10 @@ ending in a boss, with healing hearts. Since then: a five-level run arc
 ending in a final boss and a victory screen, a boss with attack phases,
 explosive slow weapons and a 1/2 rate, a loot magnet and bonus hearts,
 weapon icons shared by the HUD and the drops, a HUD that shows every
-magazine, and a heavier drum kit. All five of the brief's "done when"
+magazine, and a heavier drum kit. Then: seeded chord progressions with a
+moving pad, an arpeggio, a lead hook and offbeat stabs over them, weapon
+riffs that follow the chords, a dash, and a landing page over the live
+level. All five of the brief's "done when"
 checks passed (measured before the arenas; re-measure frame rate on one):
 
 | Check                                                     | Result                                                                                         |
@@ -107,6 +110,9 @@ src/
     music/            keys, scales, degree → MIDI, rollKey
     palette/          the four 6-colour level palettes
     icons/            SVG path data for the HUD and the stage
+    harmony/          seeded progressions, voice leading, lead/arp/stab
+                      patterns, diatonic transposition (pure)
+    backdrop/         the landing page's live, silent level
     level/            arena generator, tilemap, BFS distance field
     weapons/          parts pool, rollWeapon, recipes, spread, weapon types
     loadout/          3 slots: switching, holstering, swapping in loot
@@ -181,8 +187,10 @@ the only mutable reference:
   bar line. The camera zooms out on small screens (`render/camera`
   `zoomFor`) until the short side shows at least 720 world px, so a phone
   sees about as much of the arena as a laptop.
-- `stepWorld(world, { input, dt, now, beat })`: per frame, the player moves
-  (420 px/s, sliding along walls), shots whose time has sounded leave the
+- `stepWorld(world, { input, dt, now, beat, beatSeconds })`: per frame, the
+  player moves (420 px/s, sliding along walls; Space or the touch button
+  dashes 0.14 s at 1500 px/s along the stick, or the aim standing still,
+  passing through enemies and orbs, ready again after 2 beats), shots whose time has sounded leave the
   barrel, projectiles fly and die on walls, beam ticks hit everything along
   their ray (`sim/beam`), then hits, Crush blasts (`sim/splash`) and
   contacts resolve.
@@ -305,6 +313,28 @@ voice a scale degree higher per combo step, an octave by ×8.
   when armed (~35 ms) and set to −20 dB RMS. Rolls that spanned 17 dB now
   match exactly.
 
+### Harmony and backing (`harmony/`, `audio/voices/backing`)
+
+Each level's seed picks a progression from twelve proven dark loops
+(`TEMPLATES`), may swap one chord for a neighbour, replaces any chord
+that's diminished in the key's scale (ii in minor, v in phrygian), and
+plays it as 4 one-bar chords, 4 two-bar chords, or 8 bars with a
+turnaround. It restarts on the slam, so every drop lands on i. Chords are
+voiced in the inversion closest to the last, so the pad glides.
+
+- **Pad** (`arrangement`): the bed's saw chord now follows the
+  progression, gliding into each chord on its bar line.
+- **Backing** (`createBacking`): a pluck arpeggio (seeded order and rate),
+  a two-bar lead hook (chord tones on strong 8ths, steps between, the
+  second bar answering the first, moved onto each chord) and offbeat chord
+  stabs, switched on per song part (`LAYERS`). A whole bar is scheduled on
+  its bar line. The layers run through a high-pass into the pumped bed and
+  duck on every shot, so they sit under the weapons: measured offline,
+  8-10 dB under a weapon's -20 dB RMS before the duck.
+- **Riffs follow the chord**: a weapon's riff note is moved diatonically
+  onto the bar's chord the short way round (`shiftFor`, `transposeInKey`),
+  so it keeps its shape and stays in key.
+
 ### Sound design (`sound/`, `playground/`)
 
 Every value that shapes the sound lives in one typed `SoundDesign`
@@ -340,6 +370,17 @@ is ever walled off. The circle sits at the centre with a clear zone, and
 the player spawns 4 tiles below it. The seed also picks the style, key and
 palette, each from its own `deriveSeed` stream so changing one never
 reshuffles another.
+
+### Landing page
+
+The start screen draws the run's first level live behind it
+(`attachBackdrop`): the stage and rave shader over the arena, the camera
+drifting round the circle and the kick pulsing at 140 BPM halftime. It
+runs before any AudioContext exists, so it times itself off the page's
+clock - decoration, never musical timing. Under the title: the loadout
+with icons (`describeLoadout`), how to play for the pointer in hand, the
+run's key, levels and best score, and a seed field (a number or any word,
+kept in `?seed=`) with Roll.
 
 ### HUD and icons
 
