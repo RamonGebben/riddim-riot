@@ -60,12 +60,16 @@ Tone Transport ──tick (1/16, with its scheduled audio time)──▶ bus
   it: WebKit on Linux reports a `performanceTime` ahead of
   `performance.now()`, which pinned the heard clock near zero (no beat, and
   a phantom dash on a clock under zero).
-- **A bigger audio buffer on phones.** `startAudio` makes Tone's context
-  with `latencyHint: 'playback'` on a touch screen and `'balanced'`
+- **A bigger audio buffer for Firefox on phones.** `startAudio` makes
+  Tone's context with `latencyHint: 'playback'` in Firefox on a touch
+  screen, `'interactive'` in other browsers on one, and `'balanced'`
   elsewhere (`?latency=` overrides): Firefox on a phone crackled on smaller
   buffers and was clean on `playback` (play-tested), and visuals follow the
-  speakers whatever the buffer. Chrome honours it (output latency 24 ms →
-  32 ms on a Mac); desktop Firefox reports 16.6 ms whatever is asked.
+  speakers whatever the buffer. Chrome honours the hint (on a Mac, base +
+  output latency 5 + 24 ms on `interactive`, 10 + 32 ms on `balanced`,
+  21 + 56 ms on `playback`), so on `playback` Chrome Android answered a tap
+  visibly later than Firefox; Firefox reports 16.6 ms whatever is asked,
+  and its output timestamp doesn't trail the audio clock at all.
 - **Output timestamps from under Tone's wrapper.** Tone runs on a
   standardized-audio-context wrapper, which has no `getOutputTimestamp()`,
   so the heard clock long fell back to the audio clock. `startAudio` reads

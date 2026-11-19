@@ -74,6 +74,7 @@ export const App = () => {
   const [latencyHint] = useState(() =>
     getLatencyHint(window.location.search, {
       touch: window.matchMedia(TOUCH_SCREEN).matches,
+      firefox: navigator.userAgent.includes('Firefox'),
     }),
   );
   const level = useMemo(() => describeLevel(run), [run]);
