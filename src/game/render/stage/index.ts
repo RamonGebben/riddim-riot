@@ -48,6 +48,8 @@ export const createStage = async (
     background: palette.void,
     antialias: true,
     autoDensity: true,
+    // Capped at 2x: more is barely sharper on a phone, and costs frame
+    // time that Tone's scheduling (and Firefox's audio) can't spare.
     resolution: Math.min(window.devicePixelRatio, 2),
     preference: 'webgl',
   });

@@ -88,14 +88,17 @@ export const startGame = async ({
   run,
   stress = false,
   onStep = () => {},
+  latencyHint,
 }: {
   run: RunState;
   /** Fill the level with enemies from the first bar - for perf checks. */
   stress?: boolean;
   onStep?: (step: StartStep) => void;
+  /** The audio buffer to ask for; only the first start of a page sets it. */
+  latencyHint?: AudioContextLatencyCategory;
 }): Promise<Game> => {
   onStep('audio');
-  const audio = await startAudio();
+  const audio = await startAudio({ latencyHint });
   /** The audio time of what the speakers are playing right now. */
   const heardNow = () =>
     heardTime(audio.outputTimestamp(), performance.now(), immediate());
