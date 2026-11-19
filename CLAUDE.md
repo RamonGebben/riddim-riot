@@ -20,11 +20,12 @@ Running and controls are in `README.md`.
   (`heardNow`, from `getOutputTimestamp()`), which trails it by the output
   latency - otherwise visuals land early, badly so on Bluetooth. Start
   audio with `startAudio` (`src/game/audio`), never Tone's `start()`: it
-  hands Tone a native AudioContext, as Tone's own standardized-audio-context
-  wrapper has no `getOutputTimestamp()` and the heard clock would silently
-  equal the audio clock. Call it first in the click, before anything that
-  spends the gesture: a fullscreen request does, and a context started
-  after it stays suspended (the start screen hung on phones).
+  reads the output timestamp from the native context inside Tone's
+  standardized-audio-context wrapper, which has none of its own. Keep Tone
+  on that wrapper - a native context passed to `setContext` broke Firefox
+  ("param must be an AudioParam"). Call it first in the click, before
+  anything that spends the gesture: a fullscreen request does, and a
+  context started after it stays suspended.
 - **Keep Tone out of pure modules.** `grid`, `rng`, `bus` and pattern
   generators must not import `tone` (directly or through a domain `index.ts`
   that does), so they run in the Node `unit` Vitest project.

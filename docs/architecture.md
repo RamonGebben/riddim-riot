@@ -49,11 +49,14 @@ Tone Transport ──tick (1/16, with its scheduled audio time)──▶ bus
   trails it by the output latency. Without this, visuals fired ~15 ms early on
   built-in speakers and would be badly early on Bluetooth. Timing judgements
   (the on-beat bonus, combo beats) use the heard clock too.
-- **A native AudioContext.** `startAudio` gives Tone a native context:
-  the standardized-audio-context wrapper Tone makes by itself has no
-  `getOutputTimestamp()`, so until this the heard clock fell back to the
-  audio clock. Measured after the fix in Chrome on built-in output: heard
-  trails audio by 23 ms (output latency 24 ms).
+- **Output timestamps from under Tone's wrapper.** Tone runs on a
+  standardized-audio-context wrapper, which has no `getOutputTimestamp()`,
+  so the heard clock long fell back to the audio clock. `startAudio` reads
+  the timestamp from the native context the wrapper holds (a private
+  field; without it the heard clock falls back as before). Handing Tone a
+  native context instead broke Firefox, where the wrapper fills in params
+  Tone expects. Measured in Chrome on built-in output: heard trails audio
+  by 22 ms (output latency 24 ms).
 - **Pause suspends the AudioContext.** Its clock stops, and with it the
   Transport, scheduled sound, enemy hops and pulses, so a resume carries on
   exactly where it stopped; the frame loop skips frames meanwhile, and the
