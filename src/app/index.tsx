@@ -56,7 +56,11 @@ export const App = () => {
   const [stress] = useState(() =>
     new URLSearchParams(window.location.search).has('stress'),
   );
-  const [latencyHint] = useState(() => getLatencyHint(window.location.search));
+  const [latencyHint] = useState(() =>
+    getLatencyHint(window.location.search, {
+      touch: window.matchMedia(TOUCH_SCREEN).matches,
+    }),
+  );
   const level = useMemo(() => describeLevel(run), [run]);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });

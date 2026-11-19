@@ -49,9 +49,10 @@ Tone Transport ──tick (1/16, with its scheduled audio time)──▶ bus
   trails it by the output latency. Without this, visuals fired ~15 ms early on
   built-in speakers and would be badly early on Bluetooth. Timing judgements
   (the on-beat bonus, combo beats) use the heard clock too.
-- **A balanced audio buffer.** `startAudio` makes Tone's context with
-  `latencyHint: 'balanced'` (`?latency=` overrides): Firefox's interactive
-  buffer is small enough that a phone crackles, and visuals follow the
+- **A bigger audio buffer on phones.** `startAudio` makes Tone's context
+  with `latencyHint: 'playback'` on a touch screen and `'balanced'`
+  elsewhere (`?latency=` overrides): Firefox on a phone crackled on smaller
+  buffers and was clean on `playback` (play-tested), and visuals follow the
   speakers whatever the buffer. Chrome honours it (output latency 24 ms →
   32 ms on a Mac); desktop Firefox reports 16.6 ms whatever is asked.
 - **Output timestamps from under Tone's wrapper.** Tone runs on a
