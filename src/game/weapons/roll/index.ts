@@ -3,6 +3,7 @@ import { degreeToMidi, type Key } from '../../music';
 import { createRng, type Rng } from '../../rng';
 import { SOUND_DESIGN, type SoundDesign } from '../../sound';
 import {
+  BEAM,
   FX,
   FX_CHANCE,
   LFO_RATES,
@@ -57,7 +58,7 @@ export const rollWeapon = (
   const sounds = design.parts;
   const rng = createRng(seed);
   const rolledMaker = rng.pick<ManufacturerPart>(['vandal', 'lumen']);
-  const rolledEngine = rng.pick<OscillatorPart>(['wobble', 'laser']);
+  const rolledEngine = rng.pick<OscillatorPart>(['wobble', 'laser', 'beam']);
   const rolledLfo = rng.pick<LfoPart>(['1/4', '1/8', '1/16']);
   const rolledFx: FxPart | null = rng.chance(FX_CHANCE)
     ? rng.pick<FxPart>(['distortion', 'echo'])
@@ -87,13 +88,30 @@ export const rollWeapon = (
         }
       : null;
 
-  const steps = STEPS_PER_DIVISION[rate.division];
+  // A beam ticks every 1/16 whatever its LFO; the rate only shapes its sound.
+  const continuous = engine.kind === 'beam';
+  const division = continuous ? '1/16' : rate.division;
+  const steps = STEPS_PER_DIVISION[division];
   const shotBeats = steps / STEPS_PER_BEAT;
   const damage =
     engine.damage *
-    rate.damage *
+    (continuous ? 1 : rate.damage) *
     maker.damage *
     (fx === 'distortion' ? FX.distortion.damage : 1);
+
+  // Beams tick too fast to burst; the drive only roughens their sound.
+  const crushed = FX.distortion.splash;
+  const splash =
+    fx === 'distortion' && !continuous
+      ? {
+          radius:
+            crushed.radius[0] +
+            (crushed.radius[1] - crushed.radius[0]) *
+              along(crush, sounds.crush.drive),
+          damage: damage * crushed.share,
+          knockback: crushed.knockback,
+        }
+      : undefined;
 
   const sound = {
     oscillator,
@@ -113,11 +131,13 @@ export const rollWeapon = (
       .join(' '),
     parts: { manufacturer, oscillator, lfo, fx },
     timing: {
-      division: rate.division,
+      division,
       cooldownBeats: shotBeats,
       gateBeats: shotBeats,
       magazine: STEPS_PER_BAR / steps,
-      reloadBeats: RELOAD_BEATS,
+      ...(continuous
+        ? { reloadBeats: BEAM.rechargeBeats, coolSteps: BEAM.coolSteps }
+        : { reloadBeats: RELOAD_BEATS }),
     },
     projectile: {
       kind: engine.kind,
@@ -126,7 +146,8 @@ export const rollWeapon = (
       damage,
       // Brighter filters reach further; more resonance focuses the shots.
       lifetime: engine.lifetime * (0.8 + 0.4 * along(cutoff, ranges.cutoff)),
-      spread: 0.12 * (1 - along(resonance, ranges.resonance)),
+      ...(splash ? { splash } : {}),
+      spread: continuous ? 0 : 0.12 * (1 - along(resonance, ranges.resonance)),
     },
     echo: delay ? { delayBeats: 0.5, damage: damage * 0.5 } : null,
     sound,

@@ -203,6 +203,53 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
   },
   layers('laser', 'Laser layers'),
   {
+    id: 'beam',
+    title: 'Beam engine',
+    description:
+      'A held note per beat that glides through the riff, its filter pulsed by the LFO, over a held sub and sizzle. Opened when firing starts, closed when it stops.',
+    fields: [
+      ...envelope(['beam', 'envelope']),
+      num(['beam', 'voices'], 'Unison voices', [1, 8, 1]),
+      num(['beam', 'spread'], 'Detune spread', [0, 100, 1], 'ct'),
+      num(
+        ['beam', 'glideSeconds'],
+        'Glide',
+        [0.001, 0.5, 0.001],
+        's',
+        'How long it slides from note to note',
+      ),
+      num(
+        ['beam', 'sweepFloor'],
+        'Pulse floor',
+        [40, 4000, 10],
+        'Hz',
+        'Where the LFO pulls the filter down to',
+      ),
+      {
+        kind: 'choice',
+        path: ['beam', 'rolloff'],
+        label: 'Filter slope',
+        options: ROLLOFFS,
+      },
+      num(['beam', 'topLevel'], 'Octave-up square', [-40, 6, 0.5], 'dB'),
+      num(['beam', 'sub', 'level'], 'Sub level', [-40, 6, 0.5], 'dB'),
+      {
+        kind: 'choice',
+        path: ['beam', 'sub', 'octavesDown'],
+        label: 'Sub octaves down',
+        options: [1, 2, 3],
+      },
+      num(['beam', 'sub', 'saturation'], 'Sub saturation', [0, 1, 0.01]),
+      num(['beam', 'sizzle', 'level'], 'Sizzle level', [-60, 6, 0.5], 'dB'),
+      num(
+        ['beam', 'sizzle', 'hz'],
+        'Sizzle high-pass',
+        [1000, 16000, 50],
+        'Hz',
+      ),
+    ],
+  },
+  {
     id: 'weaponMix',
     title: 'Weapon mix',
     description:
@@ -312,6 +359,24 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       ...range(
         ['parts', 'engines', 'laser', 'resonance'],
         'Laser resonance',
+        [0, 20, 0.1],
+      ),
+      num(['parts', 'engines', 'beam', 'octave'], 'Beam octave', [1, 6, 1]),
+      {
+        kind: 'degrees',
+        path: ['parts', 'engines', 'beam', 'degrees'],
+        label: 'Beam riff degrees',
+        hint: 'One note per beat',
+      },
+      ...range(
+        ['parts', 'engines', 'beam', 'cutoff'],
+        'Beam cutoff',
+        [200, 16000, 10],
+        'Hz',
+      ),
+      ...range(
+        ['parts', 'engines', 'beam', 'resonance'],
+        'Beam resonance',
         [0, 20, 0.1],
       ),
       ...range(['parts', 'crush', 'drive'], 'Crush drive', [0, 0.8, 0.01]),
@@ -464,6 +529,23 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
     ],
   },
   {
+    id: 'blast',
+    title: 'Crush blast',
+    description:
+      'A crushed shot bursting into area damage: a saturated boom onto the root under a low noise rush.',
+    fields: [
+      num(['blast', 'level'], 'Level', [-40, 6, 0.5], 'dB'),
+      num(['blast', 'boomMultiple'], 'Boom pitch drop', [1, 16, 0.1], '×'),
+      num(['blast', 'boomSeconds'], 'Boom drop time', [0.005, 1, 0.005], 's'),
+      num(['blast', 'boomDecay'], 'Boom decay', [0.02, 3, 0.01], 's'),
+      num(['blast', 'boomSaturation'], 'Boom saturation', [0, 1, 0.01]),
+      num(['blast', 'boomLevel'], 'Boom level', [-40, 12, 0.5], 'dB'),
+      num(['blast', 'noiseHz'], 'Rush filter', [100, 12000, 10], 'Hz'),
+      num(['blast', 'noiseDecay'], 'Rush decay', [0.02, 3, 0.01], 's'),
+      num(['blast', 'noiseLevel'], 'Rush level', [-40, 12, 0.5], 'dB'),
+    ],
+  },
+  {
     id: 'score',
     title: 'Score',
     description:
@@ -489,6 +571,39 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       ),
       num(['score', 'echoFeedback'], 'Echo feedback', [0, 0.9, 0.01]),
       num(['score', 'echoWet'], 'Echo mix', [0, 1, 0.01]),
+    ],
+  },
+  {
+    id: 'recharge',
+    title: 'Beam recharge',
+    description:
+      'Replaces the reload fill for beams: a vent hissing down when it overheats, a whine rising through the recharge, a ping when it is back.',
+    fields: [
+      num(['recharge', 'level'], 'Level', [-40, 6, 0.5], 'dB'),
+      num(['recharge', 'vent', 'fromHz'], 'Vent from', [200, 16000, 10], 'Hz'),
+      num(['recharge', 'vent', 'toHz'], 'Vent to', [50, 8000, 10], 'Hz'),
+      num(['recharge', 'vent', 'decay'], 'Vent decay', [0.02, 2, 0.01], 's'),
+      num(['recharge', 'vent', 'level'], 'Vent level', [-40, 12, 0.5], 'dB'),
+      num(['recharge', 'charge', 'fromHz'], 'Charge from', [40, 4000, 5], 'Hz'),
+      num(['recharge', 'charge', 'toHz'], 'Charge to', [100, 8000, 10], 'Hz'),
+      num(
+        ['recharge', 'charge', 'level'],
+        'Charge level',
+        [-40, 12, 0.5],
+        'dB',
+      ),
+      num(
+        ['recharge', 'ready', 'decay'],
+        'Ready ping decay',
+        [0.01, 2, 0.01],
+        's',
+      ),
+      num(
+        ['recharge', 'ready', 'level'],
+        'Ready ping level',
+        [-40, 12, 0.5],
+        'dB',
+      ),
     ],
   },
   {

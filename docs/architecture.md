@@ -121,7 +121,9 @@ the only mutable reference:
   waves after a level's first, rising with the level.
 - `stepWorld(world, { input, dt, now, beat })`: per frame, the player moves
   (420 px/s, sliding along walls), shots whose time has sounded leave the
-  barrel, projectiles fly and die on walls, then hits and contacts resolve.
+  barrel, projectiles fly and die on walls, beam ticks hit everything along
+  their ray (`sim/beam`), then hits, Crush blasts (`sim/splash`) and
+  contacts resolve.
   Kills score into the combo, may drop loot, and hits cost one of 5 HP (then
   0.6 s of invulnerability). At 0 HP the world is `dead`; on the open exit
   it's `cleared`. Either way it freezes.
@@ -136,7 +138,8 @@ pure function of the clock and lands exactly on the beat.
 - **Trigger** (`sim/trigger`): a pure state machine stepped per 1/16. Taps
   queue one shot for the next slot of the weapon's division, holding fires
   every slot. An empty magazine plans its reload fill on the grid: a click on
-  the first offbeat, then a rumble on the next beat.
+  the first offbeat, then a rumble on the next beat. Continuous weapons
+  (`coolSteps`) also regain a charge every few idle steps.
 - **Weapon slot** (`sim/weaponSlot`): plays trigger events at tick times. A
   press can still land on the last tick if its audio hasn't played yet, which
   keeps fire feeling instant despite the lookahead. Holstered slots refill
@@ -146,15 +149,26 @@ pure function of the clock and lands exactly on the beat.
   switch that lands on a downbeat gets the swap bonus (2×).
 - **Rolling** (`weapons/roll`): each part sets a gameplay stat and a sound
   together. Manufacturer (Vandal/Lumen: damage and speed, saw or square),
-  oscillator (wobble blob with sub, or laser beam), LFO rate (1/4, 1/8, 1/16:
+  oscillator (wobble blob, laser bolt, or beam), LFO rate (1/4, 1/8, 1/16:
   the fire rhythm; the magazine is always one bar and damage per bar is
   balanced), filter (cutoff → range, resonance → tighter spread) and an
-  optional FX (Crush: +25% damage; Echo: an extra half-damage shot 1/8 later).
-  Every weapon plays a 4-note riff in the level's key, one note per shot.
+  optional FX (Crush: +10% damage and a blast on every hit; Echo: an extra
+  half-damage shot 1/8 later). Every weapon plays a 4-note riff in the
+  level's key, one note per shot.
+- **Beam**: continuous. It ticks every 1/16 whatever its LFO (the LFO only
+  pulses its filter), each tick a hitscan ray that pierces and stops at
+  walls. A bar of fire overheats it into a 4-beat recharge with its own
+  sound (vent, rising whine, ready ping); resting cools a charge back every
+  2 steps. Its voice opens on the first tick and stays held, gliding through
+  the riff a note per beat.
+- **Crush blasts** (`sim/splash`): a crushed shot bursts where it hits:
+  everything within 64-128 px (wider with more drive) takes 60% of the
+  shot's damage and is shoved 44 px away, which also breaks a charger's
+  lined-up dash. Beams don't blast.
 - **Loadout** (`loadout`): three slots. Switching fades the old tail
   (0.35 s), moves sub ownership (the others are high-passed at 180 Hz) and
-  carries a held trigger over. `replaceActive` swaps loot in. A new run pins
-  one wobble and one laser.
+  carries a held trigger over. `replaceActive` swaps loot in. A new run
+  opens with one of each engine.
 - **Loot** (`sim/loot`): a cleared wave always drops a weapon where the last
   kill fell; any kill has a 6% chance. Rolls are seeded per level. **F** on a
   weapon swaps it into the active slot and drops the old one in its place.
@@ -163,7 +177,8 @@ pure function of the clock and lands exactly on the beat.
 
 A kill on the same beat as the last, or the next one, extends the combo;
 each kill scores 100 × the combo, capped at ×8, and a beat without a kill
-drops it. Score carries across levels.
+drops it. Score carries across levels. Each kill also plucks the score
+voice a scale degree higher per combo step, an octave by ×8.
 
 ### Audio
 
@@ -174,16 +189,25 @@ drops it. Score carries across levels.
   loot) builds its voice once.
 - **Drums**: per-bar patterns generated from the seed (kick on 1 and snare on 3
   always, ghost kicks, hat shuffle, a snare roll every 4 bars), with the kick
-  tuned to the level's root.
+  tuned to the level's root. The kick has a beater click and a sub tail on
+  its own oscillator; the snare a three-strike clap.
+- **Layered weapons**: every engine is a stack (`WeaponLayersPatch`): a body
+  high-passed at a crossover, a clean saturated sub under it (kept out of
+  the drive and echo), a detuned stack through the body filter (a reese at
+  -1 octave), a growl band-passed by a twin of the body LFO, and a click,
+  glued by a compressor. `audio/saturate` is a level-keeping tanh shaper.
 - **Music bus**: the track (drums, arrangement) goes through an arrangement
   low-pass; weapons, kills and reloads go in past it (`direct`), so the
   player's sound stays clear. Then one duck low-pass (0.6 s on a hit; held
-  shut on death) and a limiter.
+  shut on death) and a limiter. Every kick pumps (`pump`) the pad bed
+  (`bed`) and the weapons (`weapons`) by the `mix` patch: the sidechain.
 - **Arrangement** (`audio/arrangement`): each bar line picks a section from
   the wave lifecycle. _calm_ in the intro (track at 700 Hz), _groove_ while few
   enemies are up (3.2 kHz), _build_ at 8+ alive (filter riding open over 2
   bars, a noise riser every 2 bars), _drop_ for the phrase after a cleared
   wave (wide open; a crash and a sub boom on the root, a palette flash).
+  Under it a detuned saw chord in key and high air fill the bed, louder as
+  the fight builds and pulled back in the drop.
 - **Loudness** (`audio/loudness`): each weapon is rendered for a bar offline
   when armed (~35 ms) and set to −20 dB RMS. Rolls that spanned 17 dB now
   match exactly.
@@ -191,8 +215,9 @@ drops it. Score carries across levels.
 ### Sound design (`sound/`, `playground/`)
 
 Every value that shapes the sound lives in one typed `SoundDesign`
-(`sound/model`): the wobble and laser engines, the weapon mix and loudness
-target, the drums, impact, reload and arrangement patches, and the sound
+(`sound/model`): the wobble, laser and beam engines and their layers, the
+weapon mix and loudness target, the sidechain, the drums, impact, blast,
+score, reload, recharge and arrangement patches (with the pad bed), and the sound
 half of the parts pool (waveforms, base drive, octaves, riff degrees, and
 the cutoff, resonance, crush and echo ranges rolls land in). Gameplay
 stats stay in `weapons/parts`.

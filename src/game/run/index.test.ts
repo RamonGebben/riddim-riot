@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { levelSeed, newRun, nextLevel } from '.';
 
 describe('newRun', () => {
-  it('starts on level 1 at full health with one wobble and one laser', () => {
+  it('starts on level 1 at full health with one of each engine', () => {
     const run = newRun(42);
     expect(run).toMatchObject({
       seed: 42,
@@ -14,7 +14,7 @@ describe('newRun', () => {
     expect(run.recipes.map(recipe => recipe.oscillator)).toEqual([
       'wobble',
       'laser',
-      undefined,
+      'beam',
     ]);
   });
 

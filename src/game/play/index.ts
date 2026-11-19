@@ -49,6 +49,8 @@ export interface Pulses {
 export interface PlaySounds {
   /** A kill's impact, at an audio time on the grid. */
   impact: (time: number) => void;
+  /** A crushed shot bursting, on the grid like a kill. */
+  blast: (time: number) => void;
   /** Points landing, at the combo the latest kill made. */
   score: (time: number, combo: number) => void;
   /** The player got hit: duck the music right away. */
@@ -203,6 +205,15 @@ export const startPlay = async ({
       sounds.impact(time);
       pulses.kill.hit(time);
     });
+    const blasts = result.blasts.map(({ position, splash }) => ({
+      position,
+      radius: splash.radius,
+      time: nextSlot(audioNow()),
+    }));
+    blasts.forEach(({ time }) => {
+      sounds.blast(time);
+      pulses.kill.hit(time, 0.6);
+    });
     // Kills in one frame share a slot: one note for where the combo got to.
     if (killed.length > 0) sounds.score(killed[0].time, world.combo.count);
     if (result.playerHit) {
@@ -217,7 +228,7 @@ export const startPlay = async ({
       hud = nextHud;
       onHud(hud);
     }
-    bursts = [...bursts, ...killed].filter(
+    bursts = [...bursts, ...killed, ...blasts].filter(
       burst => now - burst.time < BURST_SECONDS,
     );
 

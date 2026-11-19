@@ -21,6 +21,8 @@ export interface TriggerState {
   /** The first step the next shot may land on. */
   readyAt: number;
   reload: Reload | null;
+  /** Steps since the last shot or charge regained (see `coolSteps`). */
+  idleSteps: number;
 }
 
 export type TriggerEvent =
@@ -45,6 +47,7 @@ export const initialTrigger = (spec: WeaponSpec): TriggerState => ({
   ammo: spec.magazine,
   readyAt: 0,
   reload: null,
+  idleSteps: 0,
 });
 
 /**
@@ -111,6 +114,7 @@ const fire = (
       ammo,
       readyAt: step + beatsToSteps(spec.cooldownBeats),
       reload,
+      idleSteps: 0,
     },
     events: [
       {
@@ -138,6 +142,14 @@ const tryFire = (
   return fire(state, spec, step);
 };
 
+/** A continuous weapon not firing regains a charge every `coolSteps`. */
+const cool = (state: TriggerState, spec: WeaponSpec): TriggerState => {
+  if (!spec.coolSteps || state.ammo >= spec.magazine) return state;
+  const idleSteps = state.idleSteps + 1;
+  if (idleSteps < spec.coolSteps) return { ...state, idleSteps };
+  return { ...state, idleSteps: 0, ammo: state.ammo + 1 };
+};
+
 /**
  * Advance the trigger by one 1/16 step. Pure: the caller plays the events at
  * the step's scheduled time.
@@ -147,7 +159,11 @@ export const advance = (
   spec: WeaponSpec,
   step: number,
 ): TriggerResult => {
-  if (!state.reload) return tryFire(state, spec, step);
+  if (!state.reload) {
+    const result = tryFire(state, spec, step);
+    if (result.events.length > 0) return result;
+    return { state: cool(result.state, spec), events: [] };
+  }
   if (step < state.reload.end) {
     return { state, events: fillEvents(state.reload, step) };
   }

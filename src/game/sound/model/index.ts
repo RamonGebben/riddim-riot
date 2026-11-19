@@ -78,6 +78,39 @@ export interface LaserPatch {
   layers: WeaponLayersPatch;
 }
 
+/**
+ * Beam: one held note per beat, gliding between riff notes, its filter
+ * pulsed by the LFO, over a held sub - opened when firing starts and only
+ * closed when it stops, never retriggered per tick.
+ */
+export interface BeamPatch {
+  envelope: EnvelopePatch;
+  voices: number;
+  spread: number;
+  /** How long it slides from one riff note to the next. */
+  glideSeconds: number;
+  /** Where the LFO pulse bottoms out, in Hz. */
+  sweepFloor: number;
+  rolloff: -12 | -24 | -48;
+  /** A square an octave up through the same filter. */
+  topLevel: number;
+  sub: { level: number; octavesDown: number; saturation: number };
+  /** High noise for the burn. */
+  sizzle: { level: number; hz: number };
+}
+
+/**
+ * A beam's overheat and recharge, in place of the reload fill: a vent
+ * hissing down on the click, a whine rising through the recharge and a ping
+ * when it's ready.
+ */
+export interface RechargePatch {
+  level: number;
+  vent: { fromHz: number; toHz: number; decay: number; level: number };
+  charge: { fromHz: number; toHz: number; level: number };
+  ready: { decay: number; level: number };
+}
+
 export interface WeaponMixPatch {
   /** Share of each shot's slot the note is held, below 1 for articulation. */
   articulation: number;
@@ -118,7 +151,7 @@ export interface EngineRanges {
 
 export interface PartsSound {
   manufacturers: { vandal: ManufacturerSound; lumen: ManufacturerSound };
-  engines: { wobble: EngineRanges; laser: EngineRanges };
+  engines: { wobble: EngineRanges; laser: EngineRanges; beam: EngineRanges };
   crush: { drive: Range };
   echo: { feedback: Range; wet: Range };
 }
@@ -175,6 +208,21 @@ export interface ImpactPatch {
   bodyDecay: number;
   bodySaturation: number;
   bodyLevel: number;
+}
+
+/** A crushed shot's area burst. */
+export interface BlastPatch {
+  level: number;
+  /** A saturated sine dropping onto the root from this many times above. */
+  boomMultiple: number;
+  boomSeconds: number;
+  boomDecay: number;
+  boomSaturation: number;
+  boomLevel: number;
+  /** Low noise, its filter closing to a quarter as it decays. */
+  noiseHz: number;
+  noiseDecay: number;
+  noiseLevel: number;
 }
 
 /** Points landing: a pluck that climbs the scale as the combo grows. */
@@ -235,11 +283,14 @@ export interface ArrangementPatch {
 export interface SoundDesign {
   wobble: WobblePatch;
   laser: LaserPatch;
+  beam: BeamPatch;
   weaponMix: WeaponMixPatch;
   parts: PartsSound;
   drums: DrumsPatch;
   impact: ImpactPatch;
+  blast: BlastPatch;
   reload: ReloadPatch;
+  recharge: RechargePatch;
   arrangement: ArrangementPatch;
   mix: MixPatch;
   score: ScorePatch;
@@ -290,6 +341,17 @@ export const BASE_DESIGN: SoundDesign = {
       click: { level: -12, hz: 4200, decay: 0.012 },
     },
   },
+  beam: {
+    envelope: { attack: 0.02, decay: 0, sustain: 1, release: 0.12 },
+    voices: 3,
+    spread: 24,
+    glideSeconds: 0.04,
+    sweepFloor: 600,
+    rolloff: -24,
+    topLevel: -10,
+    sub: { level: -4, octavesDown: 2, saturation: 0.2 },
+    sizzle: { level: -26, hz: 6000 },
+  },
   weaponMix: {
     articulation: 0.9,
     driveWet: 0.6,
@@ -316,6 +378,12 @@ export const BASE_DESIGN: SoundDesign = {
         degrees: [0, 2, 4, 4, 6, 7],
         cutoff: [2200, 5200],
         resonance: [1, 4],
+      },
+      beam: {
+        octave: 3,
+        degrees: [0, 0, 2, 3, 4],
+        cutoff: [1800, 4200],
+        resonance: [2, 7],
       },
     },
     crush: { drive: [0.35, 0.65] },
@@ -368,6 +436,17 @@ export const BASE_DESIGN: SoundDesign = {
     bodySaturation: 0.6,
     bodyLevel: -8,
   },
+  blast: {
+    level: -10,
+    boomMultiple: 3,
+    boomSeconds: 0.12,
+    boomDecay: 0.45,
+    boomSaturation: 0.7,
+    boomLevel: 0,
+    noiseHz: 2400,
+    noiseDecay: 0.35,
+    noiseLevel: 2,
+  },
   reload: {
     level: -8,
     clickHz: 3200,
@@ -375,6 +454,12 @@ export const BASE_DESIGN: SoundDesign = {
     rumbleFrom: 150,
     rumbleTo: 1400,
     rumbleLevel: 4,
+  },
+  recharge: {
+    level: -10,
+    vent: { fromHz: 6000, toHz: 700, decay: 0.4, level: 0 },
+    charge: { fromHz: 220, toHz: 1760, level: -8 },
+    ready: { decay: 0.18, level: -2 },
   },
   arrangement: {
     level: -8,

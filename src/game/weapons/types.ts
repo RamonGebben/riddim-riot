@@ -11,13 +11,19 @@ export interface WeaponSpec {
   /** Shots per magazine - sized so it empties on a musical boundary. */
   magazine: number;
   reloadBeats: number;
+  /**
+   * Continuous weapons cool while idle: one charge back per this many
+   * steps. Without it, a part-used magazine only refills by emptying.
+   */
+  coolSteps?: number;
 }
 
-export type ProjectileKind = 'blob' | 'beam';
+/** `beam` is continuous: a ray that hits everything along it, every 1/16. */
+export type ProjectileKind = 'blob' | 'bolt' | 'beam';
 
 export interface ProjectileSpec {
   kind: ProjectileKind;
-  /** px/s */
+  /** px/s; a beam reaches as far as a shot would fly in its lifetime. */
   speed: number;
   radius: number;
   damage: number;
@@ -25,6 +31,18 @@ export interface ProjectileSpec {
   lifetime: number;
   /** Radians either side of the aim a shot may stray. */
   spread: number;
+  /** Crushed shots burst where they hit (see `Splash`). */
+  splash?: Splash;
+}
+
+/**
+ * Area damage for crowd control: everything within `radius` of the hit
+ * takes `damage` and is shoved `knockback` px away from it.
+ */
+export interface Splash {
+  radius: number;
+  damage: number;
+  knockback: number;
 }
 
 /** The echo FX: an extra, weaker shot a fixed time after each one. */
@@ -33,7 +51,7 @@ export interface Echo {
   damage: number;
 }
 
-export type OscillatorPart = 'wobble' | 'laser';
+export type OscillatorPart = 'wobble' | 'laser' | 'beam';
 export type ManufacturerPart = 'vandal' | 'lumen';
 export type LfoPart = '1/4' | '1/8' | '1/16';
 export type FxPart = 'distortion' | 'echo';

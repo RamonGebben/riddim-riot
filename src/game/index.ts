@@ -1,9 +1,11 @@
 import { getContext, immediate, now, start } from 'tone';
 import {
   createArrangement,
+  createBlastSound,
   createDrums,
   createImpactSound,
   createMusicBus,
+  createRechargeSound,
   createReloadSound,
   createScoreSound,
   createWeaponVoice,
@@ -117,6 +119,7 @@ export const startGame = async ({
     },
   });
   const reloadSound = createReloadSound(musicBus.direct);
+  const rechargeSound = createRechargeSound(musicBus.direct);
   const arrangement = createArrangement({
     musicBus,
     output: musicBus.input,
@@ -125,6 +128,10 @@ export const startGame = async ({
     key,
   });
   const impact = createImpactSound({
+    output: musicBus.direct,
+    root: rootHz(1),
+  });
+  const blast = createBlastSound({
     output: musicBus.direct,
     root: rootHz(1),
   });
@@ -168,7 +175,7 @@ export const startGame = async ({
           });
         },
       },
-      reloadSound,
+      reloadSound: projectile.kind === 'beam' ? rechargeSound : reloadSound,
       bpm: BPM,
       now,
     });
@@ -238,6 +245,7 @@ export const startGame = async ({
         sounds: {
           impact: impact.play,
           score: score.play,
+          blast: blast.play,
           duck: time => musicBus.duck(time, DUCK_SECONDS),
           dead: musicBus.muffle,
           section: arrangement.onBar,
@@ -275,7 +283,9 @@ export const startGame = async ({
         drums,
         loadout,
         reloadSound,
+        rechargeSound,
         impact,
+        blast,
         score,
         arrangement,
         musicBus,

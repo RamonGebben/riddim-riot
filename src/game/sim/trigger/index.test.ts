@@ -131,3 +131,49 @@ describe('holster', () => {
     expect(holster(press(idle), WOBBLE_GUN, 3).reload).toBeNull();
   });
 });
+
+describe('a continuous weapon', () => {
+  const BEAM: WeaponSpec = {
+    division: '1/16',
+    cooldownBeats: 0.25,
+    gateBeats: 0.25,
+    magazine: 16,
+    reloadBeats: 4,
+    coolSteps: 2,
+  };
+  const runBeam = (state: TriggerState, from: number, to: number) =>
+    Array.from({ length: to - from }, (_, i) => from + i).reduce<{
+      state: TriggerState;
+      events: Array<TriggerEvent>;
+    }>(
+      (acc, step) => {
+        const result = advance(acc.state, BEAM, step);
+        return {
+          state: result.state,
+          events: [...acc.events, ...result.events],
+        };
+      },
+      { state, events: [] },
+    );
+
+  it('fires every 1/16 while held, then overheats into a recharge', () => {
+    const { state, events } = runBeam(press(initialTrigger(BEAM)), 0, 20);
+    expect(fireSteps(events)).toEqual(
+      Array.from({ length: 16 }, (_, step) => step),
+    );
+    expect(state.reload).not.toBeNull();
+  });
+
+  it('cools while idle: one charge back per cool step count', () => {
+    const fired = runBeam(press(initialTrigger(BEAM)), 0, 6);
+    expect(fired.state.ammo).toBe(10);
+    const rested = runBeam(release(fired.state), 6, 14);
+    expect(rested.state.ammo).toBe(14);
+    expect(rested.events).toEqual([]);
+  });
+
+  it('never cools past a full magazine', () => {
+    const rested = runBeam(initialTrigger(BEAM), 0, 40);
+    expect(rested.state.ammo).toBe(16);
+  });
+});

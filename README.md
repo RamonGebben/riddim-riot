@@ -18,6 +18,11 @@ Each level is a song: survive the waves, clear enough of them to light the
 exit pad, and step on it for the next level (new layout, key and palette).
 Your health, score and weapons carry over. Five hits and the run is over.
 
+You start with one of each engine: a wobble, a laser and a beam. The beam
+fires continuously while held, for up to a bar before it overheats into a
+recharge; letting go cools it. Weapons with **Crush** burst on every hit,
+damaging and shoving back everything around it.
+
 | URL         | What it does                                                                  |
 | ----------- | ----------------------------------------------------------------------------- |
 | `/?seed=42` | Play a specific level. A number or any word (`?seed=wobble`)                  |
@@ -31,14 +36,17 @@ a control, and you hear it through the game's own voices, drums and
 arrangement at 140 BPM.
 
 1. **Listen.** Pick a key, switch the drums and the section (calm, groove,
-   build, drop), and fire one-shots: impact, reload, riser, drop hit.
+   build, drop), and fire one-shots: impact, kill + score (each press is
+   the next kill of a combo, so the pluck climbs), Crush blast, reload,
+   beam recharge, riser, drop hit.
 2. **Pick a weapon.** Roll seeds, or step through them, and pin any part
    (engine, manufacturer, LFO rate, FX) to hear just that kind. **Hold** or
    **Mash** fires hands-free while you turn knobs. **Compare rolls** lines
    up eight seeds from the current design.
-3. **Shape the sound.** The right-hand groups are the engines, the weapon
-   mix and loudness target, the parts pool (the ranges rolls land in),
-   drums, kill impact, reload and arrangement. Changed values are marked,
+3. **Shape the sound.** The right-hand groups are the engines and their
+   layers (sub, reese stack, growl, click), the weapon mix and loudness
+   target, the sidechain, the parts pool (the ranges rolls land in), drums,
+   kill impact, blast, score, recharge, reload, arrangement and the pad bed. Changed values are marked,
    counted per group, and can be reset per group.
 4. **Save to game.** Writes `src/game/sound/design.json`; reload the game to
    play with it. **Export** / **Import** move a design as a file; drafts are

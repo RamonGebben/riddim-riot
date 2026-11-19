@@ -78,6 +78,29 @@
       }
     }
   },
+  "beam": {
+    "envelope": {
+      "attack": 0.02,
+      "decay": 0,
+      "sustain": 1,
+      "release": 0.12
+    },
+    "voices": 3,
+    "spread": 24,
+    "glideSeconds": 0.04,
+    "sweepFloor": 600,
+    "rolloff": -24,
+    "topLevel": -10,
+    "sub": {
+      "level": -4,
+      "octavesDown": 2,
+      "saturation": 0.2
+    },
+    "sizzle": {
+      "level": -26,
+      "hz": 6000
+    }
+  },
   "weaponMix": {
     "articulation": 0.9,
     "driveWet": 0.6,
@@ -110,6 +133,12 @@
         "degrees": [0, 2, 4, 4, 6, 7],
         "cutoff": [2200, 5200],
         "resonance": [1, 4]
+      },
+      "beam": {
+        "octave": 3,
+        "degrees": [0, 0, 2, 3, 4],
+        "cutoff": [1800, 4200],
+        "resonance": [2, 7]
       }
     },
     "crush": {
@@ -175,6 +204,17 @@
     "bodySaturation": 0.6,
     "bodyLevel": -8
   },
+  "blast": {
+    "level": -10,
+    "boomMultiple": 3,
+    "boomSeconds": 0.12,
+    "boomDecay": 0.45,
+    "boomSaturation": 0.7,
+    "boomLevel": 0,
+    "noiseHz": 2400,
+    "noiseDecay": 0.35,
+    "noiseLevel": 2
+  },
   "reload": {
     "level": -8,
     "clickHz": 3200,
@@ -182,6 +222,24 @@
     "rumbleFrom": 150,
     "rumbleTo": 1400,
     "rumbleLevel": 4
+  },
+  "recharge": {
+    "level": -10,
+    "vent": {
+      "fromHz": 6000,
+      "toHz": 700,
+      "decay": 0.4,
+      "level": 0
+    },
+    "charge": {
+      "fromHz": 220,
+      "toHz": 1760,
+      "level": -8
+    },
+    "ready": {
+      "decay": 0.18,
+      "level": -2
+    }
   },
   "arrangement": {
     "level": -8,

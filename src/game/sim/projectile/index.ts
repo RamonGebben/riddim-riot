@@ -1,4 +1,4 @@
-import type { ProjectileKind, ProjectileSpec } from '../../weapons';
+import type { ProjectileKind, ProjectileSpec, Splash } from '../../weapons';
 import { add, scale, type Vec } from '../../vec';
 import { PLAYER_RADIUS, type Player } from '../player';
 
@@ -10,6 +10,7 @@ export interface Projectile {
   damage: number;
   /** Audio time it fizzles out. */
   expiresAt: number;
+  splash?: Splash;
 }
 
 /** A shot leaves the barrel at the moment it sounds, `angle` off the aim. */
@@ -26,6 +27,7 @@ export const fireProjectile = (
     radius: spec.radius,
     damage: spec.damage,
     expiresAt: time + spec.lifetime,
+    ...(spec.splash ? { splash: spec.splash } : {}),
   };
 };
 

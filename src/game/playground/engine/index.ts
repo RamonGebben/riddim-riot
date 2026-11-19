@@ -1,14 +1,17 @@
 import { getDestination, immediate, Meter, now, start } from 'tone';
 import {
   createArrangement,
+  createBlastSound,
   createDrums,
   createImpactSound,
   createMusicBus,
+  createRechargeSound,
   createReloadSound,
   createScoreSound,
   createWeaponVoice,
   measureWeaponLoudness,
   type Arrangement,
+  type BlastSound,
   type Drums,
   type ImpactSound,
   type ReloadSound,
@@ -34,7 +37,8 @@ import type { Weapon } from '../../weapons';
 /** How the playground fires the weapon while you turn knobs. */
 export type FireMode = 'off' | 'hold' | 'mash';
 
-export type OneShot = 'impact' | 'score' | 'reload' | 'riser' | 'drop';
+export type OneShot =
+  'impact' | 'score' | 'blast' | 'reload' | 'recharge' | 'riser' | 'drop';
 
 export interface Playground {
   /**
@@ -94,7 +98,9 @@ export const createPlayground = async ({
   let arrangement: Arrangement | null = null;
   let impact: ImpactSound | null = null;
   let reload: ReloadSound | null = null;
+  let recharge: ReloadSound | null = null;
   let score: ScoreSound | null = null;
+  let blast: BlastSound | null = null;
   /** Each score press is the next kill in a combo, wrapping at the top. */
   let combo = 0;
   let voice: WeaponVoice | null = null;
@@ -116,7 +122,9 @@ export const createPlayground = async ({
     arrangement?.dispose();
     impact?.dispose();
     reload?.dispose();
+    recharge?.dispose();
     score?.dispose();
+    blast?.dispose();
     drums = await createDrums({
       seed: 1,
       output: musicBus.input,
@@ -142,6 +150,12 @@ export const createPlayground = async ({
       patch: design.impact,
     });
     reload = createReloadSound(musicBus.direct, design.reload);
+    recharge = createRechargeSound(musicBus.direct, design.recharge);
+    blast = createBlastSound({
+      output: musicBus.direct,
+      root: rootHz(),
+      patch: design.blast,
+    });
     score = createScoreSound({
       output: musicBus.direct,
       key,
@@ -163,14 +177,16 @@ export const createPlayground = async ({
       design,
     });
     const live = voice;
+    const fill = () => (armed.projectile.kind === 'beam' ? recharge : reload);
     slot = createWeaponSlot({
       spec: armed.timing,
       voice: {
         fire: (time, duration, shot) => live.fire(time, duration, shot),
       },
+      // Looked up per cue: a design change rebuilds the track's sounds.
       reloadSound: {
-        click: time => reload?.click(time),
-        rumble: (time, duration) => reload?.rumble(time, duration),
+        click: time => fill()?.click(time),
+        rumble: (time, duration) => fill()?.rumble(time, duration),
       },
       bpm: BPM,
       now,
@@ -248,16 +264,18 @@ export const createPlayground = async ({
     },
     play: sound => {
       if (sound === 'impact') impact?.play(nextStep());
+      if (sound === 'blast') blast?.play(nextStep());
       if (sound === 'score') {
         combo = (combo % MAX_MULTIPLIER) + 1;
         const time = nextStep();
         impact?.play(time);
         score?.play(time, combo);
       }
-      if (sound === 'reload') {
+      if (sound === 'reload' || sound === 'recharge') {
         const time = nextStep();
-        reload?.click(time);
-        reload?.rumble(time + beatSeconds / 2, beatSeconds);
+        const fill = sound === 'reload' ? reload : recharge;
+        fill?.click(time);
+        fill?.rumble(time + beatSeconds / 2, beatSeconds * 3);
       }
       if (sound === 'riser') arrangement?.riser(nextBar());
       if (sound === 'drop') arrangement?.drop(nextBar());
@@ -268,9 +286,16 @@ export const createPlayground = async ({
     },
     dispose: () => {
       clock.dispose();
-      [drums, arrangement, impact, reload, score, voice].forEach(node =>
-        node?.dispose(),
-      );
+      [
+        drums,
+        arrangement,
+        impact,
+        reload,
+        recharge,
+        score,
+        blast,
+        voice,
+      ].forEach(node => node?.dispose());
       meter.dispose();
       musicBus.dispose();
     },

@@ -69,7 +69,9 @@ export interface PlaygroundScreenProps {
 const ONE_SHOT_LABELS = {
   impact: 'Impact',
   score: 'Kill + score',
+  blast: 'Crush blast',
   reload: 'Reload',
+  recharge: 'Beam recharge',
   riser: 'Riser',
   drop: 'Drop hit',
 } satisfies Record<OneShot, string>;
@@ -182,18 +184,16 @@ export const PlaygroundScreen = ({
               onChange={track.onSection}
             />
             <Buttons>
-              {(['impact', 'score', 'reload', 'riser', 'drop'] as const).map(
-                sound => (
-                  <Button
-                    key={sound}
-                    type="button"
-                    $variant="quiet"
-                    onClick={() => track.onOneShot(sound)}
-                  >
-                    {ONE_SHOT_LABELS[sound]}
-                  </Button>
-                ),
-              )}
+              {(Object.keys(ONE_SHOT_LABELS) as Array<OneShot>).map(sound => (
+                <Button
+                  key={sound}
+                  type="button"
+                  $variant="quiet"
+                  onClick={() => track.onOneShot(sound)}
+                >
+                  {ONE_SHOT_LABELS[sound]}
+                </Button>
+              ))}
             </Buttons>
             <Meter read={track.readLevel} />
           </Panel>
@@ -243,6 +243,7 @@ export const PlaygroundScreen = ({
               options={pinOptions([
                 ['wobble', 'Wobble'],
                 ['laser', 'Laser'],
+                ['beam', 'Beam'],
               ])}
               value={pins.oscillator ?? AUTO}
               onChange={value =>

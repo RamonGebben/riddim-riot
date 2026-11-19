@@ -16,7 +16,7 @@ describe('rollWeapon', () => {
     const seen = (pick: (parts: (typeof rolls)[number]['parts']) => unknown) =>
       new Set(rolls.map(weapon => pick(weapon.parts)));
     expect(seen(parts => parts.oscillator)).toEqual(
-      new Set(['wobble', 'laser']),
+      new Set(['wobble', 'laser', 'beam']),
     );
     expect(seen(parts => parts.lfo)).toEqual(new Set(['1/4', '1/8', '1/16']));
     expect(seen(parts => parts.fx)).toEqual(
@@ -108,5 +108,48 @@ describe('rollWeapon', () => {
           JSON.stringify(weapon.sound) !== JSON.stringify(rolls[i + 1].sound),
       );
     expect(different).toHaveLength(50);
+  });
+});
+
+describe('a beam', () => {
+  const beam = rollWeapon(3, F_MINOR, { pins: { oscillator: 'beam' } });
+
+  it('ticks on every 1/16 for a bar, cools while idle and recharges longer', () => {
+    expect(beam.projectile.kind).toBe('beam');
+    expect(beam.timing).toMatchObject({
+      division: '1/16',
+      magazine: STEPS_PER_BAR,
+      coolSteps: expect.any(Number),
+    });
+    expect(beam.timing.reloadBeats).toBeGreaterThan(2);
+  });
+
+  it('holds its aim', () => {
+    expect(beam.projectile.spread).toBe(0);
+  });
+});
+
+describe('crush', () => {
+  const crushed = (seed: number) =>
+    rollWeapon(seed, F_MINOR, {
+      pins: { oscillator: 'wobble', fx: 'distortion' },
+    });
+
+  it('bursts on hit, wider the harder it drives', () => {
+    const weapons = Array.from({ length: 40 }, (_, seed) => crushed(seed));
+    weapons.forEach(weapon => expect(weapon.projectile.splash).toBeDefined());
+    const byDrive = [...weapons].sort((a, b) => a.sound.drive - b.sound.drive);
+    expect(byDrive[0].projectile.splash!.radius).toBeLessThan(
+      byDrive[byDrive.length - 1].projectile.splash!.radius,
+    );
+  });
+
+  it('never bursts a beam, and nothing else bursts', () => {
+    const beam = rollWeapon(1, F_MINOR, {
+      pins: { oscillator: 'beam', fx: 'distortion' },
+    });
+    expect(beam.projectile.splash).toBeUndefined();
+    const clean = rollWeapon(1, F_MINOR, { pins: { fx: null } });
+    expect(clean.projectile.splash).toBeUndefined();
   });
 });

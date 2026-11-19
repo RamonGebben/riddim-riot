@@ -13,9 +13,11 @@ import {
   type Signal,
   type ToneAudioNode,
 } from 'tone';
+import { STEPS_PER_BEAT } from '../../../grid';
 import { midiToHz } from '../../../music';
 import {
   SOUND_DESIGN,
+  type BeamPatch,
   type EnvelopePatch,
   type LaserPatch,
   type SoundDesign,
@@ -51,6 +53,8 @@ interface Engine {
   sub: ToneAudioNode;
   play: (time: number, duration: number, hz: number) => void;
   nodes: Array<{ dispose: () => void }>;
+  /** Held across shots (a beam): give it each shot's full slot. */
+  continuous?: boolean;
 }
 
 /** How an engine moves an oscillator onto a shot's note. */
@@ -322,6 +326,127 @@ const createLaser = (sound: WeaponSound, patch: LaserPatch): Engine => {
   };
 };
 
+/** Seconds of float error a beam's tick timing may carry. */
+const EPSILON = 0.001;
+
+/**
+ * Beam: opened by the first tick and held while ticks keep coming - each
+ * one only moves the release on - so it sounds as one long note that glides
+ * through the riff, its filter pulsed by the LFO.
+ */
+const createBeam = (sound: WeaponSound, patch: BeamPatch): Engine => {
+  const output = new Gain();
+  const subOutput = new Gain();
+  const hz = midiToHz(sound.riff[0]);
+  const gate = createGate({ envelope: patch.envelope, output });
+  const filter = new Filter({
+    type: 'lowpass',
+    frequency: sound.cutoff,
+    rolloff: patch.rolloff,
+    Q: sound.resonance,
+  }).connect(gate.input);
+  const lfo = new LFO({
+    frequency: LFO_RATE[sound.lfo],
+    min: Math.min(patch.sweepFloor, sound.cutoff),
+    max: sound.cutoff,
+  }).connect(filter.frequency);
+  lfo.sync().start(0);
+  const osc = new FatOscillator({
+    type: sound.waveform,
+    frequency: hz,
+    count: patch.voices,
+    spread: patch.spread,
+  })
+    .connect(filter)
+    .start();
+  const topLevel = new Volume(patch.topLevel).connect(filter);
+  const top = new Oscillator({ type: 'square', frequency: hz * 2 })
+    .connect(topLevel)
+    .start();
+
+  const subLevel = new Volume(patch.sub.level).connect(subOutput);
+  const subSaturation = createSaturator(patch.sub.saturation).connect(subLevel);
+  const sub = createGate({ envelope: patch.envelope, output: subSaturation });
+  const subOsc = new Oscillator({
+    type: 'sine',
+    frequency: hz / 2 ** patch.sub.octavesDown,
+  })
+    .connect(sub.input)
+    .start();
+
+  const sizzle = createGate({
+    envelope: patch.envelope,
+    volume: patch.sizzle.level,
+    output,
+  });
+  const sizzleFilter = new Filter({
+    type: 'highpass',
+    frequency: patch.sizzle.hz,
+  }).connect(sizzle.input);
+  const noise = new Noise('white').connect(sizzleFilter).start();
+
+  const gates = [gate, sub, sizzle];
+  const pitched: Array<[Signal<'frequency'>, number]> = [
+    [osc.frequency, 1],
+    [top.frequency, 2],
+    [subOsc.frequency, 1 / 2 ** patch.sub.octavesDown],
+  ];
+  let openUntil = -Infinity;
+
+  return {
+    output,
+    sub: subOutput,
+    continuous: true,
+    play: (time, duration, note) => {
+      // Ticks land where the last one's release was scheduled, give or take
+      // float error: allow a hair either side.
+      const held = time <= openUntil + EPSILON;
+      if (held) {
+        gates.forEach(({ envelope }) => envelope.cancel(openUntil - EPSILON));
+      }
+      pitched.forEach(([frequency, ratio]) => {
+        frequency.cancelScheduledValues(time);
+        if (held) {
+          frequency.setValueAtTime(frequency.getValueAtTime(time), time);
+          frequency.exponentialRampToValueAtTime(
+            note * ratio,
+            time + patch.glideSeconds,
+          );
+        } else frequency.setValueAtTime(note * ratio, time);
+      });
+      if (!held) gates.forEach(({ envelope }) => envelope.triggerAttack(time));
+      gates.forEach(({ envelope }) => envelope.triggerRelease(time + duration));
+      openUntil = time + duration;
+    },
+    nodes: [
+      osc,
+      top,
+      topLevel,
+      lfo,
+      filter,
+      gate,
+      subOsc,
+      sub,
+      subSaturation,
+      subLevel,
+      noise,
+      sizzleFilter,
+      sizzle,
+      output,
+      subOutput,
+    ],
+  };
+};
+
+const ENGINES = {
+  wobble: (sound, design) => createWobble(sound, design.wobble),
+  laser: (sound, design) => createLaser(sound, design.laser),
+  beam: (sound, design) => createBeam(sound, design.beam),
+} satisfies Record<
+  WeaponSound['oscillator'],
+  (sound: WeaponSound, design: SoundDesign) => Engine
+>;
+
 /**
  * A rolled weapon's voice, built once and gated per shot: engine → drive →
  * echo, joined by the clean sub → sub high-pass → holster fade → glue →
@@ -363,10 +488,7 @@ export const createWeaponVoice = ({
           afterDrive,
         )
       : null;
-  const engine =
-    sound.oscillator === 'wobble'
-      ? createWobble(sound, design.wobble)
-      : createLaser(sound, design.laser);
+  const engine = ENGINES[sound.oscillator](sound, design);
   engine.output.connect(drive ?? afterDrive);
   engine.sub.connect(subCut);
 
@@ -381,8 +503,16 @@ export const createWeaponVoice = ({
 
   return {
     fire: (time, duration, shot) => {
-      const note = sound.riff[shot % sound.riff.length];
-      engine.play(time, duration * mix.articulation, midiToHz(note));
+      // A beam holds each riff note for a beat; shots play one each.
+      const index = engine.continuous
+        ? Math.floor(shot / STEPS_PER_BEAT)
+        : shot;
+      const note = sound.riff[index % sound.riff.length];
+      engine.play(
+        time,
+        engine.continuous ? duration : duration * mix.articulation,
+        midiToHz(note),
+      );
     },
     holster: time => {
       fade.gain.cancelScheduledValues(time);

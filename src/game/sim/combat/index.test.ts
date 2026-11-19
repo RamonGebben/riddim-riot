@@ -72,3 +72,15 @@ describe('resolveContacts', () => {
     expect(result.touched.map(t => t.enemy.id)).toEqual([1]);
   });
 });
+
+describe('resolveHits with a splashing shot', () => {
+  it('reports where it hit, for its blast', () => {
+    const splash = { radius: 64, damage: 0.5, knockback: 40 };
+    const result = resolveHits(
+      [{ ...shotAt(100), splash }, shotAt(300)],
+      [enemy(1, 105), enemy(2, 305)],
+      1,
+    );
+    expect(result.impacts).toEqual([{ position: { x: 100, y: 0 }, splash }]);
+  });
+});

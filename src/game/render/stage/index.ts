@@ -84,7 +84,12 @@ export const createStage = async (
       pickups.update({ ...frame, pickups: frame.world.pickups });
       enemies.update(frame.world.enemies, frame.now);
       player.update({ ...frame, player: frame.world.player });
-      fx.update({ ...frame, projectiles: frame.world.projectiles });
+      fx.update({
+        ...frame,
+        projectiles: frame.world.projectiles,
+        beams: frame.world.beams,
+        player: frame.world.player,
+      });
       rave.set(frame);
     },
     destroy: () => app.destroy(true, { children: true }),

@@ -12,7 +12,9 @@ import {
 import type { Rng } from '../../rng';
 import { length, normalize, scale, subtract, type Vec } from '../../vec';
 import type { ProjectileSpec, WeaponRecipe } from '../../weapons';
+import { fireBeam, resolveBeams, type Beam } from '../beam';
 import { resolveContacts, resolveHits } from '../combat';
+import { resolveBlasts, type Blast } from '../splash';
 import {
   DASH_SECONDS,
   DASH_TILES,
@@ -99,6 +101,8 @@ export interface World {
   /** Where the latest kill fell - a cleared wave drops its reward there. */
   lastKill: Vec | null;
   projectiles: Array<Projectile>;
+  /** Beam ticks still being drawn; their damage landed when they fired. */
+  beams: Array<Beam>;
   /** Shots scheduled on the audio clock that haven't sounded yet. */
   pendingShots: Array<PendingShot>;
   nextId: number;
@@ -140,6 +144,7 @@ export const createWorld = (
   pickups: [],
   lastKill: null,
   projectiles: [],
+  beams: [],
   pendingShots: [],
   nextId: 1,
   invulnerableUntil: 0,
@@ -337,6 +342,8 @@ export const onBar = (
 export interface FrameResult {
   world: World;
   kills: Array<Vec>;
+  /** Crushed shots that burst this frame. */
+  blasts: Array<Blast>;
   /** Where an enemy hit the player, if one did this frame. */
   playerHit: Vec | null;
 }
@@ -356,19 +363,35 @@ export const stepWorld = (
   }: { input: PlayerInput; dt: number; now: number; beat?: number },
 ): FrameResult => {
   // A finished run freezes where it ended.
-  if (world.status !== 'playing') return { world, kills: [], playerHit: null };
+  if (world.status !== 'playing') {
+    return { world, kills: [], blasts: [], playerHit: null };
+  }
 
   const { map } = world.level;
   const player = stepPlayer(world.player, input, dt, map);
   const due = world.pendingShots.filter(shot => shot.time <= now);
-  const fired = due.map(shot => fireProjectile(player, shot));
+  const isBeam = (shot: PendingShot) => shot.spec.kind === 'beam';
+  const fired = due
+    .filter(shot => !isBeam(shot))
+    .map(shot => fireProjectile(player, shot));
+  const firedBeams = due
+    .filter(isBeam)
+    .map(shot => fireBeam(player, shot, map));
   const projectiles = advanceProjectiles(
     [...world.projectiles, ...fired],
     dt,
     now,
   ).filter(projectile => !isWall(map, tileOf(projectile.position)));
 
-  const hits = resolveHits(projectiles, world.enemies, now);
+  const beamed = resolveBeams(firedBeams, world.enemies, now);
+  const shot = resolveHits(projectiles, beamed.enemies, now);
+  const blasts = shot.impacts;
+  const blasted = resolveBlasts(blasts, shot.enemies, map, now);
+  const hits = {
+    projectiles: shot.projectiles,
+    enemies: blasted.enemies,
+    killed: [...beamed.killed, ...shot.killed, ...blasted.killed],
+  };
   const contacts = resolveContacts(player.position, hits.enemies, now);
   const canBeHit = now >= world.invulnerableUntil;
   const playerHit = canBeHit ? (contacts.touched[0]?.position ?? null) : null;
@@ -401,6 +424,9 @@ export const stepWorld = (
       combo: scored.combo,
       player,
       projectiles: hits.projectiles,
+      beams: [...world.beams, ...firedBeams].filter(
+        beam => beam.expiresAt > now,
+      ),
       enemies: contacts.enemies,
       pendingShots: world.pendingShots.filter(shot => shot.time > now),
       invulnerableUntil: playerHit
@@ -408,6 +434,7 @@ export const stepWorld = (
         : world.invulnerableUntil,
     },
     kills: hits.killed.map(kill => kill.position),
+    blasts,
     playerHit,
   };
 };

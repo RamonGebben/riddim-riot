@@ -18,12 +18,8 @@ export interface RunState {
 /** Keeps weapon rolls their own random stream, apart from drums and spawns. */
 const WEAPON_STREAM = 2;
 const LEVEL_STREAM = 20;
-/** A run opens with one of each engine; slot 3 is free. */
-const STARTING_ENGINES: Array<OscillatorPart | null> = [
-  'wobble',
-  'laser',
-  null,
-];
+/** A run opens with one of each engine. */
+const STARTING_ENGINES: Array<OscillatorPart> = ['wobble', 'laser', 'beam'];
 
 export const newRun = (seed: number): RunState => ({
   seed,
@@ -33,7 +29,7 @@ export const newRun = (seed: number): RunState => ({
   score: 0,
   recipes: STARTING_ENGINES.map((oscillator, slot) => ({
     seed: deriveSeed(seed, WEAPON_STREAM, slot, 0),
-    ...(oscillator ? { oscillator } : {}),
+    oscillator,
   })),
   active: 0,
 });
