@@ -154,7 +154,9 @@ export const RunEnded: Story = {
     },
   },
   play: async ({ args, canvas, userEvent }) => {
-    await expect(canvas.getByText('31 kills', { selector: 'p' })).toBeVisible();
+    await expect(
+      canvas.getByText('Kills').nextElementSibling,
+    ).toHaveTextContent('31');
     await userEvent.click(canvas.getByRole('button', { name: 'Try again' }));
     await expect(args.onRetry).toHaveBeenCalled();
   },

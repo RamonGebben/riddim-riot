@@ -118,13 +118,19 @@ const phaseLabel = ({ phase, part, secondsLeft, boss }: RunProps) => {
   return boss === null ? label : `${label} · boss`;
 };
 
-const points = (score: number) => `${score.toLocaleString('en')} points`;
+const number = (value: number) => value.toLocaleString('en');
 
-/** The score, and whether it beat the device's best. */
-const scoreLines = (score: number, best: number) =>
-  score > best && score > 0
-    ? [points(score), 'New best!']
-    : [points(score), `Best ${best.toLocaleString('en')}`];
+const kills = (count: number) => ({ label: 'Kills', value: number(count) });
+const points = (score: number) => ({ label: 'Points', value: number(score) });
+
+/** Beat the device's best: worth a badge instead of a Best tile. */
+const isNewBest = (score: number, best: number) => score > best && score > 0;
+
+/** The score, next to the best to beat unless this run is it. */
+const scoreStats = (score: number, best: number) =>
+  isNewBest(score, best)
+    ? [points(score)]
+    : [points(score), { label: 'Best', value: number(best) }];
 
 export const GameScreen = ({
   seed,
@@ -228,7 +234,7 @@ export const GameScreen = ({
       {soundBlocked && !paused && run.status === 'playing' && (
         <Overlay
           heading="Sound couldn't start"
-          stats={[
+          message={[
             'The game runs on the music, so it waits for it.',
             'Check that sound can play on this device, then try again.',
           ]}
@@ -242,8 +248,9 @@ export const GameScreen = ({
         <Overlay
           heading="Paused"
           stats={[
-            `Level ${run.level} of ${run.levels} · ${musicalKey}`,
-            `${run.kills} kills`,
+            { label: 'Level', value: `${run.level}/${run.levels}` },
+            { label: 'Key', value: musicalKey },
+            kills(run.kills),
             points(run.score),
           ]}
           note={`seed ${seed}`}
@@ -256,10 +263,11 @@ export const GameScreen = ({
       {run.status === 'dead' && (
         <Overlay
           heading="Run over"
+          badge={isNewBest(run.score, best) ? 'New best!' : undefined}
           stats={[
-            `Level ${run.level} of ${run.levels}`,
-            `${run.kills} kills`,
-            ...scoreLines(run.score, best),
+            { label: 'Level', value: `${run.level}/${run.levels}` },
+            kills(run.kills),
+            ...scoreStats(run.score, best),
           ]}
           note={`seed ${seed}`}
           actions={[
@@ -272,7 +280,7 @@ export const GameScreen = ({
       {run.status === 'cleared' && !won && (
         <Overlay
           heading={`Level ${run.level} cleared`}
-          stats={[`${run.kills} kills`, points(run.score)]}
+          stats={[kills(run.kills), points(run.score)]}
           note={`Level ${run.level + 1} of ${run.levels} is coming up`}
           actions={[{ label: 'Next level', onClick: onNextLevel }]}
         />
@@ -280,10 +288,11 @@ export const GameScreen = ({
       {won && (
         <Overlay
           heading="Run complete"
+          badge={isNewBest(run.score, best) ? 'New best!' : undefined}
           stats={[
-            `All ${run.levels} levels`,
-            `${run.kills} kills`,
-            ...scoreLines(run.score, best),
+            { label: 'Levels', value: number(run.levels) },
+            kills(run.kills),
+            ...scoreStats(run.score, best),
           ]}
           note={`seed ${seed}`}
           actions={[
