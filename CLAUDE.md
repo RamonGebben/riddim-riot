@@ -62,6 +62,9 @@ Running and controls are in `README.md`.
   game per level.
 - `test` runs only the `unit` Vitest project; `test:storybook` runs the
   browser-based story tests.
+- **Every engine.** The user plays in Firefox. `test:e2e` and
+  `test:storybook` run in Chromium, Firefox and WebKit (CI too); a change
+  to audio start-up or input isn't done until all three pass.
 
 ## Conventions (via mise)
 
