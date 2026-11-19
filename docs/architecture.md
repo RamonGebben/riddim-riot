@@ -9,7 +9,11 @@ How the game is put together, why, and what's next. Read this with
 The seven PoC milestones from the brief are done and play-tested, and the
 playable-demo work on top of them is in: health and death, a run loop of
 levels, intensity-driven music, weapon loot, a second enemy and combo
-scoring. All five of the brief's "done when" checks pass:
+scoring. Since then: the sound playground, layered sound (sub, reese,
+growl, sidechain, pad bed), a continuous beam weapon, Crush blasts for
+crowd control, and arena levels started at a circle and played as a song,
+ending in a boss, with healing hearts. All five of the brief's "done when"
+checks passed (measured before the arenas; re-measure frame rate on one):
 
 | Check                                                     | Result                                                                                         |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -19,8 +23,8 @@ scoring. All five of the brief's "done when" checks pass:
 | Visuals lock to the kick with no drift after 5 minutes    | 431 kicks exactly on grid; drift 0.012 ms/min; rendered kick within a frame of the audible one |
 | 60 fps with 30 enemies and 3 layered weapons              | 58-60 fps, p99 frame 16.8 ms, ~1 ms JS a frame (Apple A18 Pro, 1440×900 @2×)                   |
 
-The sound works but lacks the weight of real dubstep. That's deliberately
-parked: gameplay first, then sound design (see [Roadmap](#roadmap)).
+The sound is now layered for weight; tuning it by ear in the playground
+is still to come (see [Roadmap](#roadmap)).
 
 ## The one rule: everything hangs off one clock
 
@@ -31,7 +35,7 @@ Tone Transport ──tick (1/16, with its scheduled audio time)──▶ bus
           ▼                          ▼                   ▼                     ▼
    drums (schedule hits)   loadout → weapon slots   beat pulse        play loop (world)
                            (quantized fire)                          beats → enemies act
-                                                                     bars  → waves, section
+                                                                     bars  → song, waves
 ```
 
 - `clock` wraps Tone's Transport and emits a `tick` every 1/16 step, carrying
@@ -300,12 +304,12 @@ arrangement, weapon loot, the charger, combo, on-beat and swap bonuses, the
 sound playground, layered sound, the beam, Crush blasts, arena levels with
 the start circle, song-structured survival, the boss and hearts.
 
-Next is **sound design**, in the playground (`/playground.html`). Tune by
-ear and save; the game and the weapon generator use what's saved. That's
-the place to add the dubstep weight that's still missing, and to make the
-riser, crash and drop hit like a real one. Where a knob isn't enough (a
-new engine, an FM or wavetable manufacturer, a sidechain), add the value to
-`SoundDesign` and `DESIGN_SCHEMA` so it shows up in the playground.
+Next is **play-testing the song levels** and **tuning by ear** in the
+playground (`/playground.html`); the game and the weapon generator use
+what's saved. The layers, sidechain and pad bed are first guesses. Where a
+knob isn't enough (a new engine, an FM or wavetable manufacturer), add the
+value to `SoundDesign` and `DESIGN_SCHEMA` so it shows up in the
+playground.
 
 Gameplay ideas still open:
 
