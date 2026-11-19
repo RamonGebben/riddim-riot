@@ -8,5 +8,4 @@ export const Surface = styled.main`
   overflow: hidden;
   cursor: crosshair;
   touch-action: none;
-  user-select: none;
 `;

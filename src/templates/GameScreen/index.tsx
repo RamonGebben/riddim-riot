@@ -170,8 +170,8 @@ export const GameScreen = ({
         {run.phase === 'waiting' && (
           <Hint>
             <PointerOnly $pointer="mouse">
-              WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · F take
-              weapon
+              WASD move · mouse aim and fire · Space dash · 1-3, Q/E or wheel
+              switch · F take weapon
             </PointerOnly>
             <PointerOnly $pointer="touch">
               left: aim, push further to move · right: tap or hold to fire ·

@@ -15,5 +15,7 @@ export const Page = styled.main`
   min-block-size: 100dvh;
   padding: ${({ theme }) => theme.spacing('base')};
   text-align: center;
+  -webkit-user-select: none;
+  user-select: none;
   animation: ${rise} 0.4s ease-out;
 `;
