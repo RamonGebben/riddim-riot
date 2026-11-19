@@ -62,14 +62,15 @@ what every roll can sound like, change the parts pool ranges instead.
 
 ## Controls
 
-| Input                         | Action                                        |
-| ----------------------------- | --------------------------------------------- |
-| WASD / arrow keys             | Move                                          |
-| Mouse                         | Aim                                           |
-| Left mouse (click or hold)    | Fire, quantized to the weapon's beat division |
-| 1 / 2 / 3, Q / E, mouse wheel | Switch weapon slot (or click a slot to fire)  |
-| F                             | Take the weapon you're standing on            |
-| Esc / P                       | Pause and resume (also the **Pause** button)  |
+| Input                         | Action                                           |
+| ----------------------------- | ------------------------------------------------ |
+| WASD / arrow keys             | Move                                             |
+| Mouse                         | Aim                                              |
+| Left mouse (click or hold)    | Fire, quantized to the weapon's beat division    |
+| 1 / 2 / 3, Q / E, mouse wheel | Switch weapon slot (or click a slot to fire)     |
+| Space                         | Dash (through enemies and orbs; 2-beat cooldown) |
+| F                             | Take the weapon you're standing on               |
+| Esc / P                       | Pause and resume (also the **Pause** button)     |
 
 On a phone or tablet (landscape only; Android goes fullscreen and locks it,
 elsewhere a notice asks you to turn the phone):
@@ -79,6 +80,7 @@ elsewhere a notice asks you to turn the phone):
 | Left half: a stick appears under your thumb | Inside the inner rim, turn; past it, move that way |
 | Right half: tap or hold                     | Fire the weapon last fired (on touch, on the beat) |
 | A weapon slot (right edge): tap or hold     | Switch to that weapon and fire it                  |
+| **Dash** button (bottom right)              | Dash                                               |
 | **Take** button                             | Take the weapon you're standing on                 |
 
 Switching tabs or turning the phone upright pauses the game too; only

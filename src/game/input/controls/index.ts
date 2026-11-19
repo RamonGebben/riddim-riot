@@ -6,6 +6,8 @@ export interface Controls {
   move: () => Vec;
   /** The cursor, in pixels from the element's top-left. */
   pointer: () => Vec;
+  /** Was Space pressed since the last call? Reading it uses the press. */
+  takeDash: () => boolean;
   detach: () => void;
 }
 
@@ -17,7 +19,14 @@ export const attachControls = (element: HTMLElement): Controls => {
     y: element.clientHeight / 2,
   };
 
+  let dash = false;
   const onKeyDown = (event: KeyboardEvent) => {
+    if (event.code === 'Space') {
+      // Not a page scroll, nor a click on the focused slot button.
+      event.preventDefault();
+      if (!event.repeat) dash = true;
+      return;
+    }
     if (!isMoveKey(event.code)) return;
     event.preventDefault();
     held.add(event.code);
@@ -38,6 +47,11 @@ export const attachControls = (element: HTMLElement): Controls => {
   return {
     move: () => moveVector(held),
     pointer: () => pointer,
+    takeDash: () => {
+      const pressed = dash;
+      dash = false;
+      return pressed;
+    },
     detach: () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);

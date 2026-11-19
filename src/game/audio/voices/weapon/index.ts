@@ -21,7 +21,16 @@ import {
 import { createSaturator } from '../../saturate';
 
 export interface WeaponVoice {
-  fire: (time: number, duration: number, shot: number) => void;
+  /**
+   * `pitch` moves the riff note, e.g. onto the chord playing - the riff
+   * keeps its shape and the weapon its sound.
+   */
+  fire: (
+    time: number,
+    duration: number,
+    shot: number,
+    pitch?: (note: number) => number,
+  ) => void;
   /** Fade the tail out while the next weapon comes in. */
   holster: (time: number) => void;
   equip: (time: number) => void;
@@ -482,12 +491,12 @@ export const createWeaponVoice = ({
   });
 
   return {
-    fire: (time, duration, shot) => {
+    fire: (time, duration, shot, pitch = note => note) => {
       // A beam holds each riff note for a beat; shots play one each.
       const index = engine.continuous
         ? Math.floor(shot / STEPS_PER_BEAT)
         : shot;
-      const note = sound.riff[index % sound.riff.length];
+      const note = pitch(sound.riff[index % sound.riff.length]);
       engine.play(
         time,
         engine.continuous ? duration : duration * mix.articulation,

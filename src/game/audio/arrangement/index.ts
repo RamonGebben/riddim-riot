@@ -1,4 +1,5 @@
-import { degreeToMidi, midiToHz, type Key } from '../../music';
+import { chordAt, voiceProgression, type Progression } from '../../harmony';
+import { midiToHz, type Key } from '../../music';
 import type { Section } from '../../sim/survival';
 import { SOUND_DESIGN, type ArrangementPatch } from '../../sound';
 import { createGate } from '../gate';
@@ -6,10 +7,13 @@ import { createGraph, type Output } from '../graph';
 import type { MusicBus } from '../musicBus';
 
 export interface Arrangement {
-  /** Called on every bar line with the section the bar should play. */
+  /**
+   * Called on every bar line with the section the bar should play; `chordBar`
+   * is where the progression is (it restarts with the song).
+   */
   onBar: (
     section: Section,
-    { time, bar }: { time: number; bar: number },
+    at: { time: number; bar: number; chordBar: number },
   ) => void;
   /** Play a drop's hit or a riser on its own, for auditioning. */
   drop: (time: number) => void;
@@ -45,6 +49,7 @@ export const createArrangement = ({
   barSeconds,
   rootHz,
   key,
+  progression,
   patch = SOUND_DESIGN.arrangement,
 }: {
   musicBus: MusicBus;
@@ -52,8 +57,9 @@ export const createArrangement = ({
   barSeconds: number;
   /** The level's root in octave 1, for the drop's sub boom. */
   rootHz: number;
-  /** The level's key, for the pad's chord. */
+  /** The level's key and chords, for the pad. */
   key: Key;
+  progression: Progression;
   patch?: ArrangementPatch;
 }): Arrangement => {
   const OPENNESS = opennessOf(patch);
@@ -120,11 +126,16 @@ export const createArrangement = ({
     frequency: patch.pad.hz,
     output: graph.volume(patch.pad.level, bedNode),
   });
-  patch.pad.degrees.forEach(degree =>
+  // One voice per chord note, gliding to the next chord on its bar line.
+  const padChords = voiceProgression(key, progression, {
+    shape: patch.pad.degrees,
+    octave: patch.pad.octave,
+  });
+  const padVoices = padChords[0].map(note =>
     graph.fatOscillator(
       {
         type: 'sawtooth',
-        frequency: midiToHz(degreeToMidi(key, degree, patch.pad.octave)),
+        frequency: midiToHz(note),
         count: 2,
         spread: patch.pad.detune,
         // Each note at its share, so a bigger chord isn't a louder one.
@@ -133,6 +144,20 @@ export const createArrangement = ({
       padFilter.input,
     ),
   );
+  let padChord = padChords[0];
+  const moveTo = (chordBar: number, time: number) => {
+    const next =
+      padChords[progression.chords.indexOf(chordAt(progression, chordBar))];
+    if (next === padChord) return;
+    padVoices.forEach(({ frequency }, i) => {
+      frequency.setValueAtTime(midiToHz(padChord[i]), time);
+      frequency.exponentialRampToValueAtTime(
+        midiToHz(next[i]),
+        time + patch.pad.glide,
+      );
+    });
+    padChord = next;
+  };
   noise.connect(
     graph.filter({
       type: 'highpass',
@@ -164,7 +189,8 @@ export const createArrangement = ({
   };
 
   return {
-    onBar: (section, { time, bar }) => {
+    onBar: (section, { time, bar, chordBar }) => {
+      moveTo(chordBar, time);
       const entering = section !== current;
       if (section === 'build') {
         if (entering) musicBus.open(OPENNESS.build, time, barSeconds * 2);

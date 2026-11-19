@@ -37,6 +37,8 @@ import {
 } from '../enemy';
 import { moveCircle } from '../collision';
 import {
+  DASH,
+  dashDirection,
   PLAYER_RADIUS,
   spawnPlayer,
   stepPlayer,
@@ -142,6 +144,8 @@ export interface World {
   nextId: number;
   /** A hit can't land again until this audio time. */
   invulnerableUntil: number;
+  /** The player's dash: moving `direction` until `until`, ready again at `readyAt`. */
+  dash: { direction: Vec; until: number; readyAt: number };
 }
 
 const INVULNERABLE_SECONDS = 0.6;
@@ -207,6 +211,7 @@ export const createWorld = (
   pendingShots: [],
   nextId: 1,
   invulnerableUntil: 0,
+  dash: { direction: { x: 1, y: 0 }, until: 0, readyAt: 0 },
 });
 
 export const queueShot = (world: World, shot: PendingShot): World => ({
@@ -600,7 +605,15 @@ export const stepWorld = (
     dt,
     now,
     beat = 0,
-  }: { input: PlayerInput; dt: number; now: number; beat?: number },
+    beatSeconds = 60 / 140,
+  }: {
+    input: PlayerInput;
+    dt: number;
+    now: number;
+    beat?: number;
+    /** For the dash's cooldown, counted in beats. */
+    beatSeconds?: number;
+  },
 ): FrameResult => {
   // A finished run freezes where it ended.
   if (world.status !== 'playing') {
@@ -608,7 +621,22 @@ export const stepWorld = (
   }
 
   const { map } = world.level;
-  const player = stepPlayer(world.player, input, dt, map);
+  const dashes = input.dash === true && now >= world.dash.readyAt;
+  const dash = dashes
+    ? {
+        direction: dashDirection(world.player, input),
+        until: now + DASH.seconds,
+        readyAt: now + DASH.cooldownBeats * beatSeconds,
+      }
+    : world.dash;
+  const dashing = now < dash.until;
+  const player = stepPlayer(
+    world.player,
+    input,
+    dt,
+    map,
+    dashing ? dash.direction : null,
+  );
   const due = world.pendingShots.filter(shot => shot.time <= now);
   const isBeam = (shot: PendingShot) => shot.spec.kind === 'beam';
   const fired = due
@@ -638,7 +666,10 @@ export const stepWorld = (
     enemies: blasted.enemies,
     killed: [...beamed.killed, ...shot.killed, ...blasted.killed],
   };
-  const contacts = resolveContacts(player.position, hits.enemies, now);
+  // Dashing passes through enemies: they neither hurt nor burst.
+  const contacts = dashing
+    ? { enemies: hits.enemies, touched: [] }
+    : resolveContacts(player.position, hits.enemies, now);
   const flyingOrbs = world.hostiles.filter(
     hostile =>
       hostile.expiresAt > now &&
@@ -649,7 +680,7 @@ export const stepWorld = (
     radius: PLAYER_RADIUS,
     now,
   });
-  const canBeHit = now >= world.invulnerableUntil;
+  const canBeHit = now >= world.invulnerableUntil && !dashing;
   const touched =
     contacts.touched[0]?.position ??
     (struck[0] ? hostilePosition(struck[0], now) : null);
@@ -696,7 +727,7 @@ export const stepWorld = (
       projectiles: hits.projectiles,
       hostiles: bossDown
         ? []
-        : flyingOrbs.filter(hostile => !struck.includes(hostile)),
+        : flyingOrbs.filter(hostile => dashing || !struck.includes(hostile)),
       beams: [...world.beams, ...firedBeams].filter(
         beam => beam.expiresAt > now,
       ),
@@ -706,6 +737,7 @@ export const stepWorld = (
       invulnerableUntil: playerHit
         ? now + INVULNERABLE_SECONDS
         : world.invulnerableUntil,
+      dash,
     },
     kills: hits.killed.map(kill => kill.position),
     blasts,

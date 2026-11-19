@@ -14,6 +14,7 @@ import {
   type SurvivalPhase,
 } from '../sim/survival';
 import { nearestPickup } from '../sim/loot';
+import { DASH } from '../sim/player';
 import type { FxPart, LfoPart, OscillatorPart, WeaponRecipe } from '../weapons';
 
 /** A weapon on the ground, as the prompt to take it describes it. */
@@ -55,6 +56,12 @@ export interface HudView {
   boss: number | null;
   /** The weapon the player is standing on, if any. */
   pickup: PickupView | null;
+  /**
+   * The dash's cooldown in seconds while it's coming back, null when
+   * ready; `dashKey` changes with every dash, to restart its animation.
+   */
+  dashCooldown: number | null;
+  dashKey: number;
 }
 
 /** Before the stage is up: a fresh level. */
@@ -73,6 +80,8 @@ export const initialHud = (
   songBar: null,
   boss: null,
   pickup: null,
+  dashCooldown: null,
+  dashKey: 0,
   ...carry,
 });
 
@@ -87,6 +96,8 @@ export const hudOf = (
   beat = 0,
   /** For turning the beats left in the part into a countdown. */
   beatSeconds = 0,
+  /** The heard time, to tell a cooling dash from a ready one. */
+  now = 0,
 ): HudView => {
   const at = songPosition(world.survival, {
     bar: Math.floor(beat / 4),
@@ -116,6 +127,11 @@ export const hudOf = (
       ? Math.max(Math.round((boss.hp / world.rules.bossHp) * 100) / 100, 0)
       : null,
     pickup: underfoot ? describe(underfoot.recipe) : null,
+    dashCooldown:
+      now < world.dash.readyAt
+        ? world.dash.readyAt - (world.dash.until - DASH.seconds)
+        : null,
+    dashKey: world.dash.readyAt,
   };
 };
 

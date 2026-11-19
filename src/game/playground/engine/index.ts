@@ -1,6 +1,7 @@
 import { getDestination, immediate, Meter, now } from 'tone';
 import {
   createArrangement,
+  createBacking,
   createBlastSound,
   createDrums,
   createImpactSound,
@@ -11,6 +12,7 @@ import {
   createWeaponVoice,
   measureWeaponLoudness,
   type Arrangement,
+  type Backing,
   type BlastSound,
   type Drums,
   type ImpactSound,
@@ -27,11 +29,17 @@ import {
   STEPS_PER_BAR,
   STEPS_PER_BEAT,
 } from '../../grid';
+import {
+  chordAt,
+  progressionFor,
+  shiftFor,
+  transposeInKey,
+} from '../../harmony';
 import { degreeToMidi, midiToHz, type Key } from '../../music';
 import { createRng } from '../../rng';
 import { MAX_MULTIPLIER } from '../../sim/combo';
 import { createWeaponSlot, type WeaponSlot } from '../../sim';
-import type { Section } from '../../sim/survival';
+import type { Section, SongPart } from '../../sim/survival';
 import type { SoundDesign } from '../../sound';
 import type { Weapon } from '../../weapons';
 
@@ -63,6 +71,17 @@ export interface Playground {
 }
 
 export const BPM = 140;
+/** The playground's harmony and backing patterns come from this seed. */
+const PLAYGROUND_SEED = 1;
+
+/** A song part for each section, so the backing layers play as in a level. */
+const SECTION_PARTS = {
+  calm: 'breakdown',
+  groove: 'bridge',
+  build: 'buildup',
+  drop: 'drop3',
+} satisfies Record<Section, SongPart>;
+
 /** In mash mode, the chance of a tap on each 1/8. */
 const MASH_DENSITY = 0.55;
 
@@ -97,6 +116,8 @@ export const createPlayground = async ({
 
   let drums: Drums | null = null;
   let arrangement: Arrangement | null = null;
+  let backing: Backing | null = null;
+  let progression = progressionFor(PLAYGROUND_SEED, key);
   let impact: ImpactSound | null = null;
   let reload: ReloadSound | null = null;
   let recharge: ReloadSound | null = null;
@@ -121,6 +142,7 @@ export const createPlayground = async ({
   const buildTrack = async () => {
     drums?.dispose();
     arrangement?.dispose();
+    backing?.dispose();
     impact?.dispose();
     reload?.dispose();
     recharge?.dispose();
@@ -137,13 +159,23 @@ export const createPlayground = async ({
         }
       },
     });
+    progression = progressionFor(PLAYGROUND_SEED, key);
     arrangement = createArrangement({
       musicBus,
       output: musicBus.input,
       barSeconds: beatSeconds * 4,
       rootHz: rootHz(),
       key,
+      progression,
       patch: design.arrangement,
+    });
+    backing = createBacking({
+      output: musicBus.bed,
+      key,
+      seed: PLAYGROUND_SEED,
+      progression,
+      stepSeconds: beatSeconds / 4,
+      patch: design.backing,
     });
     impact = createImpactSound({
       output: musicBus.direct,
@@ -182,7 +214,18 @@ export const createPlayground = async ({
     slot = createWeaponSlot({
       spec: armed.timing,
       voice: {
-        fire: (time, duration, shot) => live.fire(time, duration, shot),
+        fire: (time, duration, shot) => {
+          live.fire(time, duration, shot, note =>
+            lastTick
+              ? transposeInKey(
+                  key,
+                  note,
+                  shiftFor(chordAt(progression, lastTick.bar).degree),
+                )
+              : note,
+          );
+          backing?.duck(time);
+        },
       },
       // Looked up per cue: a design change rebuilds the track's sounds.
       reloadSound: {
@@ -203,7 +246,9 @@ export const createPlayground = async ({
     lastTick = tick;
     if (drumsOn) drums?.onTick(tick);
     if (tick.stepInBar === 0) {
-      arrangement?.onBar(section, { time: tick.time, bar: tick.bar });
+      const at = { time: tick.time, bar: tick.bar };
+      arrangement?.onBar(section, { ...at, chordBar: tick.bar });
+      backing?.onBar({ ...at, part: SECTION_PARTS[section] });
     }
     if (
       fire === 'mash' &&
@@ -290,6 +335,7 @@ export const createPlayground = async ({
       [
         drums,
         arrangement,
+        backing,
         impact,
         reload,
         recharge,

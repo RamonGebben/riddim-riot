@@ -4,3 +4,4 @@ export * from './weapon';
 export * from './score';
 export * from './recharge';
 export * from './blast';
+export * from './backing';
