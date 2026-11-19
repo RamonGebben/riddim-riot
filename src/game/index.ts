@@ -1,4 +1,4 @@
-import { getContext, immediate, now } from 'tone';
+import { immediate, now } from 'tone';
 import {
   createArrangement,
   createBlastSound,
@@ -59,14 +59,6 @@ export const describeLevel = (run: RunState) => {
   return { key: keyName(key), palette: palette.name, bpm: BPM };
 };
 
-/** The audio time of what the speakers are playing right now. */
-const heardNow = () => {
-  const raw = getContext().rawContext;
-  const timestamp =
-    raw instanceof AudioContext ? raw.getOutputTimestamp() : undefined;
-  return heardTime(timestamp, performance.now(), immediate());
-};
-
 export interface Game {
   /** Mount the stage and input on the play area; returns detach. */
   attach: (element: HTMLElement) => () => void;
@@ -103,7 +95,10 @@ export const startGame = async ({
   onStep?: (step: StartStep) => void;
 }): Promise<Game> => {
   onStep('audio');
-  const raw = await startAudio();
+  const audio = await startAudio();
+  /** The audio time of what the speakers are playing right now. */
+  const heardNow = () =>
+    heardTime(audio.outputTimestamp(), performance.now(), immediate());
 
   const seed = levelSeed(run);
   const level = generateLevel(seed);
@@ -228,12 +223,12 @@ export const startGame = async ({
     if (paused) return;
     paused = true;
     loadout.release();
-    void raw.suspend();
+    void audio.suspend();
   };
   const resume = () => {
     if (!paused) return;
     paused = false;
-    void raw.resume();
+    void audio.resume();
   };
 
   const trigger = {
