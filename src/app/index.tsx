@@ -76,7 +76,9 @@ export const App = () => {
     const onTurn = () => {
       if (portrait.matches) pause();
     };
-    onTurn();
+    // Only a turn pauses, not being upright when the level mounts: the
+    // landscape lock may still be rotating then, and nothing happens
+    // before the player steps into the circle anyway.
     window.addEventListener('keydown', onKeyDown);
     document.addEventListener('visibilitychange', onHidden);
     portrait.addEventListener('change', onTurn);
@@ -90,12 +92,15 @@ export const App = () => {
   // startGame() has to run inside a click handler: browsers only let an
   // AudioContext start from a user gesture.
   const play = async (next: RunState) => {
-    void goLandscape();
     game.current?.stop();
     setPaused(false);
     setStatus('starting');
     setRun(next);
-    game.current = await startGame({ run: next, stress });
+    // Audio starts first: a fullscreen request uses up the click, and an
+    // AudioContext started after it stays silent.
+    const starting = startGame({ run: next, stress });
+    void goLandscape();
+    game.current = await starting;
     setLoadout(game.current.loadout());
     setHud(game.current.hud());
     setSession(current => current + 1);

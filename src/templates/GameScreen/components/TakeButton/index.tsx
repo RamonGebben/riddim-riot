@@ -9,7 +9,9 @@ export const TakeButton = styled(Button)`
   @media ${TOUCH_SCREEN} {
     position: fixed;
     inset-block-start: 50%;
-    inset-inline-end: ${({ theme }) => theme.spacing('l')};
+    inset-inline-end: calc(
+      ${({ theme }) => theme.spacing('l')} + env(safe-area-inset-right, 0px)
+    );
     z-index: ${({ theme }) => theme.zIndex('sticky')};
     display: block;
     max-inline-size: 40vw;

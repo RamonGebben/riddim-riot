@@ -85,8 +85,9 @@ export interface Game {
 }
 
 /**
- * Must be called from a user gesture (a click): it starts the AudioContext,
- * which browsers block until then.
+ * Must be called from a user gesture (a click), before anything else that
+ * spends it, like a fullscreen request: it starts the AudioContext, which
+ * browsers block until then.
  */
 export const startGame = async ({
   run,

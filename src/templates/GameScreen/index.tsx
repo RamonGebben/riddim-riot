@@ -6,6 +6,7 @@ import { HudActions } from './components/HudActions';
 import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
 import { Loadout, type LoadoutProps } from './components/Loadout';
+import { LockPage } from './components/LockPage';
 import { Overlay } from './components/Overlay';
 import { PointerOnly } from './components/PointerOnly';
 import { Prompt } from './components/Prompt';
@@ -124,6 +125,7 @@ export const GameScreen = ({
   const playing = run.status === 'playing' && !paused;
   return (
     <>
+      <LockPage />
       <Surface ref={surfaceRef} aria-label="Play area">
         <Hint>
           <PointerOnly $pointer="mouse">

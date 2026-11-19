@@ -73,6 +73,10 @@ export const createStage = async (
   app.stage.filterArea = app.screen;
 
   const viewport = () => ({ x: app.screen.width, y: app.screen.height });
+  // Pixi's resizeTo only listens to the window; a browser bar sliding away
+  // or fullscreen kicking in can resize the element without telling it.
+  const resizes = new ResizeObserver(() => app.resize());
+  resizes.observe(element);
 
   return {
     viewport,
@@ -98,6 +102,9 @@ export const createStage = async (
       });
       rave.set(frame);
     },
-    destroy: () => app.destroy(true, { children: true }),
+    destroy: () => {
+      resizes.disconnect();
+      app.destroy(true, { children: true });
+    },
   };
 };
