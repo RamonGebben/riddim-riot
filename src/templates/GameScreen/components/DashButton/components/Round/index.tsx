@@ -41,8 +41,6 @@ export const Round = styled.button<{ $ready: boolean }>`
   text-transform: uppercase;
   cursor: pointer;
   touch-action: none;
-  user-select: none;
-  -webkit-touch-callout: none;
 
   & > * {
     position: relative;

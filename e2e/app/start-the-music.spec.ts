@@ -29,7 +29,18 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
   await page.waitForTimeout(2500);
   await page.mouse.up();
 
+  // Nothing on the game screen selects: not the HUD, nor a drag across it.
+  await page.getByLabel('Score').dblclick();
+  await page.mouse.move(20, 20);
+  await page.mouse.down();
+  await page.mouse.move(1200, 700, { steps: 5 });
+  await page.mouse.up();
+  expect(await page.evaluate(() => String(window.getSelection()))).toBe('');
+
   await page.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
+  await page.getByRole('heading', { name: 'Paused' }).dblclick();
+  expect(await page.evaluate(() => String(window.getSelection()))).toBe('');
   await page.getByRole('button', { name: 'Quit' }).click();
   await expect(
     page.getByRole('button', { name: 'Press to start' }),

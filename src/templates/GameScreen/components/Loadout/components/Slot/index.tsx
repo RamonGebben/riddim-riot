@@ -36,8 +36,6 @@ export const Slot = styled.button<{ $active: boolean }>`
   cursor: pointer;
   pointer-events: auto;
   touch-action: none;
-  user-select: none;
-  -webkit-touch-callout: none;
   transition:
     transform 0.08s,
     border-color 0.08s;
