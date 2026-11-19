@@ -5,6 +5,7 @@ import { hudOf, sameHud, type HudView } from '../hud';
 import { nextGridTime, STEPS_PER_BEAT } from '../grid';
 import {
   attachControls,
+  attachTouchControls,
   attachTrigger,
   attachWeaponKeys,
   type TriggerHandlers,
@@ -24,6 +25,7 @@ import { createRng, deriveSeed } from '../rng';
 import type { Level } from '../level';
 import { sectionFor, songPosition, type Section } from '../sim/survival';
 import { nearestPickup } from '../sim/loot';
+import { add, scale } from '../vec';
 import { weaponFrom, type WeaponRecipe } from '../weapons';
 import {
   createWorld,
@@ -78,6 +80,8 @@ const KILL_SHAKE_PIXELS = 5;
 const DROP_SHAKE_PIXELS = 14;
 /** A dropped frame or a background tab shouldn't teleport the player. */
 const MAX_FRAME_SECONDS = 1 / 20;
+/** How far ahead of the player a touch stick's aim points. */
+const STICK_AIM_PIXELS = 200;
 /** Keeps enemy spawns their own random stream, apart from the drums'. */
 const SPAWN_STREAM = 1;
 
@@ -88,6 +92,12 @@ const SPAWN_STREAM = 1;
  * enemies hop on beat ticks, waves spawn on bar ticks, and each kill's
  * impact is scheduled on the next 1/16 slot.
  */
+export interface Play {
+  /** Take the weapon underfoot - F, or the touch screen's button. */
+  takeWeapon: () => void;
+  detach: () => void;
+}
+
 export const startPlay = async ({
   element,
   level,
@@ -98,6 +108,7 @@ export const startPlay = async ({
   trigger,
   onHud,
   onWeaponAction,
+  isPaused,
   swapWeapon,
   pulses,
   sounds,
@@ -116,6 +127,8 @@ export const startPlay = async ({
   /** Called with the HUD whenever it changes. */
   onHud: (hud: HudView) => void;
   onWeaponAction: (action: WeaponAction) => void;
+  /** Paused: the stage holds its last frame. */
+  isPaused: () => boolean;
   /** Swap a weapon into the active slot; resolves with the one it replaced. */
   swapWeapon: (recipe: WeaponRecipe) => Promise<WeaponRecipe>;
   pulses: Pulses;
@@ -125,7 +138,7 @@ export const startPlay = async ({
   audioNow: () => number;
   /** What's coming out of the speakers: draw and simulate at this. */
   heardNow: () => number;
-}): Promise<() => void> => {
+}): Promise<Play> => {
   const stage = await createStage(element, level);
   const controls = attachControls(element);
   const detachTrigger = attachTrigger(element, trigger);
@@ -140,6 +153,7 @@ export const startPlay = async ({
   const detachWeaponKeys = attachWeaponKeys(element, action =>
     action.type === 'pickup' ? takeWeapon() : onWeaponAction(action),
   );
+  const touch = attachTouchControls(element, { trigger, onWeaponAction });
 
   let world = createWorld(level, rules, carry);
   let camera = world.player.position;
@@ -217,6 +231,7 @@ export const startPlay = async ({
       : now + stepSeconds;
 
   stage.onFrame(elapsed => {
+    if (isPaused()) return;
     const dt = Math.min(elapsed, MAX_FRAME_SECONDS);
     const now = heardNow();
     // The beat being heard, from the last tick (which runs ahead of it).
@@ -226,9 +241,13 @@ export const startPlay = async ({
             STEPS_PER_BEAT,
         )
       : 0;
-    const aimAt = screenToWorld(controls.pointer(), camera, stage.viewport());
+    const stickAim = touch.active() ? touch.aim() : null;
+    const aimAt = stickAim
+      ? add(world.player.position, scale(stickAim, STICK_AIM_PIXELS))
+      : screenToWorld(controls.pointer(), camera, stage.viewport());
+    const move = touch.active() ? touch.move() : controls.move();
     const result = stepWorld(world, {
-      input: { move: controls.move(), aimAt },
+      input: { move, aimAt },
       dt,
       now,
       beat,
@@ -304,11 +323,15 @@ export const startPlay = async ({
     });
   });
 
-  return () => {
-    unsubscribe.forEach(off => off());
-    detachTrigger();
-    detachWeaponKeys();
-    controls.detach();
-    stage.destroy();
+  return {
+    takeWeapon,
+    detach: () => {
+      unsubscribe.forEach(off => off());
+      detachTrigger();
+      detachWeaponKeys();
+      touch.detach();
+      controls.detach();
+      stage.destroy();
+    },
   };
 };

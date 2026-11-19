@@ -10,7 +10,7 @@ export interface Player {
 }
 
 export interface PlayerInput {
-  /** Unit-length (or zero) move direction. */
+  /** Move direction, at most unit length (a touch stick short of its rim is slower). */
   move: Vec;
   /** The world point the cursor is over. */
   aimAt: Vec;

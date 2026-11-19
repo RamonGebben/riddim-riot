@@ -25,6 +25,7 @@ export const attachControls = (element: HTMLElement): Controls => {
   const onKeyUp = (event: KeyboardEvent) => held.delete(event.code);
   const onBlur = () => held.clear();
   const onPointerMove = (event: PointerEvent) => {
+    if (event.pointerType === 'touch') return;
     const rect = element.getBoundingClientRect();
     pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };

@@ -1,4 +1,4 @@
-import { getDestination, immediate, Meter, now, start } from 'tone';
+import { getDestination, immediate, Meter, now } from 'tone';
 import {
   createArrangement,
   createBlastSound,
@@ -17,6 +17,7 @@ import {
   type ReloadSound,
   type ScoreSound,
   type WeaponVoice,
+  startAudio,
 } from '../../audio';
 import { createBus } from '../../bus';
 import { createClock, type ClockEvents, type Tick } from '../../clock';
@@ -77,7 +78,7 @@ export const createPlayground = async ({
   design: SoundDesign;
   key: Key;
 }): Promise<Playground> => {
-  await start();
+  await startAudio();
 
   const stepSeconds = secondsPerStep(BPM);
   const beatSeconds = stepSeconds * STEPS_PER_BEAT;

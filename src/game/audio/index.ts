@@ -4,5 +4,6 @@ export * from './voices';
 export * from './gate';
 export * from './loudness';
 export * from './heardTime';
+export * from './nativeContext';
 export * from './arrangement';
 export * from './saturate';

@@ -6,13 +6,18 @@
  * they land with the sound.
  *
  * `timestamp` is `AudioContext.getOutputTimestamp()`; `wallNow` is
- * `performance.now()`. Falls back while the browser has no timestamp yet.
+ * `performance.now()`; `audioNow` is where the audio thread is. Falls back
+ * to it while the browser has no timestamp yet, and never runs past it: a
+ * timestamp left over from before a pause would otherwise project the
+ * whole pause forward.
  */
 export const heardTime = (
   timestamp: AudioTimestamp | undefined,
   wallNow: number,
-  fallback: number,
+  audioNow: number,
 ): number => {
-  if (!timestamp?.contextTime || !timestamp.performanceTime) return fallback;
-  return timestamp.contextTime + (wallNow - timestamp.performanceTime) / 1000;
+  if (!timestamp?.contextTime || !timestamp.performanceTime) return audioNow;
+  const projected =
+    timestamp.contextTime + (wallNow - timestamp.performanceTime) / 1000;
+  return Math.min(projected, audioNow);
 };
