@@ -12,7 +12,11 @@ levels, intensity-driven music, weapon loot, a second enemy and combo
 scoring. Since then: the sound playground, layered sound (sub, reese,
 growl, sidechain, pad bed), a continuous beam weapon, Crush blasts for
 crowd control, and arena levels started at a circle and played as a song,
-ending in a boss, with healing hearts. All five of the brief's "done when"
+ending in a boss, with healing hearts. Since then: a five-level run arc
+ending in a final boss and a victory screen, a boss with attack phases,
+explosive slow weapons and a 1/2 rate, a loot magnet and bonus hearts,
+weapon icons shared by the HUD and the drops, a HUD that shows every
+magazine, and a heavier drum kit. All five of the brief's "done when"
 checks passed (measured before the arenas; re-measure frame rate on one):
 
 | Check                                                     | Result                                                                                         |
@@ -84,7 +88,8 @@ React follows mise's atomic layout; the game lives outside it in
 
 ```
 src/
-  app/                React root: start ↔ game screen, owns the run and the Game
+  app/                React root: start ↔ game ↔ level card, owns the run
+                      and the Game
   atoms/ templates/   presentational UI (Button, StartScreen, GameScreen: HUD,
                       loadout, prompt, overlays)
   providers/ theme/   design-system theme, forced dark
@@ -101,16 +106,17 @@ src/
     rng/              mulberry32 + deriveSeed for independent streams
     music/            keys, scales, degree → MIDI, rollKey
     palette/          the four 6-colour level palettes
+    icons/            SVG path data for the HUD and the stage
     level/            arena generator, tilemap, BFS distance field
     weapons/          parts pool, rollWeapon, recipes, spread, weapon types
     loadout/          3 slots: switching, holstering, swapping in loot
     hud/              HudView: what React shows, published on change only
     sim/              pure simulation: trigger, weaponSlot, player, enemy,
                       projectile, beam, splash, combat, collision,
-                      survival, loot, combo, world
+                      survival, loot, combo, boss, world
     input/            keyboard/mouse: move vector, trigger, weapon keys;
                       touch: floating stick (turn inside the inner rim,
-                      move past it), right-half fire and swipe switching
+                      move past it) and right-half fire
     audio/            drums, music bus, arrangement, weapon/reload/impact
                       voices, gate, loudness measurement, heardTime
     render/           Pixi stage, views, camera, rave shader, pulses
@@ -126,6 +132,14 @@ number, health, kills, score and the loadout as weapon _recipes_ (a seed and
 an optional pinned engine). Level 1 plays the run seed; later levels get
 `deriveSeed(seed, 20, level)` for a fresh layout, key and palette. Recipes
 are re-rolled in each level's key, so a loadout transposes for free.
+
+A run is `RUN_LEVELS` (5) levels. Clearing one shows its stats for a
+moment, then the next starts by itself behind a level card (no click: the
+AudioContext is already running, and only a fresh run asks to go
+fullscreen); clearing the last wins the run. The best score is kept in
+`localStorage` (`utils/bestScore`), read before each run so its end can say
+"New best!". Seed, key and BPM no longer sit in the HUD: the seed shows on
+the pause and end screens, to share.
 
 `startGame({ run })` plays one level. It opens quiet: only the pad bed
 plays (no drums) and weapons fire on its pulse, until the player steps
@@ -144,8 +158,12 @@ the only mutable reference:
   (`level/field`, a BFS from the player's tile), nearest first, never onto an
   occupied tile, so queues flow round cover. Chargers line up on beat 3
   (the snare) when within 8 tiles, showing a tell, and dash 4 tiles on the
-  next downbeat; otherwise they walk on beat 2. The boss steps on beats 1
-  and 3 only.
+  next downbeat; otherwise they walk on beat 2. The boss fights in three
+  phases by health (`sim/boss`): it winds up on the beat before and fires a
+  ring of orbs on the snare, every other bar, then every bar with hoppers
+  called in every 4 bars, then on beats 1 and 3 while walking every beat.
+  Each ring turns half a gap, and an orb's position is pure in time like a
+  hop. The final level's boss has 1.5× health.
 - `onBar(world, { bar, time, rng, telegraphSeconds, view })`: advances the level
   (`sim/survival`). It waits until the player steps into the circle; the
   next bar line starts a one-bar charge (riser, filling ring) and the bar
@@ -169,8 +187,12 @@ the only mutable reference:
   their ray (`sim/beam`), then hits, Crush blasts (`sim/splash`) and
   contacts resolve.
   Kills score into the combo, may drop loot, and hits cost one of 5 HP (then
-  0.6 s of invulnerability). Walking over a heart heals one, only below full
-  health. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
+  0.6 s of invulnerability). Walking over a heart heals one; at full health
+  it stacks a bonus heart on top (up to 3, `BONUS_HEARTS`), lost first and
+  carried between levels, so saving health pays off. Loot within 170 px
+  drifts in (`sim/loot` `attractLoot`): hearts while there's room to heal,
+  and only the nearest weapon, never one the player just put down, so drops
+  don't pile up underfoot. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
   it's `cleared`. Either way it freezes.
 
 `WaveRules` (from `rulesFor({ level, stress })`) set the song, boss HP
@@ -198,7 +220,8 @@ pure function of the clock and lands exactly on the beat.
   together. Manufacturer (Vandal/Lumen: damage and speed, saw or square),
   oscillator (wobble blob, laser bolt, or beam), LFO rate (1/4, 1/8, 1/16:
   the fire rhythm; the magazine is always one bar and damage per bar is
-  balanced), filter (cutoff → range, resonance → tighter spread) and an
+  balanced; 1/2 is a rarer roll), filter (cutoff → range, resonance →
+  tighter spread) and an
   optional FX (Crush: +10% damage and a blast on every hit; Echo: an extra
   half-damage shot 1/8 later). Every weapon plays a 4-note riff in the
   level's key, one note per shot.
@@ -208,6 +231,9 @@ pure function of the clock and lands exactly on the beat.
   sound (vent, rising whine, ready ping); resting cools a charge back every
   2 steps. Its voice opens on the first tick and stays held, gliding through
   the riff a note per beat.
+- **Slow weapons blast**: 1/4 and 1/2 shots are bigger and burst on a hit,
+  at the end of their range or on a wall (`detonates`): 96 px at 70% of the
+  shot's damage for 1/4, 150 px at 80% for 1/2, grown by Crush on top.
 - **Crush blasts** (`sim/splash`): a crushed shot bursts where it hits:
   everything within 64-128 px (wider with more drive) takes 60% of the
   shot's damage and is shoved 44 px away, which also breaks a charger's
@@ -248,7 +274,11 @@ voice a scale degree higher per combo step, an octave by ×8.
   instead of 4.1 s in Firefox and 1.0 s instead of 3.3 s in WebKit (M-series
   Mac). Sweep LFOs start with the Transport, or mid-level in phase with it
   (loot), and read their rate then: BPM must be set before the start.
-- **Drums**: per-bar patterns generated from the seed (kick on 1 and snare on 3
+- **Drums**: the kit runs into a soft-clipper and a glue compressor; the
+  kick (with a triangle "knock" an octave up for small speakers) and the
+  snare are each driven too. Measured offline against the old kit: +3 dB
+  RMS overall at the same peak headroom (−10 dB), the kick +2.7 dB with
+  about half the crest factor, the snare +7 dB. Per-bar patterns generated from the seed (kick on 1 and snare on 3
   always, ghost kicks, hat shuffle, a snare roll every 4 bars), with the kick
   tuned to the level's root. The kick has a beater click and a sub tail on
   its own oscillator; the snare a three-strike clap.
@@ -311,6 +341,18 @@ the player spawns 4 tiles below it. The seed also picks the style, key and
 palette, each from its own `deriveSeed` stream so changing one never
 reshuffles another.
 
+### HUD and icons
+
+`game/icons` holds every icon as SVG path data on a 24-unit grid: the
+`Icon` atom draws it as `<svg>`, `render/icon` as Pixi paths, so the HUD and
+the drops show the same wobble, laser, beam, Crush, Echo, blast and heart.
+The loadout view carries each slot's ammo and refill (published when a
+magazine changes, not per frame); a refill's sweep is a CSS animation
+lasting its seconds. Each slot is a button: held, it switches to that
+weapon and fires it (`Game.fireSlot`), which is how a touch screen
+switches. Swiping is gone. A weapon on the ground has a floating label of
+its engine, beat, blast and FX, fading in as the player nears.
+
 ### Rendering
 
 Pixi v8 on WebGL: a static level view with the circle (breathing and
@@ -368,11 +410,13 @@ playground.
 Gameplay ideas still open:
 
 - Balance pass from real play: HP, wave sizes, charger range, drop rates.
-- A level-transition that keeps the music running instead of an overlay.
-- A run-end goal (a final level) and a high score.
-- The boss is a big hopper for now: give it attacks or phases of its own.
+- A level transition that keeps the music running: the next level still
+  rebuilds the audio graph, so the outro is muffled and cut behind the
+  level card.
+- Hades-style unlocks between runs, shops or chests.
 
 Known gaps: holstered weapons refill silently (the brief wants a quiet fill
 layer), no active reload, manufacturers only pick saw or square (no FM or
-wavetable engines yet), BPM is fixed at 140, and the boss and the exit are
-only covered by unit tests: reaching them takes the whole ~4-minute song.
+wavetable engines yet), BPM is fixed at 140, and the boss (its phases and orbs), the
+exit, the level transition and the victory screen are only covered by unit
+and story tests: reaching them takes the whole ~4-minute song.

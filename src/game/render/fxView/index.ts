@@ -1,5 +1,6 @@
 import { Graphics } from 'pixi.js';
 import type { Beam } from '../../sim/beam';
+import { hostilePosition, type Hostile } from '../../sim/boss';
 import { PLAYER_RADIUS, type Player } from '../../sim/player';
 import type { Projectile } from '../../sim/projectile';
 import { add, normalize, scale, type Vec } from '../../vec';
@@ -14,6 +15,8 @@ export interface Burst {
 }
 
 export const BURST_SECONDS = 0.35;
+/** The boss's orbs, the same warm red on every palette. */
+const HOSTILE_COLOR = 0xff5a36;
 /** The barrel, out from the player's centre - where a beam starts. */
 const BEAM_OFFSET = PLAYER_RADIUS * 1.9;
 
@@ -30,20 +33,41 @@ export const createFxView = (palette: Palette) => {
     update: ({
       projectiles,
       beams,
+      hostiles,
       player,
       bursts,
       now,
       shot,
+      beat,
     }: {
       projectiles: Array<Projectile>;
       beams: Array<Beam>;
+      /** The boss's orbs. */
+      hostiles: Array<Hostile>;
       player: Player;
       bursts: Array<Burst>;
       now: number;
       /** The shot pulse, 0-1: the beam swells on each tick. */
       shot: number;
+      /** The beat pulse, 0-1: orbs throb with it. */
+      beat: number;
     }) => {
       view.clear();
+      // Hot, ringed and throbbing, so they read as danger on any palette.
+      hostiles
+        .filter(hostile => now >= hostile.firedAt)
+        .forEach(hostile => {
+          const { x, y } = hostilePosition(hostile, now);
+          const r = hostile.radius * (1 + beat * 0.25);
+          view
+            .circle(x, y, r * 1.9)
+            .fill({ color: HOSTILE_COLOR, alpha: 0.22 })
+            .circle(x, y, r)
+            .fill(HOSTILE_COLOR)
+            .stroke({ width: 2, color: 0xffffff })
+            .circle(x, y, r * 0.4)
+            .fill(0xffffff);
+        });
       // Only the latest tick: older ones are the same beam a moment ago.
       beams.slice(-1).forEach(beam => {
         const heading = player.aim + beam.angle;
@@ -84,6 +108,13 @@ export const createFxView = (palette: Palette) => {
           .fill({ color: palette.player, alpha: 0.25 })
           .circle(position.x, position.y, radius)
           .fill(0xffffff);
+        // A slow shot's fuse: a ring spinning round its core.
+        if (projectile.detonates) {
+          const spin = now * 12;
+          view
+            .arc(position.x, position.y, radius * 1.5, spin, spin + Math.PI)
+            .stroke({ width: 3, color: palette.accent });
+        }
       });
       bursts
         .filter(burst => now >= burst.time)

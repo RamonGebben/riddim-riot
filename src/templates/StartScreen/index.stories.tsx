@@ -5,9 +5,9 @@ import { StartScreen } from '.';
 const meta = {
   component: StartScreen,
   args: {
-    seed: 42,
     musicalKey: 'F minor',
     bpm: 140,
+    best: 0,
     isStarting: false,
     step: null,
     error: null,
@@ -25,6 +25,13 @@ export const Idle: Story = {
       canvas.getByRole('button', { name: 'Press to start' }),
     );
     await expect(args.onStart).toHaveBeenCalled();
+  },
+};
+
+export const WithABest: Story = {
+  args: { best: 12_300 },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/best 12,300/)).toBeVisible();
   },
 };
 

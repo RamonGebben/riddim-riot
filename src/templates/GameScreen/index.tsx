@@ -1,36 +1,37 @@
 import type { Ref } from 'react';
-import { Button } from '~/atoms/Button';
+import { Icon } from '~/atoms/Icon';
+import { PAUSE_ICON } from '~/game/icons';
 import { Combo } from './components/Combo';
 import { Health } from './components/Health';
-import { HudActions } from './components/HudActions';
 import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
+import { HudActions } from './components/HudActions';
+import { HudPanel } from './components/HudPanel';
+import { IconButton } from './components/IconButton';
+import { LevelBadge } from './components/LevelBadge';
 import { Loadout, type LoadoutProps } from './components/Loadout';
 import { LockPage } from './components/LockPage';
 import { Overlay } from './components/Overlay';
 import { PointerOnly } from './components/PointerOnly';
 import { Prompt } from './components/Prompt';
 import { RotateNotice } from './components/RotateNotice';
+import { Score } from './components/Score';
+import { SongTrack } from './components/SongTrack';
 import { Surface } from './components/Surface';
 import { TakeButton } from './components/TakeButton';
+import { WeaponTag } from './components/WeaponTag';
+import type { LevelPhase, SongPart, WeaponFace } from './types';
 
-/** Where a level is, from waiting at the circle to its exit open. */
-export type LevelPhase = 'waiting' | 'charging' | 'song' | 'clear';
-
-export type SongPart =
-  | 'intro'
-  | 'breakdown'
-  | 'buildup'
-  | 'drop1'
-  | 'drop2'
-  | 'bridge'
-  | 'drop3'
-  | 'outro';
+export type { LevelPhase, SongPart, WeaponFace } from './types';
+export type { LoadoutProps, SlotProps } from './components/Loadout';
 
 export interface RunProps {
   status: 'playing' | 'dead' | 'cleared';
   level: number;
+  /** Levels in a run; clearing the last wins it. */
+  levels: number;
   hp: number;
+  /** Health a run starts with; anything past it is bonus hearts. */
   maxHp: number;
   kills: number;
   score: number;
@@ -41,19 +42,23 @@ export interface RunProps {
   part: SongPart | null;
   /** Seconds left in the part. */
   secondsLeft: number | null;
-  /** The boss is up. */
-  boss: boolean;
+  song: Array<{ part: SongPart; bars: number }>;
+  /** Bars into the song, once it's started. */
+  songBar: number | null;
+  /** The boss's health, 0-1, while it's up. */
+  boss: number | null;
   /** The weapon the player is standing on, if any. */
-  pickup: string | null;
+  pickup: WeaponFace | null;
 }
 
 export interface GameScreenProps {
   seed: number;
   /** The level's key, e.g. "F minor". */
   musicalKey: string;
-  bpm: number;
   run: RunProps;
   loadout: LoadoutProps;
+  /** The best score on this device, before this run. */
+  best: number;
   /** Frozen mid-level, waiting for Resume. */
   paused: boolean;
   /** The browser is holding the sound back, so the game waits for it. */
@@ -72,6 +77,9 @@ export interface GameScreenProps {
   onNextLevel: () => void;
   /** Take the weapon underfoot: the touch screen's button for F. */
   onTakeWeapon: () => void;
+  /** A slot button held: switch to it and fire; let go to stop. */
+  onFireSlot: (slot: number) => void;
+  onReleaseSlot: (slot: number) => void;
 }
 
 const CIRCLE_PROMPTS = {
@@ -100,15 +108,23 @@ const phaseLabel = ({ phase, part, secondsLeft, boss }: RunProps) => {
   if (phase === 'charging') return 'charging';
   if (phase === 'clear') return 'exit open';
   const label = `${part ? PART_NAMES[part] : ''} ${clock(secondsLeft ?? 0)}`;
-  return boss ? `${label} · boss` : label;
+  return boss === null ? label : `${label} · boss`;
 };
+
+const points = (score: number) => `${score.toLocaleString('en')} points`;
+
+/** The score, and whether it beat the device's best. */
+const scoreLines = (score: number, best: number) =>
+  score > best && score > 0
+    ? [points(score), 'New best!']
+    : [points(score), `Best ${best.toLocaleString('en')}`];
 
 export const GameScreen = ({
   seed,
   musicalKey,
-  bpm,
   run,
   loadout,
+  best,
   paused,
   soundBlocked,
   surfaceRef,
@@ -120,52 +136,77 @@ export const GameScreen = ({
   onNewRun,
   onNextLevel,
   onTakeWeapon,
+  onFireSlot,
+  onReleaseSlot,
 }: GameScreenProps) => {
+  const holding = loadout.slots[loadout.active];
   const prompt = run.pickup ? (
     <PointerOnly $pointer="mouse">
-      <kbd>F</kbd> take {run.pickup}
+      <kbd>F</kbd> take <WeaponTag {...run.pickup} />
+      {holding && (
+        <>
+          {' '}
+          for your <WeaponTag {...holding} />
+        </>
+      )}
     </PointerOnly>
   ) : (
     CIRCLE_PROMPTS[run.phase]
   );
   const playing = run.status === 'playing' && !paused;
+  const won = run.status === 'cleared' && run.level >= run.levels;
   return (
     <>
       <LockPage />
       <Surface ref={surfaceRef} aria-label="Play area">
-        <Hint>
-          <PointerOnly $pointer="mouse">
-            WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · F take
-            weapon
-          </PointerOnly>
-          <PointerOnly $pointer="touch">
-            left: aim, push further to move · right: tap or hold to fire, swipe
-            to switch
-          </PointerOnly>
-        </Hint>
+        {run.phase === 'waiting' && (
+          <Hint>
+            <PointerOnly $pointer="mouse">
+              WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · F take
+              weapon
+            </PointerOnly>
+            <PointerOnly $pointer="touch">
+              left: aim, push further to move · right: tap or hold to fire ·
+              hold a weapon to fire it
+            </PointerOnly>
+          </Hint>
+        )}
       </Surface>
       {prompt && playing && <Prompt>{prompt}</Prompt>}
       {run.pickup && playing && (
-        <TakeButton onClick={onTakeWeapon}>Take {run.pickup}</TakeButton>
+        <TakeButton onClick={onTakeWeapon}>
+          Take <WeaponTag {...run.pickup} />
+        </TakeButton>
       )}
-      <Loadout {...loadout} />
+      <Loadout
+        {...loadout}
+        paused={!playing}
+        onFire={onFireSlot}
+        onRelease={onReleaseSlot}
+      />
       <Hud>
-        <span>
-          seed {seed} · level {run.level} · {musicalKey} · {bpm} BPM
-        </span>
-        <span>
-          <Health hp={run.hp} maxHp={run.maxHp} /> · {run.kills} kills ·{' '}
-          {run.score.toLocaleString('en')} pts ·{' '}
-          {run.combo >= 2 && (
-            <>
-              <Combo>×{run.combo}</Combo> ·{' '}
-            </>
-          )}
-          {phaseLabel(run)}
-        </span>
+        <HudPanel>
+          <Health hp={run.hp} maxHp={run.maxHp} />
+          <LevelBadge>
+            {run.level}/{run.levels}
+          </LevelBadge>
+        </HudPanel>
+        <SongTrack
+          label={phaseLabel(run)}
+          song={run.song}
+          songBar={run.songBar}
+          boss={run.boss}
+        />
         <HudActions>
-          {playing && <Button onClick={onPause}>Pause</Button>}
-          <Button onClick={onStop}>Stop</Button>
+          <HudPanel>
+            {run.combo >= 2 && <Combo key={run.combo}>×{run.combo}</Combo>}
+            <Score aria-label="Score">{run.score.toLocaleString('en')}</Score>
+          </HudPanel>
+          {playing && (
+            <IconButton aria-label="Pause" onClick={onPause}>
+              <Icon icon={PAUSE_ICON} />
+            </IconButton>
+          )}
         </HudActions>
       </Hud>
       {soundBlocked && !paused && run.status === 'playing' && (
@@ -185,10 +226,11 @@ export const GameScreen = ({
         <Overlay
           heading="Paused"
           stats={[
-            `Level ${run.level}`,
+            `Level ${run.level} of ${run.levels} · ${musicalKey}`,
             `${run.kills} kills`,
-            `${run.score.toLocaleString('en')} points`,
+            points(run.score),
           ]}
+          note={`seed ${seed}`}
           actions={[
             { label: 'Resume', onClick: onResume },
             { label: 'Quit', onClick: onStop },
@@ -199,10 +241,11 @@ export const GameScreen = ({
         <Overlay
           heading="Run over"
           stats={[
-            `Level ${run.level}`,
+            `Level ${run.level} of ${run.levels}`,
             `${run.kills} kills`,
-            `${run.score.toLocaleString('en')} points`,
+            ...scoreLines(run.score, best),
           ]}
+          note={`seed ${seed}`}
           actions={[
             { label: 'Try again', onClick: onRetry },
             { label: 'New run', onClick: onNewRun },
@@ -210,14 +253,27 @@ export const GameScreen = ({
         />
       )}
       <RotateNotice>Turn your phone sideways to play</RotateNotice>
-      {run.status === 'cleared' && (
+      {run.status === 'cleared' && !won && (
         <Overlay
           heading={`Level ${run.level} cleared`}
-          stats={[
-            `${run.kills} kills`,
-            `${run.score.toLocaleString('en')} points`,
-          ]}
+          stats={[`${run.kills} kills`, points(run.score)]}
+          note={`Level ${run.level + 1} of ${run.levels} is coming up`}
           actions={[{ label: 'Next level', onClick: onNextLevel }]}
+        />
+      )}
+      {won && (
+        <Overlay
+          heading="Run complete"
+          stats={[
+            `All ${run.levels} levels`,
+            `${run.kills} kills`,
+            ...scoreLines(run.score, best),
+          ]}
+          note={`seed ${seed}`}
+          actions={[
+            { label: 'New run', onClick: onNewRun },
+            { label: 'Play this seed again', onClick: onRetry },
+          ]}
         />
       )}
     </>

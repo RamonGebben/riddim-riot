@@ -158,6 +158,10 @@ export interface PartsSound {
 
 export interface DrumsPatch {
   level: number;
+  /** Soft-clips the whole kit (0 bypasses), then a compressor glues it. */
+  drive: number;
+  glueThreshold: number;
+  glueRatio: number;
   kick: {
     pitchMultiple: number;
     pitchSeconds: number;
@@ -170,6 +174,11 @@ export interface DrumsPatch {
     /** A clean sine tail under the punch. */
     subDecay: number;
     subLevel: number;
+    /** A triangle an octave up: the knock that carries on small speakers. */
+    knockDecay: number;
+    knockLevel: number;
+    /** Soft-clips the punch, sub and knock together; 0 bypasses it. */
+    drive: number;
   };
   snare: {
     noiseHz: number;
@@ -184,6 +193,8 @@ export interface DrumsPatch {
     clapHz: number;
     clapDecay: number;
     clapLevel: number;
+    /** Soft-clips the snare before its room; 0 bypasses it. */
+    drive: number;
   };
   hat: { hz: number; decay: number; level: number };
   openHat: { hz: number; decay: number; level: number };
@@ -390,7 +401,10 @@ export const BASE_DESIGN: SoundDesign = {
     echo: { feedback: [0.2, 0.4], wet: [0.25, 0.4] },
   },
   drums: {
-    level: -4,
+    level: -14,
+    drive: 0.12,
+    glueThreshold: -16,
+    glueRatio: 3,
     kick: {
       pitchMultiple: 5,
       pitchSeconds: 0.045,
@@ -398,22 +412,26 @@ export const BASE_DESIGN: SoundDesign = {
       level: 0,
       clickHz: 3500,
       clickDecay: 0.008,
-      clickLevel: -12,
-      subDecay: 0.7,
-      subLevel: -8,
+      clickLevel: -10,
+      subDecay: 0.8,
+      subLevel: -5,
+      knockDecay: 0.07,
+      knockLevel: -9,
+      drive: 0.25,
     },
     snare: {
       noiseHz: 1800,
-      noiseDecay: 0.2,
-      noiseLevel: -6,
-      bodyHz: 147,
-      bodyDecay: 0.12,
-      bodyLevel: -10,
+      noiseDecay: 0.24,
+      noiseLevel: -5,
+      bodyHz: 185,
+      bodyDecay: 0.14,
+      bodyLevel: -5,
       roomDecay: 1.4,
       roomWet: 0.22,
       clapHz: 1300,
-      clapDecay: 0.09,
-      clapLevel: -8,
+      clapDecay: 0.1,
+      clapLevel: -6,
+      drive: 0.2,
     },
     hat: { hz: 7500, decay: 0.04, level: -14 },
     openHat: { hz: 6000, decay: 0.3, level: -19 },

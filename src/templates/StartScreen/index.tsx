@@ -6,10 +6,11 @@ import { Status } from './components/Status';
 import { Title } from './components/Title';
 
 export interface StartScreenProps {
-  seed: number;
   /** The level's key, e.g. "F minor". */
   musicalKey: string;
   bpm: number;
+  /** The best score on this device; 0 hides it. */
+  best: number;
   /** Audio is starting up; the button waits for it. */
   isStarting: boolean;
   /** Where starting has got to, shown while it runs. */
@@ -28,9 +29,9 @@ const STEP_LABELS = {
 } satisfies Record<StartStep, string>;
 
 export const StartScreen = ({
-  seed,
   musicalKey,
   bpm,
+  best,
   isStarting,
   step,
   error,
@@ -41,7 +42,8 @@ export const StartScreen = ({
       <Title>Bass Weapons</Title>
       <Lead>Your build is the song. Turn your sound on.</Lead>
       <Meta>
-        seed {seed} · {musicalKey} · {bpm} BPM halftime
+        {musicalKey} · {bpm} BPM halftime
+        {best > 0 && <> · best {best.toLocaleString('en')}</>}
       </Meta>
       <Button onClick={onStart} disabled={isStarting}>
         Press to start

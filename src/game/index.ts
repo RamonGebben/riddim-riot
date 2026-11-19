@@ -38,6 +38,7 @@ import { spreadAngle, weaponFrom, type WeaponRecipe } from './weapons';
 export type { HudView } from './hud';
 export { levelSeed, newRun, type RunState } from './run';
 export type { LoadoutView } from './loadout';
+export { RUN_LEVELS } from './sim/world';
 
 /** Fixed for the PoC; the level seed picks it later. */
 export const BPM = 140;
@@ -64,6 +65,13 @@ export interface Game {
   attach: (element: HTMLElement) => () => void;
   /** Take the weapon the player is standing on, for touch screens. */
   takeWeapon: () => void;
+  /**
+   * Switch to a slot and hold its trigger - a touch screen's slot button,
+   * so every weapon is a press away. `releaseSlot` lets go, unless another
+   * slot has been pressed since.
+   */
+  fireSlot: (slot: number) => void;
+  releaseSlot: (slot: number) => void;
   /** Freeze the whole game: music, clock, enemies and input. */
   pause: () => void;
   /** Must be called from a user gesture, like `startGame`. */
@@ -215,6 +223,7 @@ export const startGame = async ({
     active: run.active,
     arm,
     now: immediate,
+    stepSeconds,
     onChange: view => listeners.forEach(listener => listener(view)),
   });
 
@@ -313,6 +322,7 @@ export const startGame = async ({
           charge: arrangement.charge,
           dropHit: arrangement.drop,
           heal: time => score.play(time, MAX_MULTIPLIER),
+          volley: blast.play,
           startDrums: tick => {
             // The slam's own tick has already gone by the drums: play it.
             if (!drumsIn) drums.onTick(tick);
@@ -333,6 +343,14 @@ export const startGame = async ({
     },
     takeWeapon: () => {
       if (!frozen()) takeWeapon();
+    },
+    fireSlot: slot => {
+      if (frozen() || hud.status !== 'playing') return;
+      loadout.act({ type: 'select', slot });
+      trigger.press();
+    },
+    releaseSlot: slot => {
+      if (loadout.active() === slot) trigger.release();
     },
     pause,
     resume,

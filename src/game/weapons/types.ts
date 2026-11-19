@@ -31,8 +31,13 @@ export interface ProjectileSpec {
   lifetime: number;
   /** Radians either side of the aim a shot may stray. */
   spread: number;
-  /** Crushed shots burst where they hit (see `Splash`). */
+  /** Crushed and slow shots burst where they hit (see `Splash`). */
   splash?: Splash;
+  /**
+   * Slow shots burst at the end of their range or on a wall too, not just
+   * on a hit: a 1/4 or 1/2 lobbed into a crowd always goes off.
+   */
+  detonates?: boolean;
 }
 
 /**
@@ -53,7 +58,7 @@ export interface Echo {
 
 export type OscillatorPart = 'wobble' | 'laser' | 'beam';
 export type ManufacturerPart = 'vandal' | 'lumen';
-export type LfoPart = '1/4' | '1/8' | '1/16';
+export type LfoPart = '1/2' | '1/4' | '1/8' | '1/16';
 export type FxPart = 'distortion' | 'echo';
 
 /** Everything a voice needs to sound the weapon, resolved into the key. */

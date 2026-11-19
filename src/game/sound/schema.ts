@@ -390,6 +390,20 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
     description: 'The synthesized kit. The kick is tuned to the level root.',
     fields: [
       num(['drums', 'level'], 'Kit level', [-40, 6, 0.5], 'dB'),
+      num(
+        ['drums', 'drive'],
+        'Kit drive',
+        [0, 1, 0.01],
+        undefined,
+        'Soft-clips the whole kit for weight; 0 bypasses it',
+      ),
+      num(
+        ['drums', 'glueThreshold'],
+        'Kit glue threshold',
+        [-40, 0, 0.5],
+        'dB',
+      ),
+      num(['drums', 'glueRatio'], 'Kit glue ratio', [1, 20, 0.1], '×'),
       num(['drums', 'kick', 'level'], 'Kick level', [-40, 12, 0.5], 'dB'),
       num(
         ['drums', 'kick', 'pitchMultiple'],
@@ -434,6 +448,33 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
         'Kick sub level',
         [-40, 12, 0.5],
         'dB',
+      ),
+      num(
+        ['drums', 'kick', 'knockDecay'],
+        'Kick knock decay',
+        [0.005, 0.5, 0.005],
+        's',
+        'A triangle an octave up, for punch on small speakers',
+      ),
+      num(
+        ['drums', 'kick', 'knockLevel'],
+        'Kick knock level',
+        [-40, 12, 0.5],
+        'dB',
+      ),
+      num(
+        ['drums', 'kick', 'drive'],
+        'Kick drive',
+        [0, 1, 0.01],
+        undefined,
+        'Soft-clips the punch, sub and knock together',
+      ),
+      num(
+        ['drums', 'snare', 'drive'],
+        'Snare drive',
+        [0, 1, 0.01],
+        undefined,
+        'Soft-clips the snare before its room',
       ),
       num(
         ['drums', 'snare', 'noiseHz'],

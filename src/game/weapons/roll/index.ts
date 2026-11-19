@@ -4,9 +4,11 @@ import { createRng, type Rng } from '../../rng';
 import { SOUND_DESIGN, type SoundDesign } from '../../sound';
 import {
   BEAM,
+  CRUSHED_BLAST_GROWTH,
   FX,
   FX_CHANCE,
   LFO_RATES,
+  LFO_WEIGHTS,
   MANUFACTURERS,
   OSCILLATORS,
   RELOAD_BEATS,
@@ -35,6 +37,20 @@ const between = (rng: Rng, [min, max]: [number, number]) =>
 const along = (value: number, [min, max]: [number, number]) =>
   max === min ? 0.5 : (value - min) / (max - min);
 
+/** One random number, landing on a rate by `LFO_WEIGHTS`. */
+const rollLfo = (rng: Rng): LfoPart => {
+  const total = LFO_WEIGHTS.reduce((sum, [, weight]) => sum + weight, 0);
+  const roll = rng.next() * total;
+  const { picked } = LFO_WEIGHTS.reduce<{ picked: LfoPart | null; at: number }>(
+    (acc, [lfo, weight]) =>
+      acc.picked || roll >= acc.at + weight
+        ? { ...acc, at: acc.at + weight }
+        : { picked: lfo, at: acc.at + weight },
+    { picked: null, at: 0 },
+  );
+  return picked ?? LFO_WEIGHTS[LFO_WEIGHTS.length - 1][0];
+};
+
 const rollRiff = (rng: Rng, degrees: Array<number>) => [
   0,
   ...Array.from({ length: RIFF_LENGTH - 1 }, () => rng.pick(degrees)),
@@ -59,7 +75,7 @@ export const rollWeapon = (
   const rng = createRng(seed);
   const rolledMaker = rng.pick<ManufacturerPart>(['vandal', 'lumen']);
   const rolledEngine = rng.pick<OscillatorPart>(['wobble', 'laser', 'beam']);
-  const rolledLfo = rng.pick<LfoPart>(['1/4', '1/8', '1/16']);
+  const rolledLfo = rollLfo(rng);
   const rolledFx: FxPart | null = rng.chance(FX_CHANCE)
     ? rng.pick<FxPart>(['distortion', 'echo'])
     : null;
@@ -101,13 +117,23 @@ export const rollWeapon = (
 
   // Beams tick too fast to burst; the drive only roughens their sound.
   const crushed = FX.distortion.splash;
-  const splash =
+  const crushRadius =
     fx === 'distortion' && !continuous
+      ? crushed.radius[0] +
+        (crushed.radius[1] - crushed.radius[0]) *
+          along(crush, sounds.crush.drive)
+      : null;
+  // A slow shot's own blast, grown by Crush; otherwise Crush's alone.
+  const slow = continuous ? null : rate.blast;
+  const splash = slow
+    ? {
+        radius: slow.radius + CRUSHED_BLAST_GROWTH * (crushRadius ?? 0),
+        damage: damage * (slow.share + (crushRadius ? crushed.share / 2 : 0)),
+        knockback: slow.knockback,
+      }
+    : crushRadius
       ? {
-          radius:
-            crushed.radius[0] +
-            (crushed.radius[1] - crushed.radius[0]) *
-              along(crush, sounds.crush.drive),
+          radius: crushRadius,
           damage: damage * crushed.share,
           knockback: crushed.knockback,
         }
@@ -142,11 +168,12 @@ export const rollWeapon = (
     projectile: {
       kind: engine.kind,
       speed: engine.speed * maker.speed,
-      radius: engine.radius,
+      radius: engine.radius * (continuous ? 1 : rate.size),
       damage,
       // Brighter filters reach further; more resonance focuses the shots.
       lifetime: engine.lifetime * (0.8 + 0.4 * along(cutoff, ranges.cutoff)),
       ...(splash ? { splash } : {}),
+      ...(slow ? { detonates: true } : {}),
       spread: continuous ? 0 : 0.12 * (1 - along(resonance, ranges.resonance)),
     },
     echo: delay ? { delayBeats: 0.5, damage: damage * 0.5 } : null,

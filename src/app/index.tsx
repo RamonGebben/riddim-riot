@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   describeLevel,
   newRun,
+  RUN_LEVELS,
   startGame,
   type Game,
   type HudView,
@@ -10,7 +11,9 @@ import {
   type StartStep,
 } from '~/game';
 import { GameScreen } from '~/templates/GameScreen';
+import { LevelCard } from '~/templates/LevelCard';
 import { StartScreen } from '~/templates/StartScreen';
+import { readBest, saveBest } from '~/utils/bestScore';
 import { getLatencyHint } from '~/utils/getLatencyHint';
 import { getSeed } from '~/utils/getSeed';
 import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
@@ -18,6 +21,9 @@ import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
 type SessionStatus = 'idle' | 'starting' | 'playing';
 
 const randomSeed = () => getSeed('');
+
+/** How long a cleared level's stats show before the next one starts. */
+const NEXT_LEVEL_MS = 3500;
 
 /** Far longer than a phone takes to build a level; past it, say where. */
 const START_TIMEOUT_MS = 20_000;
@@ -69,6 +75,10 @@ export const App = () => {
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [startStep, setStartStep] = useState<StartStep | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  /** The best score before this run, so the end can say if it beat it. */
+  const [best, setBest] = useState(() => readBest());
+  /** Starting the next level of a run, not a fresh one: show its card. */
+  const [between, setBetween] = useState(false);
   // Bumped on every (re)start, so the stage re-attaches to the new game.
   const [session, setSession] = useState(0);
   const game = useRef<Game | null>(null);
@@ -94,6 +104,26 @@ export const App = () => {
   }, [status, session]);
 
   const fighting = status === 'playing' && hud?.status === 'playing';
+  const won =
+    status === 'playing' &&
+    hud?.status === 'cleared' &&
+    hud.level >= hud.levels;
+  const advancing = status === 'playing' && hud?.status === 'cleared' && !won;
+
+  // A run that ends - dead or won - keeps its score if it's the best yet.
+  const ended = status === 'playing' && (hud?.status === 'dead' || won);
+  useEffect(() => {
+    if (ended && hud) saveBest(hud.score);
+  }, [ended, hud]);
+
+  // A cleared level shows its stats a moment, then the next one starts by
+  // itself: the run flows on without a click.
+  useEffect(() => {
+    if (!advancing) return;
+    const timer = setTimeout(handleNextLevel, NEXT_LEVEL_MS);
+    return () => clearTimeout(timer);
+    // Timed from the clear alone: a re-render mustn't restart the wait.
+  }, [advancing]);
   const pause = () => {
     game.current?.pause();
     setPaused(true);
@@ -136,9 +166,12 @@ export const App = () => {
 
   // startGame() has to run inside a click handler: browsers only let an
   // AudioContext start from a user gesture.
-  const play = async (next: RunState) => {
+  const play = async (next: RunState, { fresh = true } = {}) => {
     game.current?.stop();
+    game.current = null;
     setPaused(false);
+    setBetween(!fresh);
+    if (fresh) setBest(readBest());
     setStatus('starting');
     setStartError(null);
     setRun(next);
@@ -154,7 +187,8 @@ export const App = () => {
           setStartStep(current);
         },
       });
-      void goLandscape();
+      // Only a press can go fullscreen; the next level starts by itself.
+      if (fresh) void goLandscape();
       game.current = await withTimeout(starting, () => step.current);
     } catch (error) {
       // Without this a failed start leaves the button pressed for good.
@@ -180,7 +214,7 @@ export const App = () => {
   };
 
   const handleNextLevel = () => {
-    if (game.current) void play(game.current.nextRun());
+    if (game.current) void play(game.current.nextRun(), { fresh: false });
   };
 
   if (status === 'playing' && hud) {
@@ -188,9 +222,9 @@ export const App = () => {
       <GameScreen
         seed={run.seed}
         musicalKey={level.key}
-        bpm={level.bpm}
         run={hud}
         loadout={loadout}
+        best={best}
         paused={paused}
         surfaceRef={surface}
         onStop={handleStop}
@@ -202,15 +236,23 @@ export const App = () => {
         onNewRun={() => play(newRun(randomSeed()))}
         onNextLevel={handleNextLevel}
         onTakeWeapon={() => game.current?.takeWeapon()}
+        onFireSlot={slot => game.current?.fireSlot(slot)}
+        onReleaseSlot={slot => game.current?.releaseSlot(slot)}
       />
+    );
+  }
+
+  if (status === 'starting' && between) {
+    return (
+      <LevelCard level={run.level} levels={RUN_LEVELS} musicalKey={level.key} />
     );
   }
 
   return (
     <StartScreen
-      seed={run.seed}
       musicalKey={level.key}
       bpm={level.bpm}
+      best={best}
       isStarting={status === 'starting'}
       step={startStep}
       error={startError}

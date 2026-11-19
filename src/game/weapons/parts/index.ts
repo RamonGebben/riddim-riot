@@ -61,13 +61,50 @@ export const OSCILLATORS = {
 
 /**
  * The LFO sets the fire rhythm as well as the sweep. Slower rates hit harder
- * so every rate deals about the same damage per bar.
+ * so every rate deals about the same damage per bar, and the slow ones
+ * (1/4, 1/2) trade fire rate for a blast: a bigger shot that bursts on a hit
+ * or at the end of its range, wider the slower it fires.
  */
 export const LFO_RATES = {
-  '1/4': { division: '1/4', damage: 1.8 },
-  '1/8': { division: '1/8', damage: 1 },
-  '1/16': { division: '1/16', damage: 0.55 },
-} satisfies Record<LfoPart, { division: Division; damage: number }>;
+  '1/2': {
+    division: '1/2',
+    damage: 3.4,
+    size: 1.8,
+    blast: { radius: 150, share: 0.8, knockback: 64 },
+  },
+  '1/4': {
+    division: '1/4',
+    damage: 1.8,
+    size: 1.35,
+    blast: { radius: 96, share: 0.7, knockback: 50 },
+  },
+  '1/8': { division: '1/8', damage: 1, size: 1, blast: null },
+  '1/16': { division: '1/16', damage: 0.55, size: 1, blast: null },
+} satisfies Record<
+  LfoPart,
+  {
+    division: Division;
+    damage: number;
+    /** The shot's radius, as a multiple of the engine's. */
+    size: number;
+    /** `share` is of the shot's own damage. */
+    blast: { radius: number; share: number; knockback: number } | null;
+  }
+>;
+
+/**
+ * Rates by how often they roll: the 1/2 is a rare, heavy find. Thresholds on
+ * one random number, so a roll draws the same count whatever it lands on.
+ */
+export const LFO_WEIGHTS = [
+  ['1/2', 0.14],
+  ['1/4', 0.3],
+  ['1/8', 0.3],
+  ['1/16', 0.26],
+] satisfies Array<[LfoPart, number]>;
+
+/** A crushed slow shot: its blast grows by this share of Crush's radius. */
+export const CRUSHED_BLAST_GROWTH = 0.5;
 
 /**
  * Crush trades a little direct damage for a burst on every hit: harder

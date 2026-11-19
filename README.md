@@ -67,7 +67,7 @@ what every roll can sound like, change the parts pool ranges instead.
 | WASD / arrow keys             | Move                                          |
 | Mouse                         | Aim                                           |
 | Left mouse (click or hold)    | Fire, quantized to the weapon's beat division |
-| 1 / 2 / 3, Q / E, mouse wheel | Switch weapon slot                            |
+| 1 / 2 / 3, Q / E, mouse wheel | Switch weapon slot (or click a slot to fire)  |
 | F                             | Take the weapon you're standing on            |
 | Esc / P                       | Pause and resume (also the **Pause** button)  |
 
@@ -77,8 +77,8 @@ elsewhere a notice asks you to turn the phone):
 | Touch                                       | Action                                             |
 | ------------------------------------------- | -------------------------------------------------- |
 | Left half: a stick appears under your thumb | Inside the inner rim, turn; past it, move that way |
-| Right half: tap or hold                     | Fire (on touch, so taps can land on the beat)      |
-| Right half: swipe up / down                 | Previous / next weapon slot                        |
+| Right half: tap or hold                     | Fire the weapon last fired (on touch, on the beat) |
+| A weapon slot (right edge): tap or hold     | Switch to that weapon and fire it                  |
 | **Take** button                             | Take the weapon you're standing on                 |
 
 Switching tabs or turning the phone upright pauses the game too; only

@@ -6,9 +6,7 @@ import {
   STICK_RIMS,
   type Stick,
 } from '../stick';
-import { swipeDirection } from '../swipe';
 import type { TriggerHandlers } from '../trigger';
-import type { WeaponAction } from '../weaponKeys';
 
 export interface TouchControls {
   /** The last pointer was a finger, not the mouse: read aim from here. */
@@ -63,24 +61,18 @@ const createStickView = (element: HTMLElement) => {
 
 /**
  * Touch twin-stick: a floating stick anywhere on the left half moves and
- * aims, the right half is the trigger (a tap fires, a hold keeps firing) and
- * a swipe up or down there switches weapons. The trigger presses on touch,
- * with no wait to tell a tap from a swipe, so on-beat taps stay on the beat.
+ * aims, and the right half is the trigger for the weapon last fired (a tap
+ * fires, a hold keeps firing). The HUD's slot buttons fire their own
+ * weapon (see `Game.fireSlot`), so switching is just pressing another.
  */
 export const attachTouchControls = (
   element: HTMLElement,
-  {
-    trigger,
-    onWeaponAction,
-  }: {
-    trigger: TriggerHandlers;
-    onWeaponAction: (action: WeaponAction) => void;
-  },
+  { trigger }: { trigger: TriggerHandlers },
 ): TouchControls => {
   const view = createStickView(element);
   let touching = false;
   let stick: { id: number; stick: Stick } | null = null;
-  let fire: { id: number; swipeFrom: number } | null = null;
+  let fire: { id: number } | null = null;
   let lastAim: Vec | null = null;
 
   const local = (event: PointerEvent): Vec => {
@@ -100,7 +92,7 @@ export const attachTouchControls = (
       view.show(stick.stick);
     } else if (!left && !fire) {
       element.setPointerCapture(event.pointerId);
-      fire = { id: event.pointerId, swipeFrom: at.y };
+      fire = { id: event.pointerId };
       trigger.press();
     }
   };
@@ -115,13 +107,6 @@ export const attachTouchControls = (
       stick = { ...stick, stick: dragStick(stick.stick, at) };
       lastAim = readStick(stick.stick).aim ?? lastAim;
       view.show(stick.stick);
-    }
-    if (fire?.id === event.pointerId) {
-      const direction = swipeDirection(at.y - fire.swipeFrom);
-      if (direction === null) return;
-      // Measured again from here, so a long swipe can cycle twice.
-      fire = { ...fire, swipeFrom: at.y };
-      onWeaponAction({ type: 'cycle', direction });
     }
   };
   const onUp = (event: PointerEvent) => {

@@ -11,8 +11,10 @@ import {
 } from '../../level';
 import { createRng } from '../../rng';
 import type { Enemy } from '../enemy';
+import { BONUS_HEARTS } from '../loot';
 import {
   createWorld,
+  hpCap,
   isExitOpen,
   onBar,
   onBeat,
@@ -395,10 +397,93 @@ describe('stepWorld', () => {
     expect(healed.world.hearts).toEqual([]);
     expect(healed.healed).toEqual([start]);
 
-    const full = { ...createWorld(level), hearts: [heart] };
-    const kept = stepWorld(full, { input: still, dt: 1 / 60, now: 1 });
-    expect(kept.world.hp).toBe(PLAYER_MAX_HP);
+    const cap = hpCap(createWorld(level));
+    const capped = { ...createWorld(level), hp: cap, hearts: [heart] };
+    const kept = stepWorld(capped, { input: still, dt: 1 / 60, now: 1 });
+    expect(kept.world.hp).toBe(cap);
     expect(kept.world.hearts).toEqual([heart]);
+  });
+
+  it('stacks bonus hearts on full health, up to the cap', () => {
+    const heart = { id: 99, position: start };
+    const full = { ...createWorld(level), hearts: [heart] };
+    const bonus = stepWorld(full, { input: still, dt: 1 / 60, now: 1 });
+    expect(bonus.world.hp).toBe(PLAYER_MAX_HP + 1);
+    expect(hpCap(full)).toBe(PLAYER_MAX_HP + BONUS_HEARTS);
+  });
+
+  it('pulls hearts in from nearby, but leaves far ones be', () => {
+    const near = { id: 98, position: { x: start.x + 120, y: start.y } };
+    const far = { id: 99, position: { x: start.x + 400, y: start.y } };
+    const hurt = { ...createWorld(level), hp: 3, hearts: [near, far] };
+    const pulled = stepWorld(hurt, { input: still, dt: 1 / 60, now: 1 });
+    const [drawn, left] = pulled.world.hearts;
+    expect(drawn.position.x).toBeLessThan(near.position.x);
+    expect(left.position).toEqual(far.position);
+  });
+
+  it("doesn't pull back a weapon the player just put down", () => {
+    const beside = { x: start.x + 60, y: start.y };
+    const dropped = placePickup(createWorld(level), { seed: 7 }, beside, {
+      resting: true,
+    });
+    const after = stepWorld(dropped, { input: still, dt: 1 / 60, now: 1 });
+    expect(after.world.pickups[0].position).toEqual(beside);
+    const fresh = placePickup(createWorld(level), { seed: 7 }, beside);
+    const drawn = stepWorld(fresh, { input: still, dt: 1 / 60, now: 1 });
+    expect(drawn.world.pickups[0].position.x).toBeLessThan(beside.x);
+  });
+
+  it('bursts a slow shot at the end of its range', () => {
+    const lobbed = {
+      ...shot(1),
+      spec: {
+        ...shot(1).spec,
+        lifetime: 0.1,
+        detonates: true,
+        splash: { radius: 96, damage: 1, knockback: 40 },
+      },
+    };
+    const world = queueShot(createWorld(level), lobbed);
+    const flying = stepWorld(world, { input: still, dt: 1 / 60, now: 1 });
+    expect(flying.blasts).toEqual([]);
+    const spent = stepWorld(flying.world, {
+      input: still,
+      dt: 1 / 60,
+      now: 1.2,
+    });
+    expect(spent.blasts).toHaveLength(1);
+    expect(spent.world.projectiles).toEqual([]);
+  });
+
+  it("fires the boss's ring of orbs on the snare, and they hurt", () => {
+    const far = { x: start.x + 4 * TILE_SIZE, y: start.y };
+    const boss: Enemy = { ...enemyAt(1, far, 30), kind: 'boss' };
+    const world = withEnemies(createWorld(level), [boss]);
+    const woundUp = onBeat(world, {
+      time: 1,
+      beat: 1,
+      bar: 0,
+      beatSeconds: 0.4,
+    });
+    expect(woundUp.enemies[0].windupUntil).toBeCloseTo(1.4);
+    expect(woundUp.hostiles).toEqual([]);
+    const fired = onBeat(woundUp, { time: 1.4, beat: 2, bar: 0 });
+    expect(fired.hostiles.length).toBeGreaterThan(8);
+
+    const orb = {
+      ...fired.hostiles[0],
+      from: start,
+      velocity: { x: 0, y: 0 },
+      firedAt: 2,
+      expiresAt: 5,
+    };
+    const hit = stepWorld(
+      { ...world, hostiles: [orb] },
+      { input: still, dt: 1 / 60, now: 2 },
+    );
+    expect(hit.world.hp).toBe(PLAYER_MAX_HP - 1);
+    expect(hit.world.hostiles).toEqual([]);
   });
 
   it('lets the boss shrug off contact: it hits, but stays', () => {

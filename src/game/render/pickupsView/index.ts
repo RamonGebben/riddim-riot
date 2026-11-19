@@ -1,77 +1,208 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
+import { BLAST_ICON, FX_ICONS, HEART_ICON, WEAPON_ICONS } from '../../icons';
+import type { Key } from '../../music';
 import type { Palette } from '../../palette';
 import type { Heart, Pickup } from '../../sim/loot';
+import { length, subtract, type Vec } from '../../vec';
+import { FX, OSCILLATORS, weaponFrom, type Weapon } from '../../weapons';
+import { drawIcon } from '../icon';
 
 export interface PickupsView {
   view: Container;
   update: (state: {
     pickups: Array<Pickup>;
     hearts: Array<Heart>;
+    player: { position: Vec };
     beat: number;
     now: number;
   }) => void;
 }
 
-const SIZE = 14;
+const SIZE = 16;
+/** Hearts read as health whatever the level's palette. */
+const HEART_COLOR = 0xff4d6d;
+/** A drop's label is clear this close, and gone past `LABEL_FAR`. */
+const LABEL_NEAR = 260;
+const LABEL_FAR = 480;
+/** Weapons this close to the nearest one hide their labels behind it. */
+const LABEL_CROWD = 140;
 
-const drawPickup = (palette: Palette) =>
-  new Graphics()
-    .circle(0, 0, SIZE * 2)
-    .fill({ color: palette.player, alpha: 0.12 })
-    .rect(-SIZE, -SIZE, SIZE * 2, SIZE * 2)
-    .stroke({ width: 3, color: palette.player })
-    .rect(-SIZE / 2, -SIZE / 2, SIZE, SIZE)
-    .fill(palette.accent);
+/** What the label says: the engine and its beat, then the maker and FX. */
+const labelOf = ({ parts, projectile }: Weapon) => {
+  const engine = OSCILLATORS[parts.oscillator].label.toUpperCase();
+  const blast = projectile.detonates ? ' · BLAST' : '';
+  const fx = parts.fx ? ` · ${FX[parts.fx].label}` : '';
+  const maker = parts.manufacturer === 'vandal' ? 'Vandal' : 'Lumen';
+  return `${engine} ${parts.lfo}${blast}\n${maker}${fx}`;
+};
 
-/** Two circles and a point, in the player's colour: health, not a weapon. */
-const drawHeart = (palette: Palette) => {
-  const r = SIZE * 0.55;
-  return new Graphics()
-    .circle(0, 0, SIZE * 1.7)
-    .fill({ color: palette.player, alpha: 0.15 })
-    .circle(-r, -r * 0.4, r)
-    .circle(r, -r * 0.4, r)
-    .poly([-r * 2, -r * 0.1, r * 2, -r * 0.1, 0, r * 2.2])
-    .fill(palette.player);
+interface WeaponSprite {
+  root: Container;
+  tile: Container;
+  label: Container;
+}
+
+/**
+ * A weapon on the ground: a tile with its engine's icon, its FX and blast
+ * badges, and a label naming its engine, beat and FX - so a drop says what
+ * it is before the player walks over.
+ */
+const drawWeapon = (weapon: Weapon, palette: Palette): WeaponSprite => {
+  const root = new Container();
+  const tile = new Container();
+  tile.addChild(
+    new Graphics()
+      .circle(0, 0, SIZE * 2.2)
+      .fill({ color: palette.player, alpha: 0.14 })
+      .roundRect(-SIZE, -SIZE, SIZE * 2, SIZE * 2, 6)
+      .fill(palette.void)
+      .stroke({ width: 3, color: palette.player }),
+    drawIcon(WEAPON_ICONS[weapon.parts.oscillator], {
+      size: SIZE * 1.4,
+      color: 0xffffff,
+    }),
+  );
+  const badges = [
+    weapon.parts.fx ? FX_ICONS[weapon.parts.fx] : null,
+    weapon.projectile.detonates ? BLAST_ICON : null,
+  ].filter(icon => icon !== null);
+  badges.forEach((icon, i) => {
+    const badge = new Container();
+    badge.addChild(
+      new Graphics().circle(0, 0, 9).fill(palette.accent),
+      drawIcon(icon, { size: 12, color: 0xffffff }),
+    );
+    badge.position.set(SIZE, -SIZE + i * 20);
+    tile.addChild(badge);
+  });
+
+  const text = new Text({
+    text: labelOf(weapon),
+    resolution: 2,
+    style: {
+      fontFamily: 'ui-monospace, Menlo, monospace',
+      fontSize: 12,
+      fontWeight: '700',
+      fill: 0xffffff,
+      align: 'center',
+      lineHeight: 15,
+    },
+  });
+  text.anchor.set(0.5, 0);
+  const label = new Container();
+  const pad = 6;
+  label.addChild(
+    new Graphics()
+      .roundRect(
+        -text.width / 2 - pad,
+        -pad / 2,
+        text.width + pad * 2,
+        text.height + pad,
+        5,
+      )
+      .fill({ color: palette.void, alpha: 0.85 })
+      .stroke({ width: 1, color: palette.player, alpha: 0.6 }),
+    text,
+  );
+  label.position.set(0, SIZE * 2.1);
+  root.addChild(tile, label);
+  return { root, tile, label };
+};
+
+const drawHeart = () => {
+  const root = new Container();
+  root.addChild(
+    new Graphics().circle(0, 0, SIZE * 1.6).fill({
+      color: HEART_COLOR,
+      alpha: 0.18,
+    }),
+    drawIcon(HEART_ICON, { size: SIZE * 2.2, color: 0xffffff }),
+    drawIcon(HEART_ICON, { size: SIZE * 1.8, color: HEART_COLOR }),
+  );
+  return root;
 };
 
 /**
- * Weapons on the ground slowly turn and bob with the beat; hearts beat
- * with it.
+ * Weapons on the ground float and bob with the beat, their labels fading
+ * in as the player nears; hearts beat with it.
  */
-export const createPickupsView = (palette: Palette): PickupsView => {
+export const createPickupsView = (palette: Palette, key: Key): PickupsView => {
   const view = new Container();
-  const sprites = new Map<number, Graphics>();
+  const weapons = new Map<number, WeaponSprite>();
+  const hearts = new Map<number, Container>();
+  // Labels sit above every drop, so a cluster stays readable.
+  const labels = new Container();
+  const items = new Container();
+  view.addChild(items, labels);
 
-  const spriteFor = (id: number, draw: (palette: Palette) => Graphics) => {
-    const existing = sprites.get(id);
+  const prune = <Sprite>(
+    sprites: Map<number, Sprite>,
+    present: Set<number>,
+    destroy: (sprite: Sprite) => void,
+  ) =>
+    [...sprites.entries()]
+      .filter(([id]) => !present.has(id))
+      .forEach(([id, sprite]) => {
+        destroy(sprite);
+        sprites.delete(id);
+      });
+
+  const weaponFor = (pickup: Pickup) => {
+    const existing = weapons.get(pickup.id);
     if (existing) return existing;
-    const sprite = draw(palette);
-    sprites.set(id, sprite);
-    view.addChild(sprite);
+    const sprite = drawWeapon(weaponFrom(pickup.recipe, key), palette);
+    weapons.set(pickup.id, sprite);
+    items.addChild(sprite.root);
+    labels.addChild(sprite.label);
+    return sprite;
+  };
+
+  const heartFor = (heart: Heart) => {
+    const existing = hearts.get(heart.id);
+    if (existing) return existing;
+    const sprite = drawHeart();
+    hearts.set(heart.id, sprite);
+    items.addChild(sprite);
     return sprite;
   };
 
   return {
     view,
-    update: ({ pickups, hearts, beat, now }) => {
-      const present = new Set([...pickups, ...hearts].map(item => item.id));
-      [...sprites.entries()]
-        .filter(([id]) => !present.has(id))
-        .forEach(([id, sprite]) => {
-          sprite.destroy();
-          sprites.delete(id);
-        });
-      hearts.forEach(({ id, position }) => {
-        const sprite = spriteFor(id, drawHeart);
-        sprite.position.set(position.x, position.y);
+    update: ({ pickups, hearts: lying, player, beat, now }) => {
+      prune(weapons, new Set(pickups.map(({ id }) => id)), sprite => {
+        sprite.label.destroy({ children: true });
+        sprite.root.destroy({ children: true });
+      });
+      prune(hearts, new Set(lying.map(({ id }) => id)), sprite =>
+        sprite.destroy({ children: true }),
+      );
+      lying.forEach(heart => {
+        const sprite = heartFor(heart);
+        sprite.position.set(heart.position.x, heart.position.y);
         sprite.scale.set(1 + beat * 0.3);
       });
-      pickups.forEach(({ id, position }) => {
-        const sprite = spriteFor(id, drawPickup);
-        sprite.position.set(position.x, position.y);
-        sprite.rotation = Math.PI / 4 + now * 0.8;
-        sprite.scale.set(1 + beat * 0.2);
+      const away = (pickup: Pickup) =>
+        length(subtract(pickup.position, player.position));
+      // Up close, only the nearest weapon's label, so a pile stays legible.
+      const nearest = pickups.reduce<Pickup | null>(
+        (best, pickup) => (!best || away(pickup) < away(best) ? pickup : best),
+        null,
+      );
+      pickups.forEach(pickup => {
+        const { root, tile, label } = weaponFor(pickup);
+        const { x, y } = pickup.position;
+        root.position.set(x, y);
+        tile.y = Math.sin(now * 3 + pickup.id) * 3;
+        tile.scale.set(1 + beat * 0.15);
+        const crowded =
+          pickup !== nearest &&
+          nearest !== null &&
+          away(nearest) < LABEL_CROWD &&
+          length(subtract(pickup.position, nearest.position)) < LABEL_CROWD;
+        const fade = (LABEL_FAR - away(pickup)) / (LABEL_FAR - LABEL_NEAR);
+        label.alpha = crowded ? 0 : Math.min(Math.max(fade, 0), 1);
+        label.visible = label.alpha > 0;
+        label.position.set(x, y + SIZE * 2.1);
       });
     },
   };

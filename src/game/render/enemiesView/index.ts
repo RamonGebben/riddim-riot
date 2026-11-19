@@ -28,6 +28,9 @@ interface Sprite {
   marker: Graphics;
 }
 
+/** How long before its volley the boss is seen to swell. */
+const WINDUP_SECONDS = 0.45;
+
 /** A marker closes in over this long before its enemy appears. */
 const MARKER_SECONDS = 0.9;
 
@@ -146,7 +149,17 @@ export const createEnemiesView = (palette: Palette): EnemiesView => {
           marker.alpha = 0.4 + 0.6 * Math.abs(Math.sin(now * 14));
           return;
         }
-        body.scale.set(grown * (1 - stretch), grown * (1 + stretch));
+        // Winding up for a volley: it swells and flashes into the shot.
+        const windup =
+          enemy.windupUntil !== undefined && now < enemy.windupUntil
+            ? 1 - Math.min((enemy.windupUntil - now) / WINDUP_SECONDS, 1)
+            : 0;
+        const swell = 1 + windup * 0.25;
+        body.scale.set(
+          grown * (1 - stretch) * swell,
+          grown * (1 + stretch) * swell,
+        );
+        body.tint = windup > 0 && Math.sin(now * 40) > 0 ? 0xff5a36 : 0xffffff;
 
         if (enemy.kind !== 'charger' || !tell) return;
         const heading = enemy.aim ?? {
