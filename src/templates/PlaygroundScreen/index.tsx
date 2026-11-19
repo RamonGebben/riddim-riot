@@ -270,6 +270,7 @@ export const PlaygroundScreen = ({
             <SegmentedControl
               label="LFO rate"
               options={pinOptions([
+                ['1/2', '1/2'],
                 ['1/4', '1/4'],
                 ['1/8', '1/8'],
                 ['1/16', '1/16'],

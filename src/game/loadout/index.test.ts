@@ -1,26 +1,30 @@
 import { describe, expect, it, vi } from 'vitest';
 import { F_MINOR } from '../music';
+import { initialTrigger } from '../sim';
 import { weaponFrom, type WeaponRecipe } from '../weapons';
 import { createLoadout, type Armed } from '.';
 
-const fakeArm = (recipe: WeaponRecipe): Armed => ({
-  recipe,
-  weapon: weaponFrom(recipe, F_MINOR),
-  slot: {
-    onTick: vi.fn(),
-    press: vi.fn(),
-    release: vi.fn(),
-    holster: vi.fn(),
-    equip: vi.fn(),
-    getState: vi.fn(),
-  },
-  voice: {
-    holster: vi.fn(),
-    equip: vi.fn(),
-    setSubOwner: vi.fn(),
-    dispose: vi.fn(),
-  },
-});
+const fakeArm = (recipe: WeaponRecipe): Armed => {
+  const weapon = weaponFrom(recipe, F_MINOR);
+  return {
+    recipe,
+    weapon,
+    slot: {
+      onTick: vi.fn(),
+      press: vi.fn(),
+      release: vi.fn(),
+      holster: vi.fn(),
+      equip: vi.fn(),
+      getState: vi.fn(() => initialTrigger(weapon.timing)),
+    },
+    voice: {
+      holster: vi.fn(),
+      equip: vi.fn(),
+      setSubOwner: vi.fn(),
+      dispose: vi.fn(),
+    },
+  };
+};
 
 const recipes = [{ seed: 1 }, { seed: 2 }, { seed: 3 }];
 
@@ -36,6 +40,7 @@ const setup = async (active = 0) => {
       return next;
     },
     now: () => 1,
+    stepSeconds: 0.1,
     onChange,
   });
   return { armed, onChange, loadout };
@@ -91,6 +96,28 @@ describe('createLoadout', () => {
     armed.forEach(({ slot }) => expect(slot.onTick).toHaveBeenCalledWith(tick));
   });
 
+  it('tells the HUD when a magazine changes, and only then', async () => {
+    const { armed, loadout, onChange } = await setup();
+    const tick = {
+      step: 4,
+      time: 1,
+      bar: 0,
+      beat: 1,
+      sixteenth: 0,
+      stepInBar: 4,
+    };
+    loadout.onTick(tick);
+    expect(onChange).not.toHaveBeenCalled();
+    const full = initialTrigger(armed[0].weapon.timing);
+    vi.mocked(armed[0].slot.getState).mockReturnValue({
+      ...full,
+      ammo: full.ammo - 1,
+    });
+    loadout.onTick({ ...tick, step: 5 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0].slots[0].ammo).toBe(full.ammo - 1);
+  });
+
   it('arms slots one at a time', async () => {
     let arming = 0;
     let overlapped = false;
@@ -104,6 +131,7 @@ describe('createLoadout', () => {
         return fakeArm(recipe);
       },
       now: () => 1,
+      stepSeconds: 0.1,
       onChange: vi.fn(),
     });
     expect(overlapped).toBe(false);

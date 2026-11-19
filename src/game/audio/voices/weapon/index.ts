@@ -33,10 +33,12 @@ export interface WeaponVoice {
   dispose: () => void;
 }
 
-const LFO_RATE = { '1/4': '4n', '1/8': '8n', '1/16': '16n' } satisfies Record<
-  LfoPart,
-  string
->;
+const LFO_RATE = {
+  '1/2': '2n',
+  '1/4': '4n',
+  '1/8': '8n',
+  '1/16': '16n',
+} satisfies Record<LfoPart, string>;
 
 interface Engine {
   play: (time: number, duration: number, hz: number) => void;

@@ -10,7 +10,7 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
     page.getByRole('heading', { name: 'Bass Weapons' }),
   ).toBeVisible();
   await expect(
-    page.getByText(/^seed 42 · [A-G]#? (minor|phrygian) · 140 BPM halftime$/),
+    page.getByText(/^[A-G]#? (minor|phrygian) · 140 BPM halftime$/),
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'Press to start' }).click();
@@ -29,7 +29,8 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
   await page.waitForTimeout(2500);
   await page.mouse.up();
 
-  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await page.getByRole('button', { name: 'Quit' }).click();
   await expect(
     page.getByRole('button', { name: 'Press to start' }),
   ).toBeVisible();

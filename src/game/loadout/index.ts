@@ -1,7 +1,14 @@
 import type { Tick } from '../clock';
 import type { WeaponAction } from '../input';
 import type { WeaponSlot } from '../sim/weaponSlot';
-import type { Weapon, WeaponRecipe } from '../weapons';
+import type {
+  FxPart,
+  LfoPart,
+  ManufacturerPart,
+  OscillatorPart,
+  Weapon,
+  WeaponRecipe,
+} from '../weapons';
 
 /** A weapon in a slot: its trigger on the clock, and its voice. */
 export interface Armed {
@@ -16,8 +23,27 @@ export interface Armed {
   };
 }
 
+/** One slot as the HUD shows it: what the weapon is, and its magazine. */
+export interface SlotView {
+  name: string;
+  oscillator: OscillatorPart;
+  manufacturer: ManufacturerPart;
+  lfo: LfoPart;
+  fx: FxPart | null;
+  /** Bursts at the end of its range: a slow (1/4, 1/2) weapon. */
+  blasts: boolean;
+  ammo: number;
+  magazine: number;
+  /**
+   * Refilling (or a beam overheated): `id` changes with each refill, and
+   * `seconds` is how long until it's back, so the HUD can animate it
+   * without hearing from the loop again.
+   */
+  reload: { id: number; seconds: number } | null;
+}
+
 export interface LoadoutView {
-  slots: Array<{ name: string }>;
+  slots: Array<SlotView>;
   active: number;
 }
 
@@ -48,6 +74,7 @@ export const createLoadout = async ({
   active: startActive = 0,
   arm,
   now,
+  stepSeconds,
   onChange,
 }: {
   recipes: Array<WeaponRecipe>;
@@ -56,6 +83,8 @@ export const createLoadout = async ({
   arm: (recipe: WeaponRecipe) => Promise<Armed>;
   /** The audio time switches are scheduled at. */
   now: () => number;
+  stepSeconds: number;
+  /** On every switch, swap, shot and refill. */
   onChange: (view: LoadoutView) => void;
 }): Promise<Loadout> => {
   // One at a time: arming measures loudness offline, which can't overlap.
@@ -68,10 +97,36 @@ export const createLoadout = async ({
   let held = false;
   let busy = false;
 
-  const view = (): LoadoutView => ({
-    slots: slots.map(({ weapon }) => ({ name: weapon.name })),
-    active,
-  });
+  let lastTick: Tick | null = null;
+  const slotView = ({ weapon, slot }: Armed): SlotView => {
+    const { ammo, reload } = slot.getState();
+    const step = lastTick?.step ?? 0;
+    // Ticks run ahead of the audio: the refill lands that much later.
+    const ahead = lastTick ? Math.max(lastTick.time - now(), 0) : 0;
+    return {
+      name: weapon.name,
+      ...weapon.parts,
+      blasts: weapon.projectile.detonates === true,
+      ammo,
+      magazine: weapon.timing.magazine,
+      reload: reload
+        ? {
+            id: reload.start,
+            seconds: Math.max(reload.end - step, 0) * stepSeconds + ahead,
+          }
+        : null,
+    };
+  };
+  const view = (): LoadoutView => ({ slots: slots.map(slotView), active });
+  /** What changes shot by shot; the rest only changes with a switch or swap. */
+  const magazines = () =>
+    slots
+      .map(({ slot }) => {
+        const { ammo, reload } = slot.getState();
+        return `${ammo}:${reload?.start ?? '-'}`;
+      })
+      .join(',');
+  let lastMagazines = magazines();
 
   const putAway = (armed: Armed) => {
     armed.slot.holster();
@@ -118,7 +173,14 @@ export const createLoadout = async ({
   };
 
   return {
-    onTick: tick => slots.forEach(({ slot }) => slot.onTick(tick)),
+    onTick: tick => {
+      lastTick = tick;
+      slots.forEach(({ slot }) => slot.onTick(tick));
+      const next = magazines();
+      if (next === lastMagazines) return;
+      lastMagazines = next;
+      onChange(view());
+    },
     press: options => {
       held = true;
       slots[active].slot.press(options);

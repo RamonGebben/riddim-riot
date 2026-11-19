@@ -44,6 +44,8 @@ export interface Enemy {
   spawnAt: number;
   /** A charger's locked-in dash direction (unit length), shown as a tell. */
   aim: Vec | null;
+  /** The boss swells until this audio time: its volley fires then. */
+  windupUntil?: number;
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3;

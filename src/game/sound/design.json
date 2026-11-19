@@ -150,7 +150,7 @@
     }
   },
   "drums": {
-    "level": -4,
+    "level": -14,
     "kick": {
       "pitchMultiple": 5,
       "pitchSeconds": 0.045,
@@ -158,22 +158,26 @@
       "level": 0,
       "clickHz": 3500,
       "clickDecay": 0.008,
-      "clickLevel": -12,
-      "subDecay": 0.7,
-      "subLevel": -8
+      "clickLevel": -10,
+      "subDecay": 0.8,
+      "subLevel": -5,
+      "knockDecay": 0.07,
+      "knockLevel": -9,
+      "drive": 0.25
     },
     "snare": {
       "noiseHz": 1800,
-      "noiseDecay": 0.2,
-      "noiseLevel": -6,
-      "bodyHz": 147,
-      "bodyDecay": 0.12,
-      "bodyLevel": -10,
+      "noiseDecay": 0.24,
+      "noiseLevel": -5,
+      "bodyHz": 185,
+      "bodyDecay": 0.14,
+      "bodyLevel": -5,
       "roomDecay": 1.4,
       "roomWet": 0.22,
       "clapHz": 1300,
-      "clapDecay": 0.09,
-      "clapLevel": -8
+      "clapDecay": 0.1,
+      "clapLevel": -6,
+      "drive": 0.2
     },
     "hat": {
       "hz": 7500,
@@ -184,7 +188,10 @@
       "hz": 6000,
       "decay": 0.3,
       "level": -19
-    }
+    },
+    "drive": 0.12,
+    "glueThreshold": -16,
+    "glueRatio": 3
   },
   "impact": {
     "level": -9,

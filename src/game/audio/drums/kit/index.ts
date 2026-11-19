@@ -1,6 +1,7 @@
 import { SOUND_DESIGN, type DrumsPatch } from '../../../sound';
 import { createGate } from '../../gate';
 import { createGraph, type Automation, type Output } from '../../graph';
+import { createSaturator } from '../../saturate';
 import type { DrumVoice } from '../pattern';
 
 export interface DrumKit {
@@ -33,26 +34,45 @@ export const createDrumKit = (
 ): DrumKit => {
   const { kick: k, snare: s, hat: h, openHat: o } = patch;
   const graph = createGraph();
-  const channel = graph.channel(patch.level, output);
+  // Kit → drive → glue: soft-clipped together and squeezed, so the hits
+  // land as one heavy kit instead of thin separate layers.
+  const glue = graph.compressor(
+    { threshold: patch.glueThreshold, ratio: patch.glueRatio, release: 0.12 },
+    output,
+  );
+  const channel = graph.channel(
+    patch.level,
+    createSaturator(graph, patch.drive, glue),
+  );
   const noise = graph.noise('white');
 
+  const kickDrive = createSaturator(graph, k.drive, channel);
   const kick = createGate(graph, {
     envelope: { attack: 0.001, decay: k.decay, sustain: 0, release: 0.05 },
     volume: k.level,
-    output: channel,
+    output: kickDrive,
   });
   // The tail rides the same oscillator: a second sine would drift out of
   // phase with the punch and cancel it on some hits.
   const kickSub = createGate(graph, {
     envelope: { attack: 0.004, decay: k.subDecay, sustain: 0, release: 0.05 },
     volume: k.subLevel,
-    output: channel,
+    output: kickDrive,
   });
   const kickOsc = graph.oscillator(
     { type: 'sine', frequency: kickHz },
     kick.input,
   );
   kickOsc.node.connect(kickSub.input);
+  const kickKnock = createGate(graph, {
+    envelope: { attack: 0.001, decay: k.knockDecay, sustain: 0, release: 0.02 },
+    volume: k.knockLevel,
+    output: kickDrive,
+  });
+  const knockOsc = graph.oscillator(
+    { type: 'triangle', frequency: kickHz * 2 },
+    kickKnock.input,
+  );
   const kickClick = createGate(graph, {
     envelope: { attack: 0.001, decay: k.clickDecay, sustain: 0, release: 0.01 },
     volume: k.clickLevel,
@@ -66,9 +86,10 @@ export const createDrumKit = (
     }).input,
   );
 
-  const snareRoom = graph.reverb(
-    { decay: s.roomDecay, wet: s.roomWet },
-    channel,
+  const snareRoom = createSaturator(
+    graph,
+    s.drive,
+    graph.reverb({ decay: s.roomDecay, wet: s.roomWet }, channel),
   );
   const snareNoise = createGate(graph, {
     envelope: { attack: 0.001, decay: s.noiseDecay, sustain: 0, release: 0.02 },
@@ -128,6 +149,16 @@ export const createDrumKit = (
         time,
       );
       kick.envelope.triggerAttackRelease(0.2, time, velocity);
+      pitchDrop(
+        knockOsc.frequency,
+        {
+          to: kickHz * 2,
+          multiple: k.pitchMultiple / 2,
+          seconds: k.pitchSeconds,
+        },
+        time,
+      );
+      kickKnock.envelope.triggerAttackRelease(0.02, time, velocity);
       kickClick.envelope.triggerAttackRelease(0.004, time, velocity);
       kickSub.envelope.triggerAttackRelease(0.2, time, velocity);
     },

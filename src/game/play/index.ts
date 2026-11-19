@@ -1,7 +1,7 @@
 import type { Bus } from '../bus';
 import type { Tick } from '../clock';
 import type { GameEvents } from '../events';
-import { hudOf, sameHud, type HudView } from '../hud';
+import { hudOf, sameHud, type HudView, type PickupView } from '../hud';
 import { nextGridTime, STEPS_PER_BEAT } from '../grid';
 import {
   attachControls,
@@ -66,6 +66,8 @@ export interface PlaySounds {
   dropHit: (time: number) => void;
   /** A heart picked up. */
   heal: (time: number) => void;
+  /** The boss fires a ring of orbs. */
+  volley: (time: number) => void;
   /** The fight is on: bring the drums in from this tick. */
   startDrums: (tick: Tick) => void;
   /** Every bar line: the section the track should play. */
@@ -151,13 +153,13 @@ export const startPlay = async ({
     if (!underfoot || world.status !== 'playing') return;
     world = takePickup(world, underfoot.id);
     void swapWeapon(underfoot.recipe).then(old => {
-      world = placePickup(world, old, underfoot.position);
+      world = placePickup(world, old, underfoot.position, { resting: true });
     });
   };
   const detachWeaponKeys = attachWeaponKeys(element, action =>
     action.type === 'pickup' ? takeWeapon() : onWeaponAction(action),
   );
-  const touch = attachTouchControls(element, { trigger, onWeaponAction });
+  const touch = attachTouchControls(element, { trigger });
 
   let world = createWorld(level, rules, carry);
   let camera = world.player.position;
@@ -169,21 +171,35 @@ export const startPlay = async ({
   let drumsIn = false;
   const beatSeconds = stepSeconds * STEPS_PER_BEAT;
   const barSeconds = beatSeconds * 4;
-  const names = new Map<number, string>();
-  const nameOf = (recipe: WeaponRecipe) => {
-    const known = names.get(recipe.seed);
+  const described = new Map<number, PickupView>();
+  const describe = (recipe: WeaponRecipe) => {
+    const known = described.get(recipe.seed);
     if (known) return known;
-    const name = weaponFrom(recipe, level.key).name;
-    names.set(recipe.seed, name);
-    return name;
+    const { name, parts, projectile } = weaponFrom(recipe, level.key);
+    const view = {
+      name,
+      oscillator: parts.oscillator,
+      lfo: parts.lfo,
+      fx: parts.fx,
+      blasts: projectile.detonates === true,
+    };
+    described.set(recipe.seed, view);
+    return view;
   };
-  let hud = hudOf(world, nameOf);
+  let hud = hudOf(world, describe);
   onHud(hud);
 
   const onTick = (tick: Tick) => {
     lastTick = tick;
-    if (tick.sixteenth === 0) {
-      world = onBeat(world, { time: tick.time, beat: tick.beat });
+    if (tick.sixteenth === 0 && world.status === 'playing') {
+      const orbs = world.hostiles.length;
+      world = onBeat(world, {
+        time: tick.time,
+        beat: tick.beat,
+        bar: tick.bar,
+        beatSeconds,
+      });
+      if (world.hostiles.length > orbs) sounds.volley(tick.time);
     }
     if (tick.stepInBar !== 0) return;
     const rng = createRng(deriveSeed(seed, tick.bar, SPAWN_STREAM));
@@ -301,8 +317,9 @@ export const startPlay = async ({
     }
     const ended = world.status !== 'playing' && hud.status === 'playing';
     if (ended) trigger.release();
-    if (ended && world.status === 'dead') sounds.dead(audioNow());
-    const nextHud = hudOf(world, nameOf, beat, beatSeconds);
+    // Dead or out the exit, the music closes down behind the screen.
+    if (ended) sounds.dead(audioNow());
+    const nextHud = hudOf(world, describe, beat, beatSeconds);
     if (!sameHud(hud, nextHud)) {
       hud = nextHud;
       onHud(hud);

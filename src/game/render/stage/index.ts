@@ -59,7 +59,7 @@ export const createStage = async (
   const layers = new Container();
   const levelView = createLevelView(level, palette);
   const player = createPlayerView(palette);
-  const pickups = createPickupsView(palette);
+  const pickups = createPickupsView(palette, level.key);
   const enemies = createEnemiesView(palette);
   const fx = createFxView(palette);
   layers.addChild(
@@ -99,6 +99,7 @@ export const createStage = async (
         ...frame,
         pickups: frame.world.pickups,
         hearts: frame.world.hearts,
+        player: frame.world.player,
       });
       enemies.update(frame.world.enemies, frame.now);
       player.update({ ...frame, player: frame.world.player });
@@ -106,6 +107,7 @@ export const createStage = async (
         ...frame,
         projectiles: frame.world.projectiles,
         beams: frame.world.beams,
+        hostiles: frame.world.hostiles,
         player: frame.world.player,
       });
       rave.set(frame);

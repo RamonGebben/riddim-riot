@@ -9,16 +9,25 @@ import {
   type Level,
   type TilePos,
 } from '../../level';
-import type { Rng } from '../../rng';
+import { createRng, deriveSeed, type Rng } from '../../rng';
 import { length, normalize, scale, subtract, type Vec } from '../../vec';
 import type { ProjectileSpec, WeaponRecipe } from '../../weapons';
 import { fireBeam, resolveBeams, type Beam } from '../beam';
+import {
+  bossMove,
+  bossPhase,
+  hostilePosition,
+  hostilesTouching,
+  volley,
+  type Hostile,
+} from '../boss';
 import { resolveContacts, resolveHits } from '../combat';
 import { resolveBlasts, type Blast } from '../splash';
 import {
   DASH_SECONDS,
   DASH_TILES,
   ENEMY_RADIUS,
+  enemyPosition,
   MAX_ENEMIES,
   HOP_SECONDS,
   planHop,
@@ -28,18 +37,17 @@ import {
 } from '../enemy';
 import { moveCircle } from '../collision';
 import {
+  PLAYER_RADIUS,
   spawnPlayer,
   stepPlayer,
   type Player,
   type PlayerInput,
 } from '../player';
-import {
-  advanceProjectiles,
-  fireProjectile,
-  type Projectile,
-} from '../projectile';
+import { fireProjectile, flyProjectiles, type Projectile } from '../projectile';
 import { NO_COMBO, registerKill, type Combo } from '../combo';
 import {
+  attractLoot,
+  BONUS_HEARTS,
   BOSS_HEARTS,
   dropOnKill,
   goodLootRecipe,
@@ -83,6 +91,11 @@ export interface WaveRules {
 /** The boss appears at least this far away, so it walks in on the drop. */
 const BOSS_MIN_TILES = 8;
 
+/** A run is this many levels; the last one's boss ends it. */
+export const RUN_LEVELS = 5;
+/** The final boss has this much more health than the level's would be. */
+const FINAL_BOSS_HP = 1.5;
+
 /** Each level is a little longer and a little tougher than the last. */
 export const rulesFor = ({
   level,
@@ -93,7 +106,9 @@ export const rulesFor = ({
 }): WaveRules => ({
   level,
   song: songFor(level),
-  bossHp: 30 + 12 * (level - 1),
+  bossHp: Math.round(
+    (30 + 12 * (level - 1)) * (level >= RUN_LEVELS ? FINAL_BOSS_HP : 1),
+  ),
   chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
 });
@@ -118,6 +133,8 @@ export interface World {
   pickups: Array<Pickup>;
   hearts: Array<Heart>;
   projectiles: Array<Projectile>;
+  /** The boss's orbs in flight. */
+  hostiles: Array<Hostile>;
   /** Beam ticks still being drawn; their damage landed when they fired. */
   beams: Array<Beam>;
   /** Shots scheduled on the audio clock that haven't sounded yet. */
@@ -131,6 +148,9 @@ const INVULNERABLE_SECONDS = 0.6;
 /** How close to the pad's centre counts as standing in the circle. */
 export const PAD_RADIUS = 48;
 export const PLAYER_MAX_HP = 5;
+/** Health with every bonus heart stacked on (see `BONUS_HEARTS`). */
+export const hpCap = (world: Pick<World, 'maxHp'>): number =>
+  world.maxHp + BONUS_HEARTS;
 /**
  * Enemies can appear anywhere, close too - their marker pulses first - but
  * never right on top of the player.
@@ -182,6 +202,7 @@ export const createWorld = (
   pickups: [],
   hearts: [],
   projectiles: [],
+  hostiles: [],
   beams: [],
   pendingShots: [],
   nextId: 1,
@@ -230,16 +251,27 @@ const chargerBeat = (
  */
 export const onBeat = (
   world: World,
-  { time, beat }: { time: number; beat: number },
+  {
+    time,
+    beat,
+    bar = 0,
+    beatSeconds = 0,
+  }: { time: number; beat: number; bar?: number; beatSeconds?: number },
 ): World => {
   const { map } = world.level;
   const field = distanceField(map, tileOf(world.player.position));
   const distance = (enemy: Enemy) => distanceAt(map, field, tileOf(enemy.to));
+  const boss = world.enemies.find(
+    enemy => enemy.kind === 'boss' && time >= enemy.spawnAt,
+  );
+  const move = boss
+    ? bossMove(bossPhase(boss.hp, world.rules.bossHp), { bar, beat })
+    : null;
   const special = new Map(
     world.enemies.flatMap(enemy => {
-      // The boss lumbers: it only steps on beats 1 and 3.
+      // The boss lumbers, stepping only when its phase says so.
       if (enemy.kind === 'boss') {
-        return beat % 2 === 1 ? [[enemy.id, enemy] as const] : [];
+        return move?.steps ? [] : [[enemy.id, enemy] as const];
       }
       if (enemy.kind !== 'charger') return [];
       const acted = chargerBeat(world, enemy, {
@@ -286,11 +318,64 @@ export const onBeat = (
     },
   );
 
-  return {
+  const moved = {
     ...world,
-    enemies: world.enemies.map(
-      enemy => special.get(enemy.id) ?? hops.get(enemy.id) ?? enemy,
-    ),
+    enemies: world.enemies.map(enemy => {
+      const next = special.get(enemy.id) ?? hops.get(enemy.id) ?? enemy;
+      return enemy === boss && move?.windup
+        ? { ...next, windupUntil: time + beatSeconds }
+        : next;
+    }),
+  };
+  return boss && move
+    ? bossActs(moved, boss, move, { time, bar, beat })
+    : moved;
+};
+
+/** How far from the boss its hoppers turn up, in tiles. */
+const SUMMON_TILES = 3;
+const SUMMON_STREAM = 40;
+
+/** The boss's volley and summons for this beat (see `bossMove`). */
+const bossActs = (
+  world: World,
+  boss: Enemy,
+  move: ReturnType<typeof bossMove>,
+  { time, bar, beat }: { time: number; bar: number; beat: number },
+): World => {
+  const phase = bossPhase(boss.hp, world.rules.bossHp);
+  const center = enemyPosition(boss, time);
+  const fired = move.volley
+    ? volley({
+        phase,
+        center,
+        time,
+        firstId: world.nextId,
+        turn: bar * 4 + beat,
+      })
+    : [];
+  const armed = {
+    ...world,
+    hostiles: [...world.hostiles, ...fired],
+    nextId: world.nextId + fired.length,
+  };
+  const room = MAX_ENEMIES - world.enemies.length;
+  const count = Math.min(move.summon, room);
+  if (count <= 0) return armed;
+  const near = spawnSpots(armed).filter(
+    spot => length(subtract(spot, center)) <= SUMMON_TILES * TILE_SIZE,
+  );
+  const wave = spawnWave({
+    rng: createRng(deriveSeed(world.level.seed, SUMMON_STREAM, bar)),
+    count,
+    firstId: armed.nextId,
+    candidates: near,
+    time,
+  });
+  return {
+    ...armed,
+    enemies: [...armed.enemies, ...wave],
+    nextId: armed.nextId + wave.length,
   };
 };
 
@@ -311,14 +396,18 @@ const spawnSpots = (world: World): Array<Vec> => {
   });
 };
 
-/** Put a weapon on the ground. */
+/** Put a weapon on the ground; `resting` if the player put it there. */
 export const placePickup = (
   world: World,
   recipe: WeaponRecipe,
   position: Vec,
+  { resting = false }: { resting?: boolean } = {},
 ): World => ({
   ...world,
-  pickups: [...world.pickups, { id: world.nextId, position, recipe }],
+  pickups: [
+    ...world.pickups,
+    { id: world.nextId, position, recipe, ...(resting ? { resting } : {}) },
+  ],
   nextId: world.nextId + 1,
 });
 
@@ -491,18 +580,18 @@ const spawnTheBoss = (
 export interface FrameResult {
   world: World;
   kills: Array<Vec>;
-  /** Crushed shots that burst this frame. */
+  /** Crushed and slow shots that burst this frame. */
   blasts: Array<Blast>;
   /** Hearts picked up this frame. */
   healed: Array<Vec>;
-  /** Where an enemy hit the player, if one did this frame. */
+  /** Where an enemy or an orb hit the player, if one did this frame. */
   playerHit: Vec | null;
 }
 
 /**
  * One animation frame. Movement integrates over `dt`; everything musical
- * (shots, hops, spawns) is read at `now` on the audio clock, and `beat` is
- * the beat `now` falls in, for chaining kills into a combo.
+ * (shots, hops, spawns, orbs) is read at `now` on the audio clock, and
+ * `beat` is the beat `now` falls in, for chaining kills into a combo.
  */
 export const stepWorld = (
   world: World,
@@ -528,15 +617,21 @@ export const stepWorld = (
   const firedBeams = due
     .filter(isBeam)
     .map(shot => fireBeam(player, shot, map));
-  const projectiles = advanceProjectiles(
-    [...world.projectiles, ...fired],
+  const flight = flyProjectiles([...world.projectiles, ...fired], {
     dt,
     now,
-  ).filter(projectile => !isWall(map, tileOf(projectile.position)));
+    map,
+  });
 
   const beamed = resolveBeams(firedBeams, world.enemies, now);
-  const shot = resolveHits(projectiles, beamed.enemies, now);
-  const blasts = shot.impacts;
+  const shot = resolveHits(flight.flying, beamed.enemies, now);
+  // Slow shots that ran out of range or hit a wall go off where they were.
+  const fizzled = flight.spent.flatMap(projectile =>
+    projectile.splash
+      ? [{ position: projectile.position, splash: projectile.splash }]
+      : [],
+  );
+  const blasts = [...shot.impacts, ...fizzled];
   const blasted = resolveBlasts(blasts, shot.enemies, map, now);
   const hits = {
     projectiles: shot.projectiles,
@@ -544,12 +639,31 @@ export const stepWorld = (
     killed: [...beamed.killed, ...shot.killed, ...blasted.killed],
   };
   const contacts = resolveContacts(player.position, hits.enemies, now);
+  const flyingOrbs = world.hostiles.filter(
+    hostile =>
+      hostile.expiresAt > now &&
+      !isWall(map, tileOf(hostilePosition(hostile, now))),
+  );
+  const struck = hostilesTouching(flyingOrbs, {
+    position: player.position,
+    radius: PLAYER_RADIUS,
+    now,
+  });
   const canBeHit = now >= world.invulnerableUntil;
-  const playerHit = canBeHit ? (contacts.touched[0]?.position ?? null) : null;
+  const touched =
+    contacts.touched[0]?.position ??
+    (struck[0] ? hostilePosition(struck[0], now) : null);
+  const playerHit = canBeHit ? touched : null;
   const hurt = playerHit ? world.hp - 1 : world.hp;
-  // Walking over a heart heals - but only with health to heal.
-  const reachable = heartsInReach(world.hearts, player.position);
-  const healed = hurt > 0 ? reachable.slice(0, world.maxHp - hurt) : [];
+  // Loot drifts in; walking over a heart heals, stacking bonus hearts on
+  // top of full health up to the cap.
+  const attracted = attractLoot(world, {
+    player: player.position,
+    dt,
+    canHeal: hurt > 0 && hurt < hpCap(world),
+  });
+  const reachable = heartsInReach(attracted.hearts, player.position);
+  const healed = hurt > 0 ? reachable.slice(0, hpCap(world) - hurt) : [];
   const hp = hurt + healed.length;
   const standingIn = onPad(world, player.position);
   const onExit = isExitOpen(world) && standingIn;
@@ -564,8 +678,10 @@ export const stepWorld = (
   );
   const looted = hits.killed.reduce(
     (acc, kill) => dropLoot(acc, kill.enemy, kill.position),
-    world,
+    { ...world, ...attracted },
   );
+  // A dead boss's orbs fizzle with it.
+  const bossDown = hits.killed.some(kill => kill.enemy.kind === 'boss');
 
   return {
     world: {
@@ -578,6 +694,9 @@ export const stepWorld = (
       combo: scored.combo,
       player,
       projectiles: hits.projectiles,
+      hostiles: bossDown
+        ? []
+        : flyingOrbs.filter(hostile => !struck.includes(hostile)),
       beams: [...world.beams, ...firedBeams].filter(
         beam => beam.expiresAt > now,
       ),

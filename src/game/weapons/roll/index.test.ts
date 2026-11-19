@@ -18,7 +18,9 @@ describe('rollWeapon', () => {
     expect(seen(parts => parts.oscillator)).toEqual(
       new Set(['wobble', 'laser', 'beam']),
     );
-    expect(seen(parts => parts.lfo)).toEqual(new Set(['1/4', '1/8', '1/16']));
+    expect(seen(parts => parts.lfo)).toEqual(
+      new Set(['1/2', '1/4', '1/8', '1/16']),
+    );
     expect(seen(parts => parts.fx)).toEqual(
       new Set([null, 'distortion', 'echo']),
     );
@@ -132,7 +134,7 @@ describe('a beam', () => {
 describe('crush', () => {
   const crushed = (seed: number) =>
     rollWeapon(seed, F_MINOR, {
-      pins: { oscillator: 'wobble', fx: 'distortion' },
+      pins: { oscillator: 'wobble', lfo: '1/8', fx: 'distortion' },
     });
 
   it('bursts on hit, wider the harder it drives', () => {
@@ -149,7 +151,40 @@ describe('crush', () => {
       pins: { oscillator: 'beam', fx: 'distortion' },
     });
     expect(beam.projectile.splash).toBeUndefined();
-    const clean = rollWeapon(1, F_MINOR, { pins: { fx: null } });
+    const clean = rollWeapon(1, F_MINOR, { pins: { lfo: '1/8', fx: null } });
     expect(clean.projectile.splash).toBeUndefined();
+  });
+});
+
+describe('slow rates', () => {
+  const at = (lfo: '1/2' | '1/4' | '1/8', fx: 'distortion' | null = null) =>
+    rollWeapon(5, F_MINOR, { pins: { oscillator: 'wobble', lfo, fx } });
+
+  it('burst on a hit or at the end of their range, wider the slower', () => {
+    const half = at('1/2').projectile;
+    const quarter = at('1/4').projectile;
+    expect(half.detonates).toBe(true);
+    expect(quarter.detonates).toBe(true);
+    expect(half.splash!.radius).toBeGreaterThan(quarter.splash!.radius);
+    expect(half.radius).toBeGreaterThan(quarter.radius);
+    expect(at('1/8').projectile.detonates).toBeUndefined();
+  });
+
+  it('grow their blast with Crush', () => {
+    expect(at('1/4', 'distortion').projectile.splash!.radius).toBeGreaterThan(
+      at('1/4').projectile.splash!.radius,
+    );
+  });
+
+  it('never make a beam burst', () => {
+    const beam = rollWeapon(5, F_MINOR, {
+      pins: { oscillator: 'beam', lfo: '1/2' },
+    });
+    expect(beam.projectile.splash).toBeUndefined();
+    expect(beam.projectile.detonates).toBeUndefined();
+  });
+
+  it('fire two shots a bar at 1/2', () => {
+    expect(at('1/2').timing.magazine).toBe(2);
   });
 });
