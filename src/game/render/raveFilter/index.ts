@@ -31,6 +31,10 @@ export const createRaveFilter = (): RaveFilter => {
       name: 'rave-filter',
     }),
     resources: { raveUniforms: uniforms },
+    // Pixi renders a filter at 1x unless told otherwise; this one covers the
+    // whole stage, so at 1x a 3x phone screen shows everything upscaled.
+    resolution: 'inherit',
+    antialias: 'inherit',
   });
 
   return {

@@ -11,6 +11,7 @@ import {
 } from '~/game';
 import { GameScreen } from '~/templates/GameScreen';
 import { StartScreen } from '~/templates/StartScreen';
+import { getLatencyHint } from '~/utils/getLatencyHint';
 import { getSeed } from '~/utils/getSeed';
 import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
 
@@ -55,6 +56,7 @@ export const App = () => {
   const [stress] = useState(() =>
     new URLSearchParams(window.location.search).has('stress'),
   );
+  const [latencyHint] = useState(() => getLatencyHint(window.location.search));
   const level = useMemo(() => describeLevel(run), [run]);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
@@ -139,6 +141,7 @@ export const App = () => {
       const starting = startGame({
         run: next,
         stress,
+        latencyHint,
         onStep: current => {
           step.current = current;
           setStartStep(current);

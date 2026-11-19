@@ -49,6 +49,11 @@ Tone Transport ──tick (1/16, with its scheduled audio time)──▶ bus
   trails it by the output latency. Without this, visuals fired ~15 ms early on
   built-in speakers and would be badly early on Bluetooth. Timing judgements
   (the on-beat bonus, combo beats) use the heard clock too.
+- **A balanced audio buffer.** `startAudio` makes Tone's context with
+  `latencyHint: 'balanced'` (`?latency=` overrides): Firefox's interactive
+  buffer is small enough that a phone crackles, and visuals follow the
+  speakers whatever the buffer. Chrome honours it (output latency 24 ms →
+  32 ms on a Mac); desktop Firefox reports 16.6 ms whatever is asked.
 - **Output timestamps from under Tone's wrapper.** Tone runs on a
   standardized-audio-context wrapper, which has no `getOutputTimestamp()`,
   so the heard clock long fell back to the audio clock. `startAudio` reads
@@ -297,7 +302,10 @@ a spawn marker before each appears), a
 per-frame fx layer (projectiles, kill bursts), and one fullscreen filter
 (`raveFilter`) doing chromatic aberration, single-pass bloom, a vignette, the
 red hit flash and the drop's palette flash, all driven by the pulses. The
-camera eases after the player and stays inside the level.
+filter renders at the renderer's resolution (`'inherit'`): Pixi's default
+of 1x drew the whole stage at 1x and upscaled it, pixelated on a phone. The
+renderer itself is capped at 2x. The camera eases after the player, stays
+inside the level and zooms out on small screens.
 
 ## Measuring things
 

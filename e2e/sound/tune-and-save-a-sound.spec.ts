@@ -16,9 +16,11 @@ test('tune a sound in the playground and save it to the game', async ({
     await route.continue();
   });
 
+  // No drafts from earlier runs. Cleared before the page loads rather than
+  // with a reload after: a reload cancels the page's fetch of the saved
+  // design, which WebKit reports as an error.
+  await page.addInitScript(() => localStorage.clear());
   await page.goto('/playground.html');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
   await page.getByRole('button', { name: 'Start audio' }).click();
   await expect(page.getByRole('button', { name: 'Start audio' })).toBeHidden();
 

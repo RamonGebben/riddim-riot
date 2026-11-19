@@ -1,4 +1,4 @@
-import { getContext, type BaseContext } from 'tone';
+import { Context, getContext, setContext, type BaseContext } from 'tone';
 
 export interface Audio {
   suspend: () => Promise<void>;
@@ -39,15 +39,21 @@ const resumeOnNextGesture = (context: BaseContext) => {
 let realtime: { context: BaseContext; audio: Audio } | null = null;
 
 /**
- * Start audio and hand back its controls. The realtime context is caught on
- * the first call, before any `Offline` render can swap Tone's global one.
+ * Start audio and hand back its controls. The first call makes Tone's
+ * realtime context with `latencyHint` (still Tone's own, so the wrapper
+ * keeps smoothing over browser gaps) and keeps it, before any `Offline`
+ * render can swap the global one; later calls just resume it.
  *
  * Must be called from a user gesture, before anything that spends it (a
  * fullscreen request does). If the browser still holds the context back,
  * this doesn't wait on it: the next touch or key starts it.
  */
-export const startAudio = async (): Promise<Audio> => {
+export const startAudio = async ({
+  latencyHint = 'balanced',
+}: { latencyHint?: AudioContextLatencyCategory } = {}): Promise<Audio> => {
   if (!realtime) {
+    // Nothing is built on the context Tone made by itself at import yet.
+    setContext(new Context({ latencyHint }), true);
     const context = getContext();
     const raw = context.rawContext;
     const native = nativeOf(raw);
