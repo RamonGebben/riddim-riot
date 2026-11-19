@@ -25,6 +25,8 @@ export interface PlayerInput {
   aimAt: Vec;
   /** Dash pressed this frame (Space, or the touch screen's button). */
   dash?: boolean;
+  /** Half-angle of the aim assist's cone, in radians (see `AIM_ASSIST`). */
+  assist?: number;
 }
 
 /**

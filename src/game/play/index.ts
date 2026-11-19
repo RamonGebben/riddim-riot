@@ -29,6 +29,7 @@ import {
   type Section,
   type SongPart,
 } from '../sim/survival';
+import { AIM_ASSIST } from '../sim/aimAssist';
 import { nearestPickup } from '../sim/loot';
 import { add, scale } from '../vec';
 import { weaponFrom, type WeaponRecipe } from '../weapons';
@@ -289,7 +290,12 @@ export const startPlay = async ({
     dashPressed = false;
     const dashedAt = world.dash.until;
     const result = stepWorld(world, {
-      input: { move, aimAt, dash },
+      input: {
+        move,
+        aimAt,
+        dash,
+        assist: stickAim ? AIM_ASSIST.touch : AIM_ASSIST.mouse,
+      },
       dt,
       now,
       beat,

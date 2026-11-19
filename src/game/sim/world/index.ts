@@ -12,6 +12,7 @@ import {
 import { createRng, deriveSeed, type Rng } from '../../rng';
 import { length, normalize, scale, subtract, type Vec } from '../../vec';
 import type { ProjectileSpec, WeaponRecipe } from '../../weapons';
+import { assistAim } from '../aimAssist';
 import { fireBeam, resolveBeams, type Beam } from '../beam';
 import {
   bossMove,
@@ -46,6 +47,7 @@ import {
   type PlayerInput,
 } from '../player';
 import { fireProjectile, flyProjectiles, type Projectile } from '../projectile';
+import { kickRecoil, NO_RECOIL, type Recoil } from '../recoil';
 import { NO_COMBO, registerKill, type Combo } from '../combo';
 import {
   attractHearts,
@@ -146,6 +148,8 @@ export interface World {
   invulnerableUntil: number;
   /** The player's dash: moving `direction` until `until`, ready again at `readyAt`. */
   dash: { direction: Vec; until: number; readyAt: number };
+  /** Heat from recent shots: fast fire scatters. */
+  recoil: Recoil;
 }
 
 const INVULNERABLE_SECONDS = 0.6;
@@ -213,6 +217,7 @@ export const createWorld = (
   invulnerableUntil: 0,
   // Never dashed: not dashing at any time, not even a clock short of zero.
   dash: { direction: { x: 1, y: 0 }, until: -Infinity, readyAt: 0 },
+  recoil: NO_RECOIL,
 });
 
 export const queueShot = (world: World, shot: PendingShot): World => ({
@@ -627,18 +632,47 @@ export const stepWorld = (
       }
     : world.dash;
   const dashing = now < dash.until;
-  const player = stepPlayer(
+  const moved = stepPlayer(
     world.player,
     input,
     dt,
     map,
     dashing ? dash.direction : null,
   );
+  // A near miss bends onto the enemy, so the gun turns to it and shots follow.
+  const player = {
+    ...moved,
+    aim: assistAim({
+      aim: moved.aim,
+      from: moved.position,
+      enemies: world.enemies,
+      now,
+      cone: input.assist ?? 0,
+    }),
+  };
   const due = world.pendingShots.filter(shot => shot.time <= now);
   const isBeam = (shot: PendingShot) => shot.spec.kind === 'beam';
-  const fired = due
+  // Each shot scatters by the heat the ones before it left.
+  const kicked = due
     .filter(shot => !isBeam(shot))
-    .map(shot => fireProjectile(player, shot));
+    .toSorted((a, b) => a.time - b.time)
+    .reduce<{ recoil: Recoil; fired: Array<Projectile> }>(
+      (acc, shot) => {
+        const kick = kickRecoil(acc.recoil, {
+          time: shot.time,
+          seed: world.level.seed,
+        });
+        return {
+          recoil: kick.recoil,
+          fired: [
+            ...acc.fired,
+            fireProjectile(player, { ...shot, angle: shot.angle + kick.angle }),
+          ],
+        };
+      },
+      { recoil: world.recoil, fired: [] },
+    );
+  const { fired } = kicked;
   const firedBeams = due
     .filter(isBeam)
     .map(shot => fireBeam(player, shot, map));
@@ -735,6 +769,7 @@ export const stepWorld = (
         ? now + INVULNERABLE_SECONDS
         : world.invulnerableUntil,
       dash,
+      recoil: kicked.recoil,
     },
     kills: hits.killed.map(kill => kill.position),
     blasts,
