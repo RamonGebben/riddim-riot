@@ -211,7 +211,8 @@ export const createWorld = (
   pendingShots: [],
   nextId: 1,
   invulnerableUntil: 0,
-  dash: { direction: { x: 1, y: 0 }, until: 0, readyAt: 0 },
+  // Never dashed: not dashing at any time, not even a clock short of zero.
+  dash: { direction: { x: 1, y: 0 }, until: -Infinity, readyAt: 0 },
 });
 
 export const queueShot = (world: World, shot: PendingShot): World => ({

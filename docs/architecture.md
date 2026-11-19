@@ -55,7 +55,11 @@ Tone Transport ──tick (1/16, with its scheduled audio time)──▶ bus
   at the heard clock (`heardNow`, projected from `getOutputTimestamp()`), which
   trails it by the output latency. Without this, visuals fired ~15 ms early on
   built-in speakers and would be badly early on Bluetooth. Timing judgements
-  (the on-beat bonus, combo beats) use the heard clock too.
+  (the on-beat bonus, combo beats) use the heard clock too. A projection
+  trailing the audio clock by over a second is no latency and falls back to
+  it: WebKit on Linux reports a `performanceTime` ahead of
+  `performance.now()`, which pinned the heard clock near zero (no beat, and
+  a phantom dash on a clock under zero).
 - **A bigger audio buffer on phones.** `startAudio` makes Tone's context
   with `latencyHint: 'playback'` on a touch screen and `'balanced'`
   elsewhere (`?latency=` overrides): Firefox on a phone crackled on smaller

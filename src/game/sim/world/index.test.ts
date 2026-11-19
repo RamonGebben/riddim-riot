@@ -481,6 +481,15 @@ describe('stepWorld', () => {
     expect(hit.world.hostiles).toEqual([]);
   });
 
+  it("doesn't dash before the first press, even on a clock short of zero", () => {
+    const after = stepWorld(createWorld(level), {
+      input: still,
+      dt: 1 / 60,
+      now: -0.001,
+    });
+    expect(after.world.player.position).toEqual(start);
+  });
+
   it('dashes along the stick, then waits out its cooldown in beats', () => {
     const go = { ...still, move: { x: 0, y: -1 }, dash: true };
     const dashed = stepWorld(createWorld(level), {
