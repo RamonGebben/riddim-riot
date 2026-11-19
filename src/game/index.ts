@@ -50,6 +50,9 @@ const ACCENT = {
   swap: { damage: 2, size: 1.6, flash: 2 },
 };
 
+/** Where `startGame` has got to, so a slow or stuck start can say so. */
+export type StartStep = 'audio' | 'kit' | 'weapons';
+
 /** What the screens show about a run's current level, before it's played. */
 export const describeLevel = (run: RunState) => {
   const { key, palette } = generateLevel(levelSeed(run));
@@ -92,11 +95,14 @@ export interface Game {
 export const startGame = async ({
   run,
   stress = false,
+  onStep = () => {},
 }: {
   run: RunState;
   /** Fill the level with enemies from the first bar - for perf checks. */
   stress?: boolean;
+  onStep?: (step: StartStep) => void;
 }): Promise<Game> => {
+  onStep('audio');
   const raw = await startAudio();
 
   const seed = levelSeed(run);
@@ -117,6 +123,7 @@ export const startGame = async ({
 
   const bus = createBus<GameEvents>();
   const musicBus = createMusicBus();
+  onStep('kit');
   const drums = await createDrums({
     seed,
     output: musicBus.input,
@@ -194,6 +201,7 @@ export const startGame = async ({
   const listeners = new Set<(view: LoadoutView) => void>();
   const hudListeners = new Set<(view: HudView) => void>();
   let hud = initialHud(run);
+  onStep('weapons');
   const loadout = await createLoadout({
     recipes: run.recipes,
     active: run.active,
