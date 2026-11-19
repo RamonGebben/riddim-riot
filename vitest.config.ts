@@ -27,11 +27,18 @@ export default mergeConfig(
           ],
           test: {
             name: 'storybook',
+            // Three engines load the stories at once; Firefox's first loads
+            // can pass 15 s on a busy machine.
+            testTimeout: 60_000,
             browser: {
               enabled: true,
               headless: true,
               provider: playwright({}),
-              instances: [{ browser: 'chromium' }],
+              instances: [
+                { browser: 'chromium' },
+                { browser: 'firefox' },
+                { browser: 'webkit' },
+              ],
             },
           },
         },

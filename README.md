@@ -85,17 +85,17 @@ Switching tabs or turning the phone upright pauses the game too; only
 
 ## Scripts
 
-| Script                         | Runs                                    |
-| ------------------------------ | --------------------------------------- |
-| `pnpm dev`                     | Vite dev server                         |
-| `pnpm build`                   | Typecheck and production build          |
-| `pnpm format` / `format:write` | Prettier check / fix                    |
-| `pnpm lint`                    | ESLint                                  |
-| `pnpm typecheck`               | `tsc --noEmit`                          |
-| `pnpm test`                    | Vitest unit tests (Node, no DOM)        |
-| `pnpm test:storybook`          | Storybook interaction tests in Chromium |
-| `pnpm test:e2e`                | Playwright end-to-end tests             |
-| `pnpm storybook`               | Storybook on port 6006                  |
+| Script                         | Runs                                                        |
+| ------------------------------ | ----------------------------------------------------------- |
+| `pnpm dev`                     | Vite dev server                                             |
+| `pnpm build`                   | Typecheck and production build                              |
+| `pnpm format` / `format:write` | Prettier check / fix                                        |
+| `pnpm lint`                    | ESLint                                                      |
+| `pnpm typecheck`               | `tsc --noEmit`                                              |
+| `pnpm test`                    | Vitest unit tests (Node, no DOM)                            |
+| `pnpm test:storybook`          | Storybook interaction tests in Chromium, Firefox and WebKit |
+| `pnpm test:e2e`                | Playwright end-to-end tests in Chromium, Firefox and WebKit |
+| `pnpm storybook`               | Storybook on port 6006                                      |
 
 A husky + lint-staged pre-commit hook runs Prettier, ESLint, typecheck and
 the unit tests on every commit. Never bypass it.
