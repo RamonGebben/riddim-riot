@@ -11,6 +11,7 @@ import {
 import { GameScreen } from '~/templates/GameScreen';
 import { StartScreen } from '~/templates/StartScreen';
 import { getSeed } from '~/utils/getSeed';
+import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
 
 type SessionStatus = 'idle' | 'starting' | 'playing';
 
@@ -26,6 +27,7 @@ export const App = () => {
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
+  const [paused, setPaused] = useState(false);
   // Bumped on every (re)start, so the stage re-attaches to the new game.
   const [session, setSession] = useState(0);
   const game = useRef<Game | null>(null);
@@ -46,10 +48,51 @@ export const App = () => {
     };
   }, [status, session]);
 
+  const fighting = status === 'playing' && hud?.status === 'playing';
+  const pause = () => {
+    game.current?.pause();
+    setPaused(true);
+  };
+  const resume = () => {
+    game.current?.resume();
+    setPaused(false);
+  };
+
+  // Esc or P toggles; leaving the tab or turning the phone upright pauses,
+  // and only a press resumes (an AudioContext needs a gesture to restart).
+  useEffect(() => {
+    if (!fighting) return;
+    const portrait = window.matchMedia(
+      `${TOUCH_SCREEN} and (orientation: portrait)`,
+    );
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Escape' && event.code !== 'KeyP') return;
+      if (paused) resume();
+      else pause();
+    };
+    const onHidden = () => {
+      if (document.hidden) pause();
+    };
+    const onTurn = () => {
+      if (portrait.matches) pause();
+    };
+    onTurn();
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('visibilitychange', onHidden);
+    portrait.addEventListener('change', onTurn);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('visibilitychange', onHidden);
+      portrait.removeEventListener('change', onTurn);
+    };
+  });
+
   // startGame() has to run inside a click handler: browsers only let an
   // AudioContext start from a user gesture.
   const play = async (next: RunState) => {
+    void goLandscape();
     game.current?.stop();
+    setPaused(false);
     setStatus('starting');
     setRun(next);
     game.current = await startGame({ run: next, stress });
@@ -62,6 +105,7 @@ export const App = () => {
   const handleStop = () => {
     game.current?.stop();
     game.current = null;
+    setPaused(false);
     setStatus('idle');
   };
 
@@ -77,11 +121,15 @@ export const App = () => {
         bpm={level.bpm}
         run={hud}
         loadout={loadout}
+        paused={paused}
         surfaceRef={surface}
         onStop={handleStop}
+        onPause={pause}
+        onResume={resume}
         onRetry={() => play(newRun(run.seed))}
         onNewRun={() => play(newRun(randomSeed()))}
         onNextLevel={handleNextLevel}
+        onTakeWeapon={() => game.current?.takeWeapon()}
       />
     );
   }

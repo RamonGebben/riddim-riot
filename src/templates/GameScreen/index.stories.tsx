@@ -34,6 +34,10 @@ const meta = {
     onRetry: fn(),
     onNewRun: fn(),
     onNextLevel: fn(),
+    onTakeWeapon: fn(),
+    paused: false,
+    onPause: fn(),
+    onResume: fn(),
   },
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof GameScreen>;
@@ -46,6 +50,22 @@ export const Playing: Story = {
     await expect(canvas.getByText(/mouse aim and fire/)).toBeVisible();
     await expect(canvas.getByText(/drop 1 0:42/)).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }));
+    await expect(args.onStop).toHaveBeenCalled();
+    await userEvent.click(canvas.getByRole('button', { name: 'Pause' }));
+    await expect(args.onPause).toHaveBeenCalled();
+  },
+};
+
+export const Paused: Story = {
+  args: { paused: true },
+  play: async ({ args, canvas, userEvent }) => {
+    await expect(canvas.getByRole('heading', { name: 'Paused' })).toBeVisible();
+    await expect(
+      canvas.queryByRole('button', { name: 'Pause' }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Resume' }));
+    await expect(args.onResume).toHaveBeenCalled();
+    await userEvent.click(canvas.getByRole('button', { name: 'Quit' }));
     await expect(args.onStop).toHaveBeenCalled();
   },
 };

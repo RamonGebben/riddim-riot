@@ -18,7 +18,11 @@ Running and controls are in `README.md`.
 - **Two clocks, one source.** Schedule new sounds at the audio clock
   (`audioNow`, Tone's `immediate()`); simulate and draw at the heard clock
   (`heardNow`, from `getOutputTimestamp()`), which trails it by the output
-  latency - otherwise visuals land early, badly so on Bluetooth.
+  latency - otherwise visuals land early, badly so on Bluetooth. Start
+  audio with `startAudio` (`src/game/audio`), never Tone's `start()`: it
+  hands Tone a native AudioContext, as Tone's own standardized-audio-context
+  wrapper has no `getOutputTimestamp()` and the heard clock would silently
+  equal the audio clock.
 - **Keep Tone out of pure modules.** `grid`, `rng`, `bus` and pattern
   generators must not import `tone` (directly or through a domain `index.ts`
   that does), so they run in the Node `unit` Vitest project.

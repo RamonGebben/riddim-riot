@@ -2,12 +2,16 @@ import type { Ref } from 'react';
 import { Button } from '~/atoms/Button';
 import { Combo } from './components/Combo';
 import { Health } from './components/Health';
+import { HudActions } from './components/HudActions';
 import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
 import { Loadout, type LoadoutProps } from './components/Loadout';
 import { Overlay } from './components/Overlay';
+import { PointerOnly } from './components/PointerOnly';
 import { Prompt } from './components/Prompt';
+import { RotateNotice } from './components/RotateNotice';
 import { Surface } from './components/Surface';
+import { TakeButton } from './components/TakeButton';
 
 /** Where a level is, from waiting at the circle to its exit open. */
 export type LevelPhase = 'waiting' | 'charging' | 'song' | 'clear';
@@ -49,14 +53,20 @@ export interface GameScreenProps {
   bpm: number;
   run: RunProps;
   loadout: LoadoutProps;
+  /** Frozen mid-level, waiting for Resume. */
+  paused: boolean;
   /** The element the game attaches its input and canvas to. */
   surfaceRef?: Ref<HTMLElement>;
   onStop: () => void;
+  onPause: () => void;
+  onResume: () => void;
   /** Start the same run over. */
   onRetry: () => void;
   /** Start over on a fresh seed. */
   onNewRun: () => void;
   onNextLevel: () => void;
+  /** Take the weapon underfoot: the touch screen's button for F. */
+  onTakeWeapon: () => void;
 }
 
 const CIRCLE_PROMPTS = {
@@ -94,28 +104,42 @@ export const GameScreen = ({
   bpm,
   run,
   loadout,
+  paused,
   surfaceRef,
   onStop,
+  onPause,
+  onResume,
   onRetry,
   onNewRun,
   onNextLevel,
+  onTakeWeapon,
 }: GameScreenProps) => {
   const prompt = run.pickup ? (
-    <>
+    <PointerOnly $pointer="mouse">
       <kbd>F</kbd> take {run.pickup}
-    </>
+    </PointerOnly>
   ) : (
     CIRCLE_PROMPTS[run.phase]
   );
+  const playing = run.status === 'playing' && !paused;
   return (
     <>
       <Surface ref={surfaceRef} aria-label="Play area">
         <Hint>
-          WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · F take
-          weapon
+          <PointerOnly $pointer="mouse">
+            WASD move · mouse aim and fire · 1-3, Q/E or wheel switch · F take
+            weapon
+          </PointerOnly>
+          <PointerOnly $pointer="touch">
+            left: aim, push further to move · right: tap or hold to fire, swipe
+            to switch
+          </PointerOnly>
         </Hint>
       </Surface>
-      {prompt && run.status === 'playing' && <Prompt>{prompt}</Prompt>}
+      {prompt && playing && <Prompt>{prompt}</Prompt>}
+      {run.pickup && playing && (
+        <TakeButton onClick={onTakeWeapon}>Take {run.pickup}</TakeButton>
+      )}
       <Loadout {...loadout} />
       <Hud>
         <span>
@@ -131,8 +155,25 @@ export const GameScreen = ({
           )}
           {phaseLabel(run)}
         </span>
-        <Button onClick={onStop}>Stop</Button>
+        <HudActions>
+          {playing && <Button onClick={onPause}>Pause</Button>}
+          <Button onClick={onStop}>Stop</Button>
+        </HudActions>
       </Hud>
+      {paused && run.status === 'playing' && (
+        <Overlay
+          heading="Paused"
+          stats={[
+            `Level ${run.level}`,
+            `${run.kills} kills`,
+            `${run.score.toLocaleString('en')} points`,
+          ]}
+          actions={[
+            { label: 'Resume', onClick: onResume },
+            { label: 'Quit', onClick: onStop },
+          ]}
+        />
+      )}
       {run.status === 'dead' && (
         <Overlay
           heading="Run over"
@@ -147,6 +188,7 @@ export const GameScreen = ({
           ]}
         />
       )}
+      <RotateNotice>Turn your phone sideways to play</RotateNotice>
       {run.status === 'cleared' && (
         <Overlay
           heading={`Level ${run.level} cleared`}

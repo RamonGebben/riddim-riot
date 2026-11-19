@@ -1,4 +1,4 @@
-import { getContext, immediate, now, start } from 'tone';
+import { getContext, immediate, now } from 'tone';
 import {
   createArrangement,
   createBlastSound,
@@ -10,6 +10,7 @@ import {
   createScoreSound,
   createWeaponVoice,
   heardTime,
+  startAudio,
   measureWeaponLoudness,
 } from './audio';
 import { createBus } from './bus';
@@ -66,6 +67,12 @@ const heardNow = () => {
 export interface Game {
   /** Mount the stage and input on the play area; returns detach. */
   attach: (element: HTMLElement) => () => void;
+  /** Take the weapon the player is standing on, for touch screens. */
+  takeWeapon: () => void;
+  /** Freeze the whole game: music, clock, enemies and input. */
+  pause: () => void;
+  /** Must be called from a user gesture, like `startGame`. */
+  resume: () => void;
   loadout: () => LoadoutView;
   /** Called on every weapon switch or reroll; returns unsubscribe. */
   onLoadout: (listener: (view: LoadoutView) => void) => () => void;
@@ -89,7 +96,7 @@ export const startGame = async ({
   /** Fill the level with enemies from the first bar - for perf checks. */
   stress?: boolean;
 }): Promise<Game> => {
-  await start();
+  const raw = await startAudio();
 
   const seed = levelSeed(run);
   const level = generateLevel(seed);
@@ -204,8 +211,26 @@ export const startGame = async ({
     const error = gridError(heardNow(), anchor, steps * stepSeconds);
     return Math.abs(error) <= ON_BEAT_SECONDS;
   };
+  // Suspending the AudioContext stops its clock, and every time in the
+  // game (Transport, scheduled sound, hops, pulses) is read off it, so the
+  // game picks up on resume exactly where it stopped.
+  let paused = false;
+  const pause = () => {
+    if (paused) return;
+    paused = true;
+    loadout.release();
+    void raw.suspend();
+  };
+  const resume = () => {
+    if (!paused) return;
+    paused = false;
+    void raw.resume();
+  };
+
   const trigger = {
-    press: () => loadout.press({ onBeat: onBeat() }),
+    press: () => {
+      if (!paused) loadout.press({ onBeat: onBeat() });
+    },
     release: loadout.release,
   };
 
@@ -227,6 +252,7 @@ export const startGame = async ({
     onTick: tick => bus.emit('tick', tick),
   });
   clock.start();
+  let takeWeapon = () => {};
 
   return {
     attach: element => {
@@ -244,7 +270,10 @@ export const startGame = async ({
           hud = view;
           hudListeners.forEach(listener => listener(view));
         },
-        onWeaponAction: loadout.act,
+        onWeaponAction: action => {
+          if (!paused) loadout.act(action);
+        },
+        isPaused: () => paused,
         swapWeapon: loadout.replaceActive,
         pulses,
         sounds: {
@@ -267,10 +296,19 @@ export const startGame = async ({
         audioNow: immediate,
         heardNow,
       });
+      void play.then(mounted => {
+        takeWeapon = mounted.takeWeapon;
+      });
       return () => {
-        play.then(detach => detach());
+        takeWeapon = () => {};
+        void play.then(mounted => mounted.detach());
       };
     },
+    takeWeapon: () => {
+      if (!paused) takeWeapon();
+    },
+    pause,
+    resume,
     loadout: loadout.view,
     hud: () => hud,
     nextRun: () =>
