@@ -163,7 +163,7 @@ export const startPlay = async ({
     if (!underfoot || world.status !== 'playing') return;
     world = takePickup(world, underfoot.id);
     void swapWeapon(underfoot.recipe).then(old => {
-      world = placePickup(world, old, underfoot.position, { resting: true });
+      world = placePickup(world, old, underfoot.position);
     });
   };
   const detachWeaponKeys = attachWeaponKeys(element, action =>

@@ -7,11 +7,6 @@ export interface Pickup {
   id: number;
   position: Vec;
   recipe: WeaponRecipe;
-  /**
-   * Put down by the player: it stays put until they've walked out of the
-   * magnet's reach, so a swapped-out weapon doesn't chase them.
-   */
-  resting?: boolean;
 }
 
 /** A heart on the floor: walking over it heals one hit point. */
@@ -28,13 +23,11 @@ const HEART_DROP_CHANCE = 0.08;
 export const BOSS_HEARTS = 2;
 /** How close the player has to stand to take a weapon. */
 export const PICKUP_RADIUS = 40;
-/** Loot this close drifts in towards the player, faster as it nears. */
+/** Hearts this close drift in towards the player, faster as they near. */
 export const MAGNET_RADIUS = 170;
 /** px/s at the magnet's rim, and how much faster it gets right up close. */
 const MAGNET_SPEED = 240;
 const MAGNET_PULL = 1100;
-/** A pulled weapon stops this far out, under the player's feet. */
-const WEAPON_REST = PICKUP_RADIUS / 2;
 /**
  * Hearts past the starting health: picked up at full health, they stack
  * on top as bonus hearts, lost first when hit. Saving health pays off.
@@ -91,57 +84,33 @@ export const nearestPickup = (
 
 /**
  * One frame of the magnet: `position` drifts towards `target` when within
- * reach, never closer than `stopAt`.
+ * reach.
  */
 export const pullTowards = (
   position: Vec,
   target: Vec,
-  { dt, stopAt = 0 }: { dt: number; stopAt?: number },
+  { dt }: { dt: number },
 ): Vec => {
   const towards = subtract(target, position);
   const distance = length(towards);
-  if (distance > MAGNET_RADIUS || distance <= stopAt) return position;
+  if (distance > MAGNET_RADIUS || distance === 0) return position;
   const speed = MAGNET_SPEED + MAGNET_PULL * (1 - distance / MAGNET_RADIUS);
-  const step = Math.min(speed * dt, distance - stopAt);
+  const step = Math.min(speed * dt, distance);
   return add(position, scale(normalize(towards), step));
 };
 
 /**
  * Hearts drift in while there's health (or a bonus heart) to gain, so
- * they're easy to grab mid-fight. Of the weapons, only the nearest drifts
- * to the player's feet - never one they just put down - so drops don't
- * pile up underfoot.
+ * they're easy to grab mid-fight. Weapons stay where they fell: the player
+ * walks over to the one they want.
  */
-export const attractLoot = (
-  { pickups, hearts }: { pickups: Array<Pickup>; hearts: Array<Heart> },
+export const attractHearts = (
+  hearts: Array<Heart>,
   { player, dt, canHeal }: { player: Vec; dt: number; canHeal: boolean },
-): { pickups: Array<Pickup>; hearts: Array<Heart> } => {
-  const away = (pickup: Pickup) => length(subtract(pickup.position, player));
-  const nearest = pickups
-    .filter(pickup => !pickup.resting)
-    .reduce<Pickup | null>(
-      (best, pickup) => (!best || away(pickup) < away(best) ? pickup : best),
-      null,
-    );
-  return {
-    hearts: canHeal
-      ? hearts.map(heart => ({
-          ...heart,
-          position: pullTowards(heart.position, player, { dt }),
-        }))
-      : hearts,
-    pickups: pickups.map(pickup => {
-      if (pickup.resting) {
-        return away(pickup) > MAGNET_RADIUS
-          ? { ...pickup, resting: false }
-          : pickup;
-      }
-      if (pickup !== nearest) return pickup;
-      const position = pullTowards(pickup.position, player, {
-        dt,
-        stopAt: WEAPON_REST,
-      });
-      return position === pickup.position ? pickup : { ...pickup, position };
-    }),
-  };
-};
+): Array<Heart> =>
+  canHeal
+    ? hearts.map(heart => ({
+        ...heart,
+        position: pullTowards(heart.position, player, { dt }),
+      }))
+    : hearts;

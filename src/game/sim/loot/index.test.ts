@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  attractLoot,
+  attractHearts,
   dropOnKill,
   goodLootRecipe,
   heartsInReach,
@@ -65,29 +65,25 @@ describe('nearestPickup', () => {
   });
 });
 
-describe('attractLoot', () => {
+describe('attractHearts', () => {
   const player = { x: 0, y: 0 };
-  const at = (id: number, x: number) => ({
-    id,
-    position: { x, y: 0 },
-    recipe: { seed: id },
-  });
+  const heart = { id: 3, position: { x: 100, y: 0 } };
 
-  it('draws in only the nearest weapon, so drops never pile underfoot', () => {
-    const { pickups } = attractLoot(
-      { pickups: [at(1, 100), at(2, 150)], hearts: [] },
-      { player, dt: 1 / 60, canHeal: false },
-    );
-    expect(pickups[0].position.x).toBeLessThan(100);
-    expect(pickups[1].position.x).toBe(150);
+  it('draws hearts in while there is health to gain', () => {
+    const [drawn] = attractHearts([heart], {
+      player,
+      dt: 1 / 60,
+      canHeal: true,
+    });
+    expect(drawn.position.x).toBeLessThan(100);
   });
 
   it('leaves hearts be when there is nothing to heal', () => {
-    const heart = { id: 3, position: { x: 100, y: 0 } };
-    const kept = attractLoot(
-      { pickups: [], hearts: [heart] },
-      { player, dt: 1 / 60, canHeal: false },
-    );
-    expect(kept.hearts[0].position.x).toBe(100);
+    const [kept] = attractHearts([heart], {
+      player,
+      dt: 1 / 60,
+      canHeal: false,
+    });
+    expect(kept.position.x).toBe(100);
   });
 });
