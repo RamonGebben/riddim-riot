@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-20T09:40:00Z",
+  "generatedAt": "2026-11-20T11:17:43Z",
   "title": "Design System: Bass Weapons",
   "extensions": {
     "colorMeta": {
@@ -310,7 +310,22 @@
       "css": ".ds-btn-quiet { min-height: var(--ds-target-min, 24px); padding: 0.4222rem 0.7502rem; border: 1px solid #2e2e2e; border-radius: 4px; background: transparent; color: #ededed; font-family: system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; cursor: pointer; } .ds-btn-quiet:hover { background: #1f1f1f; } .ds-btn-quiet:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; } .ds-btn-quiet[aria-pressed='true'] { border-color: #60a5fa; background: #60a5fa; color: #0b1220; }"
     },
     {
-      "name": "Reduce Flashing Toggle",
+      "name": "Icon Button",
+      "kind": "button",
+      "description": "Round ringed button holding only an icon, named by aria-label.",
+      "html": "<button class=\"ds-icon-btn\" aria-label=\"Pause\"><svg viewBox=\"0 0 24 24\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><rect x=\"6\" y=\"5\" width=\"4\" height=\"14\" rx=\"1\"/><rect x=\"14\" y=\"5\" width=\"4\" height=\"14\" rx=\"1\"/></svg></button>",
+      "css": ".ds-icon-btn { display: grid; place-items: center; width: var(--ds-target-min, 24px); height: var(--ds-target-min, 24px); padding: 0; border: 1px solid color-mix(in srgb, #ededed 25%, transparent); border-radius: 9999px; background: transparent; color: #ededed; font-size: 1rem; cursor: pointer; } .ds-icon-btn:hover { background: #1f1f1f; } .ds-icon-btn:focus-visible { outline: 2px solid #93c5fd; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "text-input",
+      "description": "Mono field on Console Grey; the border turns Alarm Coral when invalid.",
+      "html": "<input class=\"ds-input\" type=\"text\" value=\"48213\" aria-label=\"Seed\"> <input class=\"ds-input\" type=\"text\" value=\"??\" aria-invalid=\"true\" aria-label=\"Seed\">",
+      "css": ".ds-input { width: 12em; min-height: var(--ds-target-min, 24px); padding: 0 0.5628rem; border: 1px solid #2e2e2e; border-radius: 4px; background: #1f1f1f; color: #ededed; font-family: ui-monospace, monospace; font-size: 0.75rem; } .ds-input[aria-invalid='true'] { border-color: #ff6369; } .ds-input:focus-visible { outline: 2px solid #93c5fd; }"
+    },
+    {
+      "name": "Toggle",
       "kind": "custom",
       "description": "Pill switch over a real checkbox with role=switch.",
       "html": "<label class=\"ds-toggle\"><input type=\"checkbox\" role=\"switch\" checked><span></span>Reduce flashing</label>",
@@ -325,12 +340,41 @@
       "css": ".ds-glass { display: grid; gap: 0.7502rem; padding: 1rem; border: 1px solid color-mix(in srgb, #ededed 12%, transparent); border-radius: 8px; background: color-mix(in srgb, #111111 75%, transparent); backdrop-filter: blur(8px); color: #ededed; font-family: system-ui, sans-serif; } .ds-glass h2 { margin: 0; color: #a78bfa; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; } .ds-glass p { margin: 0; color: #9ca3af; font-size: 0.75rem; }"
     },
     {
+      "name": "HUD Panel",
+      "kind": "card",
+      "refersTo": "hud-panel",
+      "description": "Compact glass cluster for live readouts at the stage edges.",
+      "html": "<div class=\"ds-hud\"><span class=\"ds-hud-label\">Score</span><span class=\"ds-hud-num\">31,450</span></div>",
+      "css": ".ds-hud { display: inline-flex; align-items: center; gap: 0.7502rem; padding: 0.4222rem 0.7502rem; border: 1px solid color-mix(in srgb, #ededed 12%, transparent); border-radius: 8px; background: color-mix(in srgb, #111111 70%, transparent); backdrop-filter: blur(6px); color: #ededed; } .ds-hud-label { color: #a78bfa; font: 700 0.75rem ui-monospace, monospace; letter-spacing: 0.2em; text-transform: uppercase; } .ds-hud-num { font: 700 1.333rem system-ui, sans-serif; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Overlay Panel",
+      "kind": "card",
+      "refersTo": "overlay-panel",
+      "description": "The one opaque, shadowed surface: pause, run over and victory, over a 70% blurred backdrop.",
+      "html": "<div class=\"ds-backdrop\"><section class=\"ds-overlay\"><h2>Run over</h2><p>Level 4 · 312 kills</p><button class=\"ds-overlay-btn\">Play again</button></section></div>",
+      "css": ".ds-backdrop { display: flex; padding: 1rem; background: color-mix(in srgb, #111111 70%, transparent); backdrop-filter: blur(4px); } .ds-overlay { display: grid; justify-items: center; gap: 1.333rem; margin: auto; padding: 1.7769rem; border-radius: 8px; background: #111111; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); color: #ededed; text-align: center; font-family: system-ui, sans-serif; } .ds-overlay h2 { margin: 0; font-size: 2.3686rem; line-height: 1.2; } .ds-overlay p { margin: 0; color: #9ca3af; font: 0.75rem ui-monospace, monospace; } .ds-overlay-btn { min-height: max(var(--ds-target-min, 24px), 2.5em); padding: 0.5628rem 1.7769rem; border: none; border-radius: 9999px; background: #60a5fa; color: #0b1220; font: 700 1.333rem system-ui, sans-serif; cursor: pointer; } .ds-overlay-btn:hover { background: #93c5fd; } .ds-overlay-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }"
+    },
+    {
       "name": "Weapon Slot",
       "kind": "custom",
-      "refersTo": "hud-panel",
       "description": "HUD weapon button with magazine cells; blue border and halo when active.",
       "html": "<button class=\"ds-slot\" data-active=\"true\"><span class=\"ds-key\">1</span><span>Wobble 1/8</span><span class=\"ds-mag\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i></i></span></button>",
       "css": ".ds-slot { display: grid; grid-template-columns: auto auto; gap: 0.4222rem 0.5628rem; min-width: 8.5em; padding: 0.5628rem 0.7502rem; border: 2px solid color-mix(in srgb, #ededed 15%, transparent); border-radius: 8px; background: color-mix(in srgb, #111111 72%, transparent); backdrop-filter: blur(6px); color: #9ca3af; font: 700 0.75rem ui-monospace, monospace; cursor: pointer; transition: transform 0.08s, border-color 0.08s; } .ds-slot[data-active='true'] { border-color: #60a5fa; box-shadow: 0 0 14px color-mix(in srgb, #60a5fa 55%, transparent); color: #ededed; } .ds-slot:active { transform: scale(0.96); } .ds-slot:focus-visible { outline: 2px solid #93c5fd; } .ds-key { color: #60a5fa; } .ds-mag { grid-column: 1 / -1; display: flex; gap: 2px; height: 4px; } .ds-mag i { flex: 1; border-radius: 1px; background: color-mix(in srgb, #9ca3af 25%, transparent); } .ds-mag i.on { background: #60a5fa; }"
+    },
+    {
+      "name": "Weapon Tag",
+      "kind": "chip",
+      "description": "A weapon named inline: engine icon, engine and rate, optional FX, in bold Strobe Blue.",
+      "html": "<p class=\"ds-line\">You found a <span class=\"ds-wtag\"><svg viewBox=\"0 0 24 24\" width=\"1em\" height=\"1em\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0\"/></svg>Wobble 1/8 <svg viewBox=\"0 0 24 24\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"12\" r=\"3\"/><circle cx=\"16\" cy=\"12\" r=\"2\" opacity=\"0.5\"/></svg>Echo</span></p>",
+      "css": ".ds-line { margin: 0; color: #ededed; font: 1rem system-ui, sans-serif; } .ds-wtag { display: inline-flex; align-items: center; gap: 0.3em; color: #60a5fa; font-weight: 700; vertical-align: middle; }"
+    },
+    {
+      "name": "Song Track",
+      "kind": "custom",
+      "description": "The level's song as segments sized by bars, filled as it plays; drops in UV Violet, boss health in Alarm Coral beneath.",
+      "html": "<div class=\"ds-song\"><span class=\"ds-song-label\">Drop 1 0:42</span><div class=\"ds-segs\"><i style=\"flex:8 1 0;background:#60a5fa\"></i><i style=\"flex:16 1 0;background:linear-gradient(90deg,#a78bfa 40%,color-mix(in srgb,#a78bfa 30%,transparent) 40%)\"></i><i style=\"flex:8 1 0;background:color-mix(in srgb,#9ca3af 30%,transparent)\"></i><i style=\"flex:16 1 0;background:color-mix(in srgb,#a78bfa 30%,transparent)\"></i></div><div class=\"ds-boss\"><div style=\"width:62%\"></div></div></div>",
+      "css": ".ds-song { display: grid; justify-items: center; gap: 0.4222rem; width: 26rem; max-width: 100%; color: #ededed; font: 0.75rem system-ui, sans-serif; } .ds-song-label { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; text-shadow: 0 1px 4px rgb(0 0 0 / 0.8); } .ds-segs { display: flex; gap: 2px; width: 100%; height: 6px; } .ds-segs i { border-radius: 2px; } .ds-boss { width: 100%; height: 10px; overflow: hidden; border: 1px solid #ff6369; border-radius: 9999px; background: color-mix(in srgb, #ff6369 15%, transparent); } .ds-boss div { height: 100%; background: #ff6369; box-shadow: 0 0 10px #ff6369; transition: width 0.15s ease-out; }"
     },
     {
       "name": "Stat Tile",
