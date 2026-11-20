@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": ["src/templates/StartScreen/components/Title/index.tsx"],
+        "createdAt": "2026-11-20T08:08:45.727Z",
+        "reason": "DESIGN.md records the gradient wordmark as the one deliberate loud moment (Display type, Overview); incumbent brand title"
+      }
+    ]
+  }
+}

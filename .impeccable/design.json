@@ -1,0 +1,422 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-20T09:40:00Z",
+  "title": "Design System: Bass Weapons",
+  "extensions": {
+    "colorMeta": {
+      "strobe-blue": {
+        "role": "primary",
+        "displayName": "Strobe Blue",
+        "canonical": "#60a5fa",
+        "tonalRamp": [
+          "#0b1a33",
+          "#13305c",
+          "#1d4ed8",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#bfdbfe",
+          "#e6f0fe"
+        ]
+      },
+      "strobe-blue-bright": {
+        "role": "primary",
+        "displayName": "Strobe Blue Bright",
+        "canonical": "#93c5fd",
+        "tonalRamp": [
+          "#0b1a33",
+          "#13305c",
+          "#1d4ed8",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#bfdbfe",
+          "#e6f0fe"
+        ]
+      },
+      "strobe-ink": {
+        "role": "primary",
+        "displayName": "Strobe Ink",
+        "canonical": "#0b1220",
+        "tonalRamp": [
+          "#05080f",
+          "#0b1220",
+          "#141f36",
+          "#1e2d4d",
+          "#2c4066",
+          "#455a82",
+          "#7184a6",
+          "#b3bfd4"
+        ]
+      },
+      "uv-violet": {
+        "role": "secondary",
+        "displayName": "UV Violet",
+        "canonical": "#a78bfa",
+        "tonalRamp": [
+          "#1c1238",
+          "#2e1d63",
+          "#5b21b6",
+          "#7c3aed",
+          "#a78bfa",
+          "#c4b5fd",
+          "#ddd6fe",
+          "#f1edff"
+        ]
+      },
+      "hype-amber": {
+        "role": "tertiary",
+        "displayName": "Hype Amber",
+        "canonical": "#fbbf24",
+        "tonalRamp": [
+          "#2e1f04",
+          "#5c3d07",
+          "#92400e",
+          "#d97706",
+          "#fbbf24",
+          "#fcd34d",
+          "#fde68a",
+          "#fef6d8"
+        ]
+      },
+      "alarm-coral": {
+        "role": "tertiary",
+        "displayName": "Alarm Coral",
+        "canonical": "#ff6369",
+        "tonalRamp": [
+          "#33090b",
+          "#5e1216",
+          "#8e1b1b",
+          "#d13a40",
+          "#ff6369",
+          "#ff9592",
+          "#ffc1bf",
+          "#ffe8e7"
+        ]
+      },
+      "floor-black": {
+        "role": "neutral",
+        "displayName": "Floor Black",
+        "canonical": "#111111",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#111111",
+          "#1c1c1c",
+          "#2e2e2e",
+          "#4a4a4a",
+          "#7a7a7a",
+          "#b5b5b5",
+          "#ededed"
+        ]
+      },
+      "booth-black": {
+        "role": "neutral",
+        "displayName": "Booth Black",
+        "canonical": "#1c1c1c",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#111111",
+          "#1c1c1c",
+          "#2e2e2e",
+          "#4a4a4a",
+          "#7a7a7a",
+          "#b5b5b5",
+          "#ededed"
+        ]
+      },
+      "console-grey": {
+        "role": "neutral",
+        "displayName": "Console Grey",
+        "canonical": "#1f1f1f",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#111111",
+          "#1f1f1f",
+          "#2e2e2e",
+          "#4a4a4a",
+          "#7a7a7a",
+          "#b5b5b5",
+          "#ededed"
+        ]
+      },
+      "console-edge": {
+        "role": "neutral",
+        "displayName": "Console Edge",
+        "canonical": "#2e2e2e",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#111111",
+          "#1f1f1f",
+          "#2e2e2e",
+          "#4a4a4a",
+          "#7a7a7a",
+          "#b5b5b5",
+          "#ededed"
+        ]
+      },
+      "haze-white": {
+        "role": "neutral",
+        "displayName": "Haze White",
+        "canonical": "#ededed",
+        "tonalRamp": [
+          "#1c1c1c",
+          "#3a3a3a",
+          "#5c5c5c",
+          "#808080",
+          "#a6a6a6",
+          "#c9c9c9",
+          "#ededed",
+          "#fafafa"
+        ]
+      },
+      "smoke-grey": {
+        "role": "neutral",
+        "displayName": "Smoke Grey",
+        "canonical": "#9ca3af",
+        "tonalRamp": [
+          "#15171b",
+          "#262a31",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#d1d5db",
+          "#f1f2f4"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Wordmark",
+        "purpose": "The title only: 900 italic caps, violet-to-blue gradient clipped to text, glow breathing on two beats."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Overlay headings; the level card heading runs 1.6x with a violet glow."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Primary button, score, combo, landing lead."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; card copy at 0.75rem in Smoke Grey."
+      },
+      "label": {
+        "displayName": "Panel label",
+        "purpose": "Mono uppercase UV Violet names for panels."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Keys, seeds, BPM, meta lines, status, stats."
+      }
+    },
+    "shadows": [
+      {
+        "name": "modal",
+        "value": "0 8px 24px rgba(0, 0, 0, 0.6)",
+        "purpose": "Overlay panel only."
+      },
+      {
+        "name": "halo-strobe",
+        "value": "0 0 14px color-mix(in srgb, #60a5fa 55%, transparent)",
+        "purpose": "Active weapon slot."
+      },
+      {
+        "name": "halo-hype",
+        "value": "0 0 14px color-mix(in srgb, #fbbf24 50%, transparent)",
+        "purpose": "Dash button when ready."
+      },
+      {
+        "name": "readout-glow",
+        "value": "0 0 8px currentColor",
+        "purpose": "Combo text-shadow; hearts use drop-shadow(0 0 4px currentColor)."
+      },
+      {
+        "name": "wordmark-breath",
+        "value": "drop-shadow(0 0 18px rgb(167 139 250 / 0.55)) to drop-shadow(0 0 34px rgb(96 165 250 / 0.9))",
+        "purpose": "Title glow keyframes, two beats at 140 BPM."
+      }
+    ],
+    "motion": [
+      {
+        "name": "breathe",
+        "value": "0.857s ease-out infinite",
+        "purpose": "Wordmark glow: two beats at 140 BPM; off when flashing is reduced."
+      },
+      {
+        "name": "bump",
+        "value": "scale(1.5) to 1, 0.2s ease-out",
+        "purpose": "Combo change."
+      },
+      {
+        "name": "arrive",
+        "value": "scale(1.8) to 1, 0.25s ease-out",
+        "purpose": "Heart gained."
+      },
+      {
+        "name": "rise",
+        "value": "scale(0.94) to 1, 0.4s ease-out",
+        "purpose": "Level card entrance."
+      },
+      {
+        "name": "press",
+        "value": "scale(0.96), 0.08s",
+        "purpose": "Slot and Take press; dash uses 0.94."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tablet",
+        "value": "768px"
+      },
+      {
+        "name": "tabletLandscape",
+        "value": "1024px"
+      },
+      {
+        "name": "desktop",
+        "value": "1440px"
+      },
+      {
+        "name": "touch",
+        "value": "(pointer: coarse)"
+      },
+      {
+        "name": "short",
+        "value": "(max-height: 500px)"
+      },
+      {
+        "name": "side-by-side",
+        "value": "(min-width: 720px) and (orientation: landscape)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one call to action per screen.",
+      "html": "<button class=\"ds-btn-primary\">Drop in</button>",
+      "css": ".ds-btn-primary { min-height: max(var(--ds-target-min, 24px), 2.5em); padding: var(--ds-spacing-xs, 0.5628rem) var(--ds-spacing-l, 1.7769rem); border: none; border-radius: 9999px; background: #60a5fa; color: #0b1220; font-family: system-ui, sans-serif; font-size: 1.333rem; font-weight: 700; cursor: pointer; } .ds-btn-primary:hover { background: #93c5fd; } .ds-btn-primary:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Compact outlined button for dense UI; a toggle with aria-pressed.",
+      "html": "<button class=\"ds-btn-quiet\">Roll</button> <button class=\"ds-btn-quiet\" aria-pressed=\"true\">Drop</button>",
+      "css": ".ds-btn-quiet { min-height: var(--ds-target-min, 24px); padding: 0.4222rem 0.7502rem; border: 1px solid #2e2e2e; border-radius: 4px; background: transparent; color: #ededed; font-family: system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; cursor: pointer; } .ds-btn-quiet:hover { background: #1f1f1f; } .ds-btn-quiet:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; } .ds-btn-quiet[aria-pressed='true'] { border-color: #60a5fa; background: #60a5fa; color: #0b1220; }"
+    },
+    {
+      "name": "Reduce Flashing Toggle",
+      "kind": "custom",
+      "description": "Pill switch over a real checkbox with role=switch.",
+      "html": "<label class=\"ds-toggle\"><input type=\"checkbox\" role=\"switch\" checked><span></span>Reduce flashing</label>",
+      "css": ".ds-toggle { display: inline-flex; align-items: center; gap: 0.5628rem; min-height: var(--ds-target-min, 24px); color: #ededed; font: 0.75rem system-ui, sans-serif; cursor: pointer; } .ds-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; } .ds-toggle span { position: relative; width: 2.25em; height: 1.25em; border: 1px solid color-mix(in srgb, #9ca3af 60%, transparent); border-radius: 9999px; background: #1f1f1f; } .ds-toggle span::after { content: ''; position: absolute; top: 50%; left: 0.2em; width: 0.8em; height: 0.8em; border-radius: 9999px; background: #9ca3af; transform: translateY(-50%); transition: transform 0.15s ease-out; } .ds-toggle input:checked + span { border-color: #60a5fa; background: #60a5fa; } .ds-toggle input:checked + span::after { background: #0b1220; transform: translate(1em, -50%); } .ds-toggle input:focus-visible + span { outline: 2px solid #93c5fd; outline-offset: 2px; }"
+    },
+    {
+      "name": "Glass Card",
+      "kind": "card",
+      "refersTo": "glass-card",
+      "description": "Smoked glass panel over the live level, named by a UV Violet mono label.",
+      "html": "<section class=\"ds-glass\"><h2>Your loadout</h2><p>Slow beats hit hard and blast; fast ones spray.</p></section>",
+      "css": ".ds-glass { display: grid; gap: 0.7502rem; padding: 1rem; border: 1px solid color-mix(in srgb, #ededed 12%, transparent); border-radius: 8px; background: color-mix(in srgb, #111111 75%, transparent); backdrop-filter: blur(8px); color: #ededed; font-family: system-ui, sans-serif; } .ds-glass h2 { margin: 0; color: #a78bfa; font-family: ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; } .ds-glass p { margin: 0; color: #9ca3af; font-size: 0.75rem; }"
+    },
+    {
+      "name": "Weapon Slot",
+      "kind": "custom",
+      "refersTo": "hud-panel",
+      "description": "HUD weapon button with magazine cells; blue border and halo when active.",
+      "html": "<button class=\"ds-slot\" data-active=\"true\"><span class=\"ds-key\">1</span><span>Wobble 1/8</span><span class=\"ds-mag\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i></i></span></button>",
+      "css": ".ds-slot { display: grid; grid-template-columns: auto auto; gap: 0.4222rem 0.5628rem; min-width: 8.5em; padding: 0.5628rem 0.7502rem; border: 2px solid color-mix(in srgb, #ededed 15%, transparent); border-radius: 8px; background: color-mix(in srgb, #111111 72%, transparent); backdrop-filter: blur(6px); color: #9ca3af; font: 700 0.75rem ui-monospace, monospace; cursor: pointer; transition: transform 0.08s, border-color 0.08s; } .ds-slot[data-active='true'] { border-color: #60a5fa; box-shadow: 0 0 14px color-mix(in srgb, #60a5fa 55%, transparent); color: #ededed; } .ds-slot:active { transform: scale(0.96); } .ds-slot:focus-visible { outline: 2px solid #93c5fd; } .ds-key { color: #60a5fa; } .ds-mag { grid-column: 1 / -1; display: flex; gap: 2px; height: 4px; } .ds-mag i { flex: 1; border-radius: 1px; background: color-mix(in srgb, #9ca3af 25%, transparent); } .ds-mag i.on { background: #60a5fa; }"
+    },
+    {
+      "name": "Stat Tile",
+      "kind": "card",
+      "refersTo": "stat-tile",
+      "description": "End-of-run stat: big mono number over a small uppercase label.",
+      "html": "<dl class=\"ds-stat\"><dt>Score</dt><dd>12,480</dd></dl>",
+      "css": ".ds-stat { display: grid; justify-items: center; gap: 0.4222rem; min-width: 5.5em; margin: 0; padding: 0.7502rem 1rem; border: 1px solid #2e2e2e; border-radius: 8px; font-family: ui-monospace, monospace; } .ds-stat dt { color: #9ca3af; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; } .ds-stat dd { order: -1; margin: 0; color: #ededed; font-size: 1.7769rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "New Best Badge",
+      "kind": "chip",
+      "refersTo": "badge-callout",
+      "description": "Hype Amber reward callout.",
+      "html": "<p class=\"ds-badge\">New best</p>",
+      "css": ".ds-badge { display: inline-block; margin: 0; padding: 0.4222rem 1rem; border-radius: 9999px; background: #fbbf24; color: #111111; font: 700 0.75rem ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; }"
+    },
+    {
+      "name": "Dash Button",
+      "kind": "button",
+      "description": "Round glass touch button; amber border and halo when ready.",
+      "html": "<button class=\"ds-dash\" data-ready=\"true\">Dash<kbd>Space</kbd></button>",
+      "css": ".ds-dash { display: grid; place-content: center; justify-items: center; width: 4.5em; height: 4.5em; padding: 0; border: 2px solid #2e2e2e; border-radius: 9999px; background: color-mix(in srgb, #111111 72%, transparent); backdrop-filter: blur(6px); color: #9ca3af; font: 700 0.75rem ui-monospace, monospace; text-transform: uppercase; cursor: pointer; } .ds-dash[data-ready='true'] { border-color: #fbbf24; box-shadow: 0 0 14px color-mix(in srgb, #fbbf24 50%, transparent); color: #ededed; } .ds-dash kbd { color: #fbbf24; font: inherit; font-size: 0.8em; } .ds-dash:active { transform: scale(0.94); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Club Under Glass",
+    "overview": "The game is the dancefloor: a PixiJS arena whose shader pulses, shakes and changes palette with the music. Every React screen is a pane of smoked glass laid over that floor and lit by it. Panels are translucent floor black with a faint white hairline and a backdrop blur, so the level keeps moving through them. Even the landing page plays a live level behind its copy, with a silent demo of shots landing on the kick.\n\nThe chrome recedes and the game leads. Color and glow are not decoration. They mark state: the slot you're holding, a magazine that's loaded, a combo, dash being ready, a heart you just got back. The one deliberate performance is the wordmark: heavy italic caps in a violet-to-blue gradient whose glow breathes on two beats at 140 BPM. Density runs high in the HUD (small mono readouts, segment bars, key caps) and loose on the landing and level cards, where a single headline holds the screen.\n\nThe system rejects two neighbours. It is not generic SaaS, so no bland blue-pill-on-white app feel, even though it starts from a stock token set. And it is not cyberpunk cliché: no glitch text, scanlines or magenta/cyan hacker styling. It is dark only; light surfaces never appear.",
+    "keyCharacteristics": [
+      "Smoked glass panels (70-75% floor black, 12% white hairline, 6-8px blur) over the live game",
+      "Glow means state: an active, ready or rewarded element gets a soft colored halo; resting elements get none",
+      "Mono uppercase, widely tracked labels in UV Violet name each panel",
+      "One loud moment per screen: the wordmark, a level heading or the combo",
+      "Motion keyed to the tempo, and switched off when flashing is reduced"
+    ],
+    "rules": [
+      {
+        "name": "The Glow Is State Rule",
+        "body": "A colored halo (`0 0 14px` at 50-55% of the color) or a `currentColor` drop-shadow appears only on an element that is active, ready or rewarded. A resting element never glows.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Job Per Light Rule",
+        "body": "Each accent keeps its meaning across every screen: blue is yours and ready, violet names things and marks drops, amber is reward, coral is health and danger. Don't borrow an accent for decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dark Floor Rule",
+        "body": "Every surface is dark. The theme's light mode tokens exist but are never shown (the color mode is forced to dark), so never design for them.",
+        "section": "colors"
+      },
+      {
+        "name": "The Gear Voice Rule",
+        "body": "Anything technical (a key, a BPM, a seed, a count, a key binding) is set in mono. Prose is never set in mono.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Numbers Rule",
+        "body": "Live numbers (score, combo, stats) use `font-variant-numeric: tabular-nums` so they don't jitter as they change.",
+        "section": "typography"
+      },
+      {
+        "name": "The Glass Not Paper Rule",
+        "body": "Panels over the game are translucent and blurred, never opaque cards with drop shadows. The only opaque surface is the overlay panel, which freezes play.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do build every in-game panel as glass: Floor Black at 70-75%, a 1px Haze White hairline at 12%, a 6-8px backdrop blur.",
+      "Do spend glow only on state (active, ready, reward), with the 14px halo or a `currentColor` drop-shadow.",
+      "Do keep each accent to its one job: Strobe Blue yours/ready, UV Violet labels/drops, Hype Amber reward, Alarm Coral health/danger.",
+      "Do name panels with a mono uppercase UV Violet label (0.75rem, 0.2em tracking).",
+      "Do set keys, numbers, seeds and BPM in mono, with tabular numbers for anything live.",
+      "Do time looping motion to the tempo (a beat at 140 BPM is ~0.43s).",
+      "Do stop every looping or popping animation under `:root[data-flashing='reduced']`, and keep new canvas flashes and shake inside the stage's `calmFrame`. The player's Reduce flashing choice (or the system's reduced motion) sets both.",
+      "Do add `env(safe-area-inset-*)` to fixed edge controls, and give touch targets at least the design system's minimum target (44px on touch)."
+    ],
+    "donts": [
+      "Don't introduce light surfaces or light-mode variants; the color mode is forced dark.",
+      "Don't use glitch text, scanlines, RGB-split type or magenta/cyan hacker styling.",
+      "Don't let a screen read like a SaaS app: no opaque white-ish cards, no stock dashboard chrome, no more than one primary pill per screen.",
+      "Don't put opaque, shadowed cards over the live game; only the pause/end overlay is opaque.",
+      "Don't put a kicker or eyebrow label above a heading; the heading speaks for itself.",
+      "Don't add a second loud moment to a screen that already has the wordmark, a level heading or the combo.",
+      "Don't lay out a page as a row of equal cards; group by meaning on one surface instead.",
+      "Don't hard-code a color or size outside the theme; use `theme.color()`, `theme.spacing()` and `theme.fontSize()` so the scale and modes stay one source."
+    ]
+  }
+}
