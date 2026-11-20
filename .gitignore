@@ -7,3 +7,6 @@ playwright-report/
 .DS_Store
 
 *storybook.log
+
+# Playwright MCP session logs
+.playwright-mcp/
