@@ -22,6 +22,34 @@ const darkMode = (): Plugin => ({
   ],
 });
 
+// Vercel sets this to the shortest production domain, so the custom domain
+// becomes canonical once it's attached and vercel.app until then.
+const SITE_URL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL ?? 'bass-weapons.ra-ge.net'}`;
+
+/**
+ * Share cards and crawlers need absolute URLs: fill `%SITE_URL%` in the
+ * pages and emit `robots.txt` and `sitemap.xml` for the canonical domain.
+ */
+const siteMeta = (): Plugin => ({
+  name: 'site-meta',
+  transformIndexHtml: {
+    order: 'pre',
+    handler: html => html.replaceAll('%SITE_URL%', SITE_URL),
+  },
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'robots.txt',
+      source: `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`,
+    });
+    this.emitFile({
+      type: 'asset',
+      fileName: 'sitemap.xml',
+      source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${SITE_URL}/</loc></url>\n</urlset>\n`,
+    });
+  },
+});
+
 const DESIGN_FILE = root('./src/game/sound/design.json');
 const MAX_BODY_BYTES = 1_000_000;
 
@@ -82,7 +110,7 @@ const soundDesignFile = (): Plugin => ({
 });
 
 export default defineConfig({
-  plugins: [react(), darkMode(), soundDesignFile()],
+  plugins: [react(), darkMode(), siteMeta(), soundDesignFile()],
   resolve: {
     alias: { '~': root('./src') },
   },
