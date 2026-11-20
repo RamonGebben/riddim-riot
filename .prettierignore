@@ -9,3 +9,6 @@ test-results/
 .github/agents/
 .github/hooks/
 .github/skills/
+
+# Rewritten by the impeccable design hook on every edit
+.impeccable/hook.cache.json

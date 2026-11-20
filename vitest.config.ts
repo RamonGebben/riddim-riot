@@ -15,7 +15,18 @@ export default mergeConfig(
             name: 'unit',
             environment: 'node',
             include: ['src/**/*.test.{ts,tsx}'],
-            exclude: ['e2e/**', 'node_modules/**'],
+            exclude: ['e2e/**', 'node_modules/**', 'src/**/*.db.test.ts'],
+          },
+        },
+        {
+          extends: true,
+          test: {
+            // Against the real database; `pnpm test:db` loads .env.local.
+            name: 'db',
+            environment: 'node',
+            include: ['src/**/*.db.test.ts'],
+            testTimeout: 30_000,
+            hookTimeout: 30_000,
           },
         },
         {

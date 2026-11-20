@@ -7,7 +7,7 @@ test('tune a sound in the playground and save it to the game', async ({
   page.on('pageerror', error => errors.push(error.message));
   // Don't let the test overwrite the real design file.
   let savedBody: unknown = null;
-  await page.route('**/__sound-design', async route => {
+  await page.route('**/api/sound-design', async route => {
     if (route.request().method() === 'POST') {
       savedBody = route.request().postDataJSON();
       await route.fulfill({ json: { file: 'src/game/sound/design.json' } });
@@ -20,7 +20,7 @@ test('tune a sound in the playground and save it to the game', async ({
   // with a reload after: a reload cancels the page's fetch of the saved
   // design, which WebKit reports as an error.
   await page.addInitScript(() => localStorage.clear());
-  await page.goto('/playground.html');
+  await page.goto('/playground');
   await page.getByRole('button', { name: 'Start audio' }).click();
   await expect(page.getByRole('button', { name: 'Start audio' })).toBeHidden();
 

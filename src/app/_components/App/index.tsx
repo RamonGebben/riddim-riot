@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   attachBackdrop,
@@ -18,11 +19,15 @@ import {
 } from '~/game';
 import { GameScreen } from '~/templates/GameScreen';
 import { LevelCard } from '~/templates/LevelCard';
+import { useTRPC } from '~/providers/TrpcProvider';
 import { StartScreen } from '~/templates/StartScreen';
 import { readBest, saveBest } from '~/utils/bestScore';
 import { getLatencyHint } from '~/utils/getLatencyHint';
 import { getSeed } from '~/utils/getSeed';
 import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
+import type { PendingRun } from '~/utils/pendingRun';
+import { RunBoard } from '../RunBoard';
+import { SavePendingRun } from '../SavePendingRun';
 
 type SessionStatus = 'idle' | 'starting' | 'playing';
 
@@ -64,7 +69,14 @@ const withTimeout = (starting: Promise<Game>, step: () => StartStep | null) =>
     );
   });
 
+const HIGH_SCORES_HREF = '/leaderboard';
+
 export const App = () => {
+  const trpc = useTRPC();
+  const startRun = useMutation(trpc.runs.start.mutationOptions());
+  /** The board's ticket for the run under way; null until it arrives. */
+  const [ticket, setTicket] = useState<string | null>(null);
+  const runCount = useRef(0);
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
   const backdrop = useRef<HTMLDivElement>(null);
   /** Shake and flashes turned down: the player's choice, else the system's. */
@@ -174,6 +186,19 @@ export const App = () => {
     if (ended && hud) saveBest(hud.score);
   }, [ended, hud]);
 
+  // Dying or winning goes on the board; quitting doesn't.
+  const finished = useMemo((): PendingRun | null => {
+    if (!ended || !hud || !ticket) return null;
+    return {
+      ticket,
+      score: hud.score,
+      level: hud.level,
+      kills: hud.kills,
+      seed: run.seed,
+      outcome: won ? 'won' : 'died',
+    };
+  }, [ended, hud, ticket, run.seed, won]);
+
   // A cleared level shows its stats a moment, then the next one starts by
   // itself: the run flows on without a click.
   useEffect(() => {
@@ -233,6 +258,7 @@ export const App = () => {
     setStatus('starting');
     setStartError(null);
     setRun(next);
+    if (fresh) setTicket(null);
     try {
       // Audio starts first: a fullscreen request uses up the click, and an
       // AudioContext started after it stays silent.
@@ -247,6 +273,17 @@ export const App = () => {
       });
       // Only a press can go fullscreen; the next level starts by itself.
       if (fresh) void goLandscape();
+      // The board's ticket starts the run's clock. Without one (offline)
+      // the run plays the same, it just can't be saved.
+      if (fresh) {
+        const count = ++runCount.current;
+        startRun.mutateAsync().then(
+          started => {
+            if (count === runCount.current) setTicket(started.ticket);
+          },
+          () => {},
+        );
+      }
       game.current = await withTimeout(starting, () => step.current);
     } catch (error) {
       // Without this a failed start leaves the button pressed for good.
@@ -283,6 +320,9 @@ export const App = () => {
         run={hud}
         loadout={loadout}
         best={best}
+        board={
+          ended ? <RunBoard key={ticket ?? 'none'} run={finished} /> : undefined
+        }
         paused={paused}
         surfaceRef={surface}
         onStop={handleStop}
@@ -309,19 +349,23 @@ export const App = () => {
   }
 
   return (
-    <StartScreen
-      musicalKey={level.key}
-      bpm={level.bpm}
-      levels={RUN_LEVELS}
-      best={best}
-      weapons={weapons}
-      backdropRef={backdrop}
-      flashingReduced={flashingReduced}
-      onFlashingReduced={chooseFlashing}
-      isStarting={status === 'starting'}
-      step={startStep}
-      error={startError}
-      onStart={() => play(run)}
-    />
+    <>
+      <SavePendingRun />
+      <StartScreen
+        musicalKey={level.key}
+        bpm={level.bpm}
+        levels={RUN_LEVELS}
+        best={best}
+        weapons={weapons}
+        backdropRef={backdrop}
+        flashingReduced={flashingReduced}
+        onFlashingReduced={chooseFlashing}
+        isStarting={status === 'starting'}
+        step={startStep}
+        error={startError}
+        highScoresHref={HIGH_SCORES_HREF}
+        onStart={() => play(run)}
+      />
+    </>
   );
 };

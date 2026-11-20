@@ -1,6 +1,8 @@
 import styled from 'styled-components';
 
-export const TextInput = styled.input.attrs({ type: 'text' })<{
+export const TextInput = styled.input.attrs<{ type?: string }>(({ type }) => ({
+  type: type ?? 'text',
+}))<{
   $invalid?: boolean;
 }>`
   inline-size: 100%;

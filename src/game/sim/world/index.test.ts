@@ -19,6 +19,7 @@ import {
   onBar,
   onBeat,
   placePickup,
+  LEVEL_CLEAR_BONUS,
   PLAYER_MAX_HP,
   queueShot,
   rulesFor,
@@ -557,6 +558,23 @@ describe('stepWorld', () => {
     expect(
       stepWorld(ready, { input: still, dt: 1 / 60, now: 1 }).world.status,
     ).toBe('cleared');
+  });
+
+  it('pays a bonus for taking the exit', () => {
+    const ready = {
+      ...fighting(),
+      enemies: [],
+      score: 2_300,
+      player: { ...createWorld(level).player, position: level.pad },
+      survival: { ...fighting().survival, phase: 'clear' as const },
+    };
+    const cleared = stepWorld(ready, { input: still, dt: 1 / 60, now: 1 });
+    expect(cleared.world.score).toBe(2_300 + LEVEL_CLEAR_BONUS);
+    // A level that's over doesn't step again, so it can't pay twice.
+    expect(
+      stepWorld(cleared.world, { input: still, dt: 1 / 60, now: 2 }).world
+        .score,
+    ).toBe(2_300 + LEVEL_CLEAR_BONUS);
   });
 
   it('hits the player once, then gives a moment of invulnerability', () => {

@@ -48,14 +48,27 @@ Running and controls are in `README.md`.
   `SoundDesign` (`src/game/sound/model`) with a control in `DESIGN_SCHEMA`
   (tests enforce one per value), so the playground can tune it. The game
   plays `SOUND_DESIGN` (base merged with `design.json`).
-- **Keep `design.json` out of the Vite config's imports.** The config imports
-  `sound/model` for the save endpoint; importing anything that reaches
-  `design.json` would restart the dev server on every playground save.
+- **The app is Next.js (App Router, `src/app`); Vite only builds Vitest
+  and Storybook.** The game and the playground render client-only
+  (`next/dynamic` with `ssr: false`, `src/app/_components`): they touch the
+  window, audio and WebGL from their first render. Shaders import as
+  `./x.frag?raw`, which both Vite and a Turbopack `raw` rule
+  (`next.config.ts`) read.
+- **The leaderboard runs on Neon through tRPC** (`src/server`,
+  `/api/trpc`). Every query goes through `asPlayer` (`src/server/db`): a
+  transaction as the limited `bass_app` role with `app.player_id` set, so
+  row level security applies. Never query as the owner. Schema, policies
+  and the `api.*` functions live in `db/migrations/*.sql` (`pnpm
+db:migrate`); `pnpm test:db` checks the policies against the real
+  database. Totals change only through the `runs` insert trigger, and run
+  tickets are signed inside Postgres (no app secret).
+- **The playground saves through `/api/sound-design`** (dev only, 404 in
+  production), which merges, Prettier-formats and writes `design.json`.
 - **Pinned:** `eslint@^9` (peer of `@pindakaasman/eslint-config`) and
   `typescript@~6.0` (typescript-eslint supports `<6.1`).
 - **Dark only.** The theme's dark mode is forced by a
-  `<meta name="ds-color-mode" content="dark">` (Vite plugin in
-  `vite.config.ts`, `.storybook/preview-head.html`).
+  `<meta name="ds-color-mode" content="dark">` (root layout
+  `src/app/layout.tsx`, `.storybook/preview-head.html`).
 - **`createGlobalStyle` templates must differ in text.** styled-components
   derives a global style's id from its template, so two styles with the same
   text collide and only one is injected - give each a distinguishing comment.

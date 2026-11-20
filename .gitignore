@@ -10,3 +10,7 @@ playwright-report/
 
 # Playwright MCP session logs
 .playwright-mcp/
+.next/
+next-env.d.ts
+.vercel
+.env*

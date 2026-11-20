@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from '~/atoms/Button';
 import { Actions } from './components/Actions';
 import { Backdrop } from './components/Backdrop';
@@ -24,6 +25,8 @@ export interface OverlayProps {
   /** A quiet line under the stats, like the seed to share. */
   note?: string;
   actions: Array<{ label: string; onClick: () => void }>;
+  /** More under the note, like where the run puts you on the board. */
+  children?: ReactNode;
 }
 
 /** A panel over the frozen stage: a run that ended, or a level cleared. */
@@ -34,6 +37,7 @@ export const Overlay = ({
   message = [],
   note,
   actions,
+  children,
 }: OverlayProps) => {
   return (
     <Backdrop>
@@ -54,6 +58,7 @@ export const Overlay = ({
           <Message key={line}>{line}</Message>
         ))}
         {note && <Note>{note}</Note>}
+        {children}
         <Actions>
           {/* Keyed by place: a label that changes (Link copied) keeps focus. */}
           {actions.map(({ label, onClick }, index) => (

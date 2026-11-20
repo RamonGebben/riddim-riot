@@ -97,6 +97,8 @@ const BOSS_MIN_TILES = 8;
 
 /** A run is this many levels; the last one's boss ends it. */
 export const RUN_LEVELS = 5;
+/** Points for taking a level's exit, the last level's included. */
+export const LEVEL_CLEAR_BONUS = 10_000;
 /** The final boss has this much more health than the level's would be. */
 const FINAL_BOSS_HP = 1.5;
 
@@ -752,7 +754,8 @@ export const stepWorld = (
       status,
       hp,
       kills: world.kills + hits.killed.length,
-      score: scored.score,
+      // The step stops once a level ends, so the bonus lands once.
+      score: scored.score + (status === 'cleared' ? LEVEL_CLEAR_BONUS : 0),
       combo: scored.combo,
       player,
       projectiles: hits.projectiles,

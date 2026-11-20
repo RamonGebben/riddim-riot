@@ -359,11 +359,11 @@ loads and the base fills any gap. Every voice takes its patch with the
 game's design as the default.
 
 `sound/schema` lists every value with its label, range, step and unit;
-tests keep it complete. The playground page (`/playground.html`,
+tests keep it complete. The playground page (`/playground`,
 `src/playground`) renders a control per field and drives
 `game/playground`, which runs the real voices on the real clock. Saving
-goes through a dev-only Vite endpoint (`/__sound-design` in
-`vite.config.ts`) that merges, Prettier-formats and writes `design.json`
+goes through a dev-only route (`/api/sound-design`, in
+`src/app/api/sound-design`) that merges, Prettier-formats and writes `design.json`
 without reloading the page.
 
 ### Levels
@@ -443,7 +443,8 @@ session scratch files, not the repo. To redo them:
 - **Audio graph leaks:** wrap `BaseAudioContext.prototype.create*` with a
   `WeakRef` + `FinalizationRegistry` and force GC (`--js-flags=--expose-gc`).
   Play must create zero nodes.
-- **Audio CPU:** in the page, import the audio domain by Vite's URL for
+- **Audio CPU:** in a Storybook page (`pnpm storybook`; its Vite server
+  serves source by URL, the Next app doesn't), import the audio domain by Vite's URL for
   Tone (the one `src/game/audio/gate` imports - a bare `'tone'` is a
   second copy, and `Offline` then renders nothing), build a level's voices
   inside `Offline` and time the render of 20 s. Count native nodes by
@@ -464,7 +465,7 @@ sound playground, layered sound, the beam, Crush blasts, arena levels with
 the start circle, song-structured survival, the boss and hearts.
 
 Next is **play-testing the song levels** and **tuning by ear** in the
-playground (`/playground.html`); the game and the weapon generator use
+playground (`/playground`); the game and the weapon generator use
 what's saved. The layers, sidechain and pad bed are first guesses. Where a
 knob isn't enough (a new engine, an FM or wavetable manufacturer), add the
 value to `SoundDesign` and `DESIGN_SCHEMA` so it shows up in the
