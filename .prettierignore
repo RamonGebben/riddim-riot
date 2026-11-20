@@ -3,3 +3,9 @@ dist/
 storybook-static/
 playwright-report/
 test-results/
+
+# Vendored impeccable skill and agents, kept as installed
+.claude/
+.github/agents/
+.github/hooks/
+.github/skills/

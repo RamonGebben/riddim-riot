@@ -7,5 +7,12 @@ export default defineConfig([
   ...base,
   ...storybook,
   { languageOptions: { globals: globals.browser } },
-  globalIgnores(['dist/**', 'playwright-report/**', 'test-results/**']),
+  globalIgnores([
+    'dist/**',
+    'playwright-report/**',
+    'test-results/**',
+    // Vendored impeccable skill scripts, kept as installed.
+    '.claude/**',
+    '.github/skills/**',
+  ]),
 ]);
