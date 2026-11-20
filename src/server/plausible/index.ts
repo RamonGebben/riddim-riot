@@ -35,6 +35,8 @@ export const implausible = (
   elapsedMs: number,
 ): string | null => {
   if (elapsedMs > MAX_RUN_MS) return 'the run ticket expired';
+  // Every point comes in hundreds; the database refuses anything else.
+  if (score % POINTS_PER_KILL !== 0) return 'the score is off the scale';
   if (outcome === 'won' && level !== RUN_LEVELS)
     return 'a run is only won on the last level';
   const cleared = outcome === 'won' ? RUN_LEVELS : level - 1;

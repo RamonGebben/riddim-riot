@@ -1,4 +1,5 @@
 import { useState, type ReactNode, type Ref } from 'react';
+import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { PAUSE_ICON } from '~/game/icons';
 import { LEVEL_CLEAR_BONUS } from '~/game/sim';
@@ -123,16 +124,20 @@ const phaseLabel = ({ phase, part, secondsLeft, boss }: RunProps) => {
   return boss === null ? label : `${label} · boss`;
 };
 
-const number = (value: number) => value.toLocaleString('en');
-
 const COPY_LABELS = {
   idle: 'Copy seed link',
   copied: 'Link copied',
   failed: "Couldn't copy the link",
 };
 
-const kills = (count: number) => ({ label: 'Kills', value: number(count) });
-const points = (score: number) => ({ label: 'Points', value: number(score) });
+const kills = (count: number) => ({
+  label: 'Kills',
+  value: formatNumber(count),
+});
+const points = (score: number) => ({
+  label: 'Points',
+  value: formatNumber(score),
+});
 
 /** Beat the device's best: worth a badge instead of a Best tile. */
 const isNewBest = (score: number, best: number) => score > best && score > 0;
@@ -141,7 +146,7 @@ const isNewBest = (score: number, best: number) => score > best && score > 0;
 const scoreStats = (score: number, best: number) =>
   isNewBest(score, best)
     ? [points(score)]
-    : [points(score), { label: 'Best', value: number(best) }];
+    : [points(score), { label: 'Best', value: formatNumber(best) }];
 
 export const GameScreen = ({
   seed,
@@ -304,7 +309,7 @@ export const GameScreen = ({
           heading={`Level ${run.level} cleared`}
           stats={[
             kills(run.kills),
-            { label: 'Bonus', value: `+${number(LEVEL_CLEAR_BONUS)}` },
+            { label: 'Bonus', value: `+${formatNumber(LEVEL_CLEAR_BONUS)}` },
             points(run.score),
           ]}
           note={`Level ${run.level + 1} of ${run.levels} is coming up`}
@@ -316,7 +321,7 @@ export const GameScreen = ({
           heading="Run complete"
           badge={isNewBest(run.score, best) ? 'New best!' : undefined}
           stats={[
-            { label: 'Levels', value: number(run.levels) },
+            { label: 'Levels', value: formatNumber(run.levels) },
             kills(run.kills),
             ...scoreStats(run.score, best),
           ]}

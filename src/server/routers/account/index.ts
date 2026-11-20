@@ -51,8 +51,8 @@ const isUniqueViolation = (error: unknown) =>
 
 export const accountRouter = router({
   /** Who's signed in, with their place and best runs; null when no one. */
-  me: publicProcedure.query(({ ctx }) => {
-    const { playerId } = ctx;
+  me: publicProcedure.query(async ({ ctx }) => {
+    const playerId = await ctx.playerId();
     if (!playerId) return null;
     return asPlayer(playerId, async tx => {
       const result = await tx.execute<{ name: string }>(

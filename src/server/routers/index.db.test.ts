@@ -20,7 +20,7 @@ const browser = () => {
       headers: { cookie, 'x-forwarded-for': address },
     });
     const caller = appRouter.createCaller(
-      await createContext({ req, resHeaders, info: {} as never }),
+      createContext({ req, resHeaders, info: {} as never }),
     );
     return { caller, resHeaders };
   };

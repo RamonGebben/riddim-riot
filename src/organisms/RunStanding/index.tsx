@@ -1,4 +1,5 @@
 import { Button } from '~/atoms/Button';
+import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { TextLink } from '~/atoms/TextLink';
 import { CLIMB_ICON, SHARE_ICON } from '~/game/icons';
@@ -51,8 +52,6 @@ export interface RunStandingProps {
   boardHref: string;
 }
 
-const number = (value: number) => value.toLocaleString('en');
-
 const SHARE_LABELS = {
   idle: 'Share my place',
   shared: 'Shared',
@@ -76,7 +75,9 @@ export const RunStanding = ({ standing, boardHref }: RunStandingProps) => {
     <Section aria-label="High scores">
       {standing.kind === 'signedOut' && (
         <>
-          <Lead>Save {number(standing.score)} points to the high scores?</Lead>
+          <Lead>
+            Save {formatNumber(standing.score)} points to the high scores?
+          </Lead>
           <EnterForm
             submitLabel="Save to the board"
             isSubmitting={standing.isSubmitting}
@@ -125,11 +126,11 @@ const SavedPlace = ({
       <Tally>
         <div>
           <dt>Run</dt>
-          <dd>+{number(standing.score)}</dd>
+          <dd>+{formatNumber(standing.score)}</dd>
         </div>
         <div>
           <dt>Total</dt>
-          <dd>{number(standing.after.total)}</dd>
+          <dd>{formatNumber(standing.after.total)}</dd>
         </div>
         <div>
           <dt>Rank</dt>

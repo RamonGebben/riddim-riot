@@ -12,6 +12,7 @@ import {
 } from '~/utils/pendingRun';
 import { placePath, sharePlace, type ShareResult } from '~/utils/sharePlace';
 import { boardError, isRefusal } from '../boardErrors';
+import { useSaveRun } from '../useSaveRun';
 
 export interface RunBoardProps {
   /** The finished run; null when it has no ticket to save it with. */
@@ -31,22 +32,7 @@ export const RunBoard = ({ run }: RunBoardProps) => {
   const [skipped, setSkipped] = useState(false);
   const [share, setShare] = useState<ShareResult>('idle');
 
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries(trpc.account.me.queryFilter()),
-      queryClient.invalidateQueries(trpc.board.top.queryFilter()),
-    ]);
-  const submit = useMutation(
-    trpc.runs.submit.mutationOptions({
-      onSuccess: () => {
-        if (run) dropPendingRun(run.ticket);
-        void refresh();
-      },
-      onError: error => {
-        if (run && isRefusal(error)) dropPendingRun(run.ticket);
-      },
-    }),
-  );
+  const submit = useSaveRun(run);
   const enter = useMutation(
     trpc.account.enter.mutationOptions({
       onSuccess: () => {
@@ -62,11 +48,7 @@ export const RunBoard = ({ run }: RunBoardProps) => {
     if (run) keepPendingRun(run);
   }, [run]);
 
-  // Signed in: save without asking.
   const signedIn = Boolean(me.data);
-  useEffect(() => {
-    if (run && signedIn && submit.isIdle) submit.mutate(run);
-  }, [run, signedIn, submit]);
 
   const skip = () => {
     if (run) dropPendingRun(run.ticket);

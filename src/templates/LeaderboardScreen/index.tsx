@@ -1,4 +1,5 @@
 import type { Ref } from 'react';
+import { formatNumber } from '~/utils/formatNumber';
 import { Button } from '~/atoms/Button';
 import { BoardTable, type BoardRow } from '~/organisms/BoardTable';
 import { PlayerCard, type PlayerCardProps } from '~/organisms/PlayerCard';
@@ -22,8 +23,6 @@ export interface LeaderboardScreenProps {
   /** Where the live level is drawn behind the page. */
   backdropRef?: Ref<HTMLDivElement>;
 }
-
-const number = (value: number) => value.toLocaleString('en');
 
 /** The all-time board: every player's points from every run, added up. */
 export const LeaderboardScreen = ({
@@ -61,8 +60,8 @@ export const LeaderboardScreen = ({
             {!isLoading && !error && ranked > 0 && (
               <p>
                 {ranked > shown
-                  ? `Top ${number(shown)} of ${number(ranked)} players`
-                  : `${number(ranked)} ${ranked === 1 ? 'player' : 'players'}`}
+                  ? `Top ${formatNumber(shown)} of ${formatNumber(ranked)} players`
+                  : `${formatNumber(ranked)} ${ranked === 1 ? 'player' : 'players'}`}
               </p>
             )}
           </BoardPanel>

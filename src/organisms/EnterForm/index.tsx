@@ -53,7 +53,11 @@ export const EnterForm = ({
   };
 
   return (
-    <Form onSubmit={submit} noValidate aria-describedby={`${id}-error`}>
+    <Form
+      onSubmit={submit}
+      noValidate
+      aria-describedby={error ? `${id}-error` : undefined}
+    >
       <Field>
         Name, {NAME_MAX} letters at most
         <TextInput

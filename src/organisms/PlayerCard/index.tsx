@@ -1,4 +1,5 @@
 import { Button } from '~/atoms/Button';
+import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { SHARE_ICON } from '~/game/icons';
 import type { ShareState } from '~/organisms/RunStanding';
@@ -38,8 +39,6 @@ export type PlayerCardProps =
       onSignOut?: () => void;
     };
 
-const number = (value: number) => value.toLocaleString('en');
-
 const SHARE_LABELS = {
   idle: 'Share this place',
   shared: 'Shared',
@@ -78,15 +77,15 @@ export const PlayerCard = (props: PlayerCardProps) => {
         <Totals>
           <div>
             <dt>Points</dt>
-            <dd>{number(player.totalPoints)}</dd>
+            <dd>{formatNumber(player.totalPoints)}</dd>
           </div>
           <div>
             <dt>Runs</dt>
-            <dd>{number(player.runsCount)}</dd>
+            <dd>{formatNumber(player.runsCount)}</dd>
           </div>
           <div>
             <dt>Best run</dt>
-            <dd>{number(player.bestScore)}</dd>
+            <dd>{formatNumber(player.bestScore)}</dd>
           </div>
         </Totals>
         <Actions>
@@ -113,7 +112,7 @@ export const PlayerCard = (props: PlayerCardProps) => {
             {bestRuns.map((run, index) => (
               <li key={index}>
                 <span>{index + 1}</span>
-                <span>{number(run.score)}</span>
+                <span>{formatNumber(run.score)}</span>
                 <span>
                   {run.outcome === 'won' ? 'won' : `level ${run.level}`}
                 </span>

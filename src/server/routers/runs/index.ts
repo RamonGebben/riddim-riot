@@ -7,8 +7,12 @@ import { implausible } from '../../plausible';
 import { playerStanding, rowsAround } from '../../standing';
 import { playerProcedure, publicProcedure, router } from '../../trpc';
 
-/** Runs a player may save in ten minutes. */
-const MAX_RECENT_RUNS = 10;
+/**
+ * Runs a player may save in ten minutes: one every ten seconds, more than
+ * dying the moment every run starts. It's a brake on scripted saves, not
+ * on play - a run over it isn't kept, so an honest player must never hit it.
+ */
+const MAX_RECENT_RUNS = 60;
 const RECENT_MS = 10 * 60 * 1000;
 
 const report = z.object({
@@ -70,31 +74,43 @@ export const runsRouter = router({
             code: 'BAD_REQUEST',
             message: `This run can't be saved: ${problem}`,
           });
-        const recent = await tx
-          .select({ id: runs.id })
-          .from(runs)
-          .where(
-            and(
-              eq(runs.playerId, ctx.playerId),
-              gt(runs.createdAt, new Date(Date.now() - RECENT_MS)),
-            ),
-          );
-        if (recent.length >= MAX_RECENT_RUNS)
+        const recent = await tx.$count(
+          runs,
+          and(
+            eq(runs.playerId, ctx.playerId),
+            gt(runs.createdAt, new Date(Date.now() - RECENT_MS)),
+          ),
+        );
+        if (recent >= MAX_RECENT_RUNS)
           throw new TRPCError({
             code: 'TOO_MANY_REQUESTS',
             message: 'Too many runs at once. Try again in a few minutes.',
           });
-        // Row level security checks the run is this player's own.
-        await tx.insert(runs).values({
-          id: ticket.run_id,
-          playerId: ctx.playerId,
-          score: input.score,
-          level: input.level,
-          kills: input.kills,
-          seed: input.seed,
-          durationMs: Math.max(1, Math.round(elapsedMs)),
-          outcome: input.outcome,
-        });
+        // Row level security checks the run is this player's own. A run
+        // saved meanwhile (a second tab, a retry racing the first) or by
+        // another player holds the id: insert nothing, then check whose.
+        await tx
+          .insert(runs)
+          .values({
+            id: ticket.run_id,
+            playerId: ctx.playerId,
+            score: input.score,
+            level: input.level,
+            kills: input.kills,
+            seed: input.seed,
+            durationMs: Math.max(1, Math.round(elapsedMs)),
+            outcome: input.outcome,
+          })
+          .onConflictDoNothing();
+        const [mine] = await tx
+          .select({ id: runs.id })
+          .from(runs)
+          .where(eq(runs.id, ticket.run_id));
+        if (!mine)
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: "This run's ticket was already used",
+          });
       }
 
       const after = await playerStanding(tx, me.name);
