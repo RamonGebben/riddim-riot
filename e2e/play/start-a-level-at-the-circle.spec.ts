@@ -30,7 +30,7 @@ test('step into the circle to start the fight', async ({ page }) => {
   await watchAudio(page);
 
   await page.goto('/?seed=42');
-  await page.getByRole('button', { name: 'Press to start' }).click();
+  await page.getByRole('button', { name: 'Drop in' }).click();
   const playArea = page.getByRole('main', { name: 'Play area' });
   await expect(playArea.locator('canvas')).toBeVisible();
   await expect(page.getByRole('status')).toHaveText(

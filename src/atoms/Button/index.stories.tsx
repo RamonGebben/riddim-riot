@@ -4,7 +4,7 @@ import { Button } from '.';
 
 const meta = {
   component: Button,
-  args: { children: 'Press to start', disabled: false, onClick: fn() },
+  args: { children: 'Drop in', disabled: false, onClick: fn() },
 } satisfies Meta<typeof Button>;
 
 export default meta;

@@ -382,12 +382,27 @@ reshuffles another.
 
 The start screen draws the run's first level live behind it
 (`attachBackdrop`): the stage and rave shader over the arena, the camera
-drifting round the circle and the kick pulsing at 140 BPM halftime. It
-runs before any AudioContext exists, so it times itself off the page's
-clock - decoration, never musical timing. Under the title: the loadout
-with icons (`describeLoadout`), how to play for the pointer in hand, the
-run's key, levels and best score, and a seed field (a number or any word,
-kept in `?seed=`) with Roll.
+drifting a little round the circle and the kick pulsing at 140 BPM
+halftime. A silent demo plays round the circle (`ghostAt`, pure): a shot
+on every kick that lands, and bursts its target, on the next. It runs before any AudioContext exists, so it times itself off
+the page's clock - decoration, never musical timing. On a wide landscape
+screen the text sits down the left and the camera puts the circle right
+of centre, clear of it (the page's `SIDE_BY_SIDE` and the backdrop's
+`ASIDE` must agree). Under the title: **Drop in**, **Reduce flashing** beside it (second in tab
+order; Enter flips it rather than starting), and the run's key, levels and
+best score. The seed isn't on the start page: `?seed=` still picks it, and
+a finished run offers **Copy seed link**.
+Under it, one glass briefing: the loadout with icons, generated names and
+what each weapon does in plain words (`describeLoadout`), and how to play
+for the pointer in hand. Enter starts from anywhere on the page.
+
+**Reduce flashing** (`game/flashing`) is the player's choice, kept in
+local storage, or the system's reduced motion until they make one. The
+stage reads it every frame and draws a `calmFrame`: no shake, no drop
+flash, the kick, shot and hit pulses turned well down; the backdrop
+camera holds still. The screens' own animations (the title's glow, the
+combo and heart pops, the level card) stop off `data-flashing="reduced"`
+on the root.
 
 ### HUD and icons
 

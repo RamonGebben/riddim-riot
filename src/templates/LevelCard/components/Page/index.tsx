@@ -18,4 +18,8 @@ export const Page = styled.main`
   -webkit-user-select: none;
   user-select: none;
   animation: ${rise} 0.4s ease-out;
+
+  :root[data-flashing='reduced'] & {
+    animation: none;
+  }
 `;

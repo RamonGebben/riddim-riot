@@ -76,6 +76,7 @@ const meta = {
     onStop: fn(),
     onRetry: fn(),
     onNewRun: fn(),
+    onCopySeed: fn(() => Promise.resolve(true)),
     onNextLevel: fn(),
     onTakeWeapon: fn(),
     onFireSlot: fn(),
@@ -159,6 +160,12 @@ export const RunEnded: Story = {
     ).toHaveTextContent('31');
     await userEvent.click(canvas.getByRole('button', { name: 'Try again' }));
     await expect(args.onRetry).toHaveBeenCalled();
+    const copy = canvas.getByRole('button', { name: 'Copy seed link' });
+    await userEvent.click(copy);
+    await expect(args.onCopySeed).toHaveBeenCalled();
+    // Relabelled in place: the same button, still focused.
+    await expect(copy).toHaveTextContent('Link copied');
+    await expect(copy).toHaveFocus();
   },
 };
 

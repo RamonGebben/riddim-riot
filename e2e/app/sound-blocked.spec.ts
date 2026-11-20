@@ -27,7 +27,7 @@ test('wait for sound the browser holds back, and start it on a press', async ({
   });
 
   await page.goto('/?seed=42');
-  await page.getByRole('button', { name: 'Press to start' }).click();
+  await page.getByRole('button', { name: 'Drop in' }).click();
   const blocked = page.getByRole('heading', { name: "Sound couldn't start" });
   await expect(blocked).toBeVisible();
 

@@ -11,6 +11,10 @@ export const Heart = styled.span<{ $kind: 'full' | 'lost' | 'bonus' }>`
   filter: drop-shadow(0 0 4px currentColor);
   animation: ${arrive} 0.25s ease-out;
 
+  :root[data-flashing='reduced'] & {
+    animation: none;
+  }
+
   ${({ $kind, theme }) =>
     $kind === 'lost' &&
     css`

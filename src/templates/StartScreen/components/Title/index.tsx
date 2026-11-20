@@ -12,15 +12,17 @@ export const Title = styled.h1`
   background-clip: text;
   color: transparent;
   font-family: ${({ theme }) => theme.fontFamily('heading')};
-  font-size: clamp(2.75rem, 11vw, 7rem);
+  /* Sized by the short side too, so a landscape phone keeps the button in view. */
+  font-size: clamp(2.75rem, min(10vw, 16vh), 6rem);
   font-weight: 900;
   font-style: italic;
   line-height: 0.95;
   letter-spacing: -0.02em;
   text-transform: uppercase;
+  text-wrap: balance;
   animation: ${breathe} ${(60 / 140) * 2}s ease-out infinite;
 
-  @media (prefers-reduced-motion: reduce) {
+  :root[data-flashing='reduced'] & {
     animation: none;
   }
 `;

@@ -1,4 +1,4 @@
-import type { Ref } from 'react';
+import { useState, type Ref } from 'react';
 import { Icon } from '~/atoms/Icon';
 import { PAUSE_ICON } from '~/game/icons';
 import { Combo } from './components/Combo';
@@ -79,6 +79,8 @@ export interface GameScreenProps {
   onRetry: () => void;
   /** Start over on a fresh seed. */
   onNewRun: () => void;
+  /** Copy a link that plays this seed; resolves whether it worked. */
+  onCopySeed: () => Promise<boolean>;
   onNextLevel: () => void;
   /** Take the weapon underfoot: the touch screen's button for F. */
   onTakeWeapon: () => void;
@@ -120,6 +122,12 @@ const phaseLabel = ({ phase, part, secondsLeft, boss }: RunProps) => {
 
 const number = (value: number) => value.toLocaleString('en');
 
+const COPY_LABELS = {
+  idle: 'Copy seed link',
+  copied: 'Link copied',
+  failed: "Couldn't copy the link",
+};
+
 const kills = (count: number) => ({ label: 'Kills', value: number(count) });
 const points = (score: number) => ({ label: 'Points', value: number(score) });
 
@@ -147,12 +155,19 @@ export const GameScreen = ({
   onRetrySound,
   onRetry,
   onNewRun,
+  onCopySeed,
   onNextLevel,
   onTakeWeapon,
   onFireSlot,
   onReleaseSlot,
   onDash,
 }: GameScreenProps) => {
+  const [copy, setCopy] = useState<keyof typeof COPY_LABELS>('idle');
+  const copySeed = {
+    label: COPY_LABELS[copy],
+    onClick: () =>
+      void onCopySeed().then(copied => setCopy(copied ? 'copied' : 'failed')),
+  };
   const holding = loadout.slots[loadout.active];
   const prompt = run.pickup ? (
     <PointerOnly $pointer="mouse">
@@ -273,6 +288,7 @@ export const GameScreen = ({
           actions={[
             { label: 'Try again', onClick: onRetry },
             { label: 'New run', onClick: onNewRun },
+            copySeed,
           ]}
         />
       )}
@@ -298,6 +314,7 @@ export const GameScreen = ({
           actions={[
             { label: 'New run', onClick: onNewRun },
             { label: 'Play this seed again', onClick: onRetry },
+            copySeed,
           ]}
         />
       )}

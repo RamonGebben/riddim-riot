@@ -42,6 +42,13 @@ export { levelSeed, newRun, type RunState } from './run';
 export type { LoadoutView } from './loadout';
 export { RUN_LEVELS } from './sim/world';
 export { attachBackdrop } from './backdrop';
+export {
+  readFlashing,
+  reducesFlashing,
+  saveFlashing,
+  setFlashingReduced,
+  type FlashingChoice,
+} from './flashing';
 
 /** Fixed for the PoC; the level seed picks it later. */
 export const BPM = 140;

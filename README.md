@@ -12,7 +12,7 @@ pnpm install
 pnpm dev            # http://localhost:5173
 ```
 
-Press **Press to start** (browsers only start audio from a click), then play.
+Press **Drop in** or Enter (browsers only start audio from a press), then play. **Reduce flashing** beside it turns off the screen shake and flashes; it follows your system's reduced-motion setting until you change it. A finished run offers **Copy seed link** to share or replay its seed.
 
 Each level is an arena and a song. Step into the circle in the middle: it
 charges for a bar and slams the music in. Then survive the song (intro,

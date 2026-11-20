@@ -15,7 +15,7 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
     page.getByText(/^[A-G]#? (minor|phrygian) · 140 BPM halftime · 5 levels$/),
   ).toBeVisible();
 
-  await page.getByRole('button', { name: 'Press to start' }).click();
+  await page.getByRole('button', { name: 'Drop in' }).click();
   const playArea = page.getByRole('main', { name: 'Play area' });
   await expect(playArea).toBeVisible();
   await expect(playArea.locator('canvas')).toBeVisible();
@@ -44,8 +44,6 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
   await page.getByRole('heading', { name: 'Paused' }).dblclick();
   expect(await page.evaluate(() => String(window.getSelection()))).toBe('');
   await page.getByRole('button', { name: 'Quit' }).click();
-  await expect(
-    page.getByRole('button', { name: 'Press to start' }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Drop in' })).toBeVisible();
   expect(errors).toEqual([]);
 });

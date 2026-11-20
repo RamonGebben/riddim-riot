@@ -55,8 +55,9 @@ export const Overlay = ({
         ))}
         {note && <Note>{note}</Note>}
         <Actions>
-          {actions.map(({ label, onClick }) => (
-            <Button key={label} onClick={onClick}>
+          {/* Keyed by place: a label that changes (Link copied) keeps focus. */}
+          {actions.map(({ label, onClick }, index) => (
+            <Button key={index} onClick={onClick}>
               {label}
             </Button>
           ))}

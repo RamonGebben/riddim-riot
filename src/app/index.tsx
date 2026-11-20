@@ -4,7 +4,11 @@ import {
   describeLevel,
   describeLoadout,
   newRun,
+  readFlashing,
+  reducesFlashing,
   RUN_LEVELS,
+  saveFlashing,
+  setFlashingReduced,
   startGame,
   type Game,
   type HudView,
@@ -26,6 +30,8 @@ const randomSeed = () => getSeed('');
 
 /** How long a cleared level's stats show before the next one starts. */
 const NEXT_LEVEL_MS = 3500;
+
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
 /** Far longer than a phone takes to build a level; past it, say where. */
 const START_TIMEOUT_MS = 20_000;
@@ -60,13 +66,11 @@ const withTimeout = (starting: Promise<Game>, step: () => StartStep | null) =>
 
 export const App = () => {
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
-  /** The seed as typed on the start screen: a number or any word. */
-  const [seedText, setSeedText] = useState(
-    () =>
-      new URLSearchParams(window.location.search).get('seed') ??
-      String(run.seed),
-  );
   const backdrop = useRef<HTMLDivElement>(null);
+  /** Shake and flashes turned down: the player's choice, else the system's. */
+  const [flashingReduced, setReduced] = useState(() =>
+    reducesFlashing(readFlashing(), window.matchMedia(REDUCED_MOTION).matches),
+  );
   // `?stress` fills the level with enemies, for checking performance.
   const [stress] = useState(() =>
     new URLSearchParams(window.location.search).has('stress'),
@@ -99,6 +103,29 @@ export const App = () => {
 
   useEffect(() => () => game.current?.stop(), []);
 
+  // The stage reads it every frame; the page's own animations, off the root.
+  useEffect(() => {
+    setFlashingReduced(flashingReduced);
+    document.documentElement.dataset.flashing = flashingReduced
+      ? 'reduced'
+      : 'full';
+  }, [flashingReduced]);
+
+  // Until the player chooses, follow the system's setting as it changes.
+  useEffect(() => {
+    const query = window.matchMedia(REDUCED_MOTION);
+    const onChange = () => {
+      if (readFlashing() === null) setReduced(query.matches);
+    };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  const chooseFlashing = (reduced: boolean) => {
+    saveFlashing(reduced ? 'reduced' : 'full');
+    setReduced(reduced);
+  };
+
   // The start screen's live level, redrawn when the seed changes.
   const onStart = status !== 'playing' && !between;
   useEffect(() => {
@@ -106,13 +133,17 @@ export const App = () => {
     return attachBackdrop(backdrop.current, run);
   }, [onStart, run]);
 
-  /** A new seed for the next run, kept in the URL so a reload keeps it. */
-  const chooseSeed = (text: string) => {
-    setSeedText(text);
-    const query = `?seed=${encodeURIComponent(text.trim())}`;
-    if (!text.trim()) return;
-    setRun(newRun(getSeed(query)));
-    window.history.replaceState(null, '', query);
+  /** A link that plays this run's seed; resolves whether it was copied. */
+  const copySeed = async () => {
+    const url = new URL(window.location.pathname, window.location.origin);
+    url.searchParams.set('seed', String(run.seed));
+    try {
+      await navigator.clipboard.writeText(url.href);
+      return true;
+    } catch {
+      // No clipboard here (an insecure page) or the browser refused.
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -261,6 +292,7 @@ export const App = () => {
         onRetrySound={() => game.current?.retrySound()}
         onRetry={() => play(newRun(run.seed))}
         onNewRun={() => play(newRun(randomSeed()))}
+        onCopySeed={copySeed}
         onNextLevel={handleNextLevel}
         onTakeWeapon={() => game.current?.takeWeapon()}
         onFireSlot={slot => game.current?.fireSlot(slot)}
@@ -282,11 +314,10 @@ export const App = () => {
       bpm={level.bpm}
       levels={RUN_LEVELS}
       best={best}
-      seed={seedText}
       weapons={weapons}
       backdropRef={backdrop}
-      onSeed={chooseSeed}
-      onRollSeed={() => chooseSeed(String(randomSeed()))}
+      flashingReduced={flashingReduced}
+      onFlashingReduced={chooseFlashing}
       isStarting={status === 'starting'}
       step={startStep}
       error={startError}

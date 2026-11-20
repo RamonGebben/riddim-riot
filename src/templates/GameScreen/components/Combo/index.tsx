@@ -12,4 +12,8 @@ export const Combo = styled.strong`
   font-size: ${({ theme }) => theme.fontSize('m')};
   text-shadow: 0 0 8px currentColor;
   animation: ${bump} 0.2s ease-out;
+
+  :root[data-flashing='reduced'] & {
+    animation: none;
+  }
 `;
