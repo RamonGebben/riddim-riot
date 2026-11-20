@@ -276,7 +276,7 @@ export const GameScreen = ({
           ]}
         />
       )}
-      <RotateNotice>Turn your phone sideways to play</RotateNotice>
+      <RotateNotice />
       {run.status === 'cleared' && !won && (
         <Overlay
           heading={`Level ${run.level} cleared`}
