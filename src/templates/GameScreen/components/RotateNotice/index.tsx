@@ -1,21 +1,17 @@
-import styled from 'styled-components';
-import { TOUCH_SCREEN } from '~/utils/landscape';
+import { Cover } from './components/Cover';
+import { Hint } from './components/Hint';
 
-/** Covers the game on a phone held upright: it only plays in landscape. */
-export const RotateNotice = styled.p.attrs({ role: 'alert' })`
-  display: none;
-
-  @media ${TOUCH_SCREEN} and (orientation: portrait) {
-    position: fixed;
-    inset: 0;
-    z-index: ${({ theme }) => theme.zIndex('modal')};
-    display: grid;
-    place-items: center;
-    margin: 0;
-    padding: ${({ theme }) => theme.spacing('l')};
-    background: ${({ theme }) => theme.color('background')};
-    color: ${({ theme }) => theme.color('background', 'text')};
-    font-size: ${({ theme }) => theme.fontSize('l')};
-    text-align: center;
-  }
-`;
+/**
+ * Asks for landscape on a phone held upright. A link opened inside an app
+ * (Discord, Instagram, …) can't turn on an iPhone: its browser only rotates
+ * as far as the app does, and most apps stay upright.
+ */
+export const RotateNotice = () => (
+  <Cover>
+    <span>Turn your phone sideways to play</span>
+    <Hint>
+      Not turning? Open the page in Safari or Chrome: browsers inside other apps
+      stay upright.
+    </Hint>
+  </Cover>
+);
