@@ -72,3 +72,13 @@ export const PAUSE_ICON: Icon = [
   { d: 'M7 4 H10 V20 H7 Z', fill: true },
   { d: 'M14 4 H17 V20 H14 Z', fill: true },
 ];
+
+/** A chevron up: climbing the board. */
+export const CLIMB_ICON: Icon = [{ d: 'M5 15 L12 8 L19 15' }];
+
+/** A box with an arrow leaving it: share. */
+export const SHARE_ICON: Icon = [
+  { d: 'M12 3 V15' },
+  { d: 'M7 8 L12 3 L17 8' },
+  { d: 'M5 12 V19 A2 2 0 0 0 7 21 H17 A2 2 0 0 0 19 19 V12' },
+];

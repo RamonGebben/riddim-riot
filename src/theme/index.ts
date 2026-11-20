@@ -102,3 +102,9 @@ const tokens = {
 const theme = new DesignSystem(tokens);
 
 export default theme;
+
+/**
+ * The dark mode's raw values, for what draws outside CSS (the share card's
+ * image renderer can't read custom properties).
+ */
+export const darkMode = tokens.modes.dark;

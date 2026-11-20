@@ -9,6 +9,7 @@ const meta = {
     bpm: 140,
     levels: 5,
     best: 0,
+    highScoresHref: '/leaderboard',
     weapons: [
       {
         name: 'Vandal Wobble 1/8 Echo',

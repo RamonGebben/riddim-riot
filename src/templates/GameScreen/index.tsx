@@ -1,6 +1,7 @@
-import { useState, type Ref } from 'react';
+import { useState, type ReactNode, type Ref } from 'react';
 import { Icon } from '~/atoms/Icon';
 import { PAUSE_ICON } from '~/game/icons';
+import { LEVEL_CLEAR_BONUS } from '~/game/sim';
 import { Combo } from './components/Combo';
 import { DashButton } from './components/DashButton';
 import { Health } from './components/Health';
@@ -64,6 +65,8 @@ export interface GameScreenProps {
   loadout: LoadoutProps;
   /** The best score on this device, before this run. */
   best: number;
+  /** Where a finished run puts the player on the board. */
+  board?: ReactNode;
   /** Frozen mid-level, waiting for Resume. */
   paused: boolean;
   /** The browser is holding the sound back, so the game waits for it. */
@@ -146,6 +149,7 @@ export const GameScreen = ({
   run,
   loadout,
   best,
+  board,
   paused,
   soundBlocked,
   surfaceRef,
@@ -290,13 +294,19 @@ export const GameScreen = ({
             { label: 'New run', onClick: onNewRun },
             copySeed,
           ]}
-        />
+        >
+          {board}
+        </Overlay>
       )}
       <RotateNotice />
       {run.status === 'cleared' && !won && (
         <Overlay
           heading={`Level ${run.level} cleared`}
-          stats={[kills(run.kills), points(run.score)]}
+          stats={[
+            kills(run.kills),
+            { label: 'Bonus', value: `+${number(LEVEL_CLEAR_BONUS)}` },
+            points(run.score),
+          ]}
           note={`Level ${run.level + 1} of ${run.levels} is coming up`}
           actions={[{ label: 'Next level', onClick: onNextLevel }]}
         />
@@ -316,7 +326,9 @@ export const GameScreen = ({
             { label: 'Play this seed again', onClick: onRetry },
             copySeed,
           ]}
-        />
+        >
+          {board}
+        </Overlay>
       )}
     </>
   );

@@ -1,5 +1,6 @@
 import { useEffect, type Ref } from 'react';
 import { Button } from '~/atoms/Button';
+import { TextLink } from '~/atoms/TextLink';
 import { Icon } from '~/atoms/Icon';
 import { Toggle } from '~/atoms/Toggle';
 import { WEAPON_ICONS } from '~/game/icons';
@@ -43,6 +44,8 @@ export interface StartScreenProps {
   error: string | null;
   /** Where the live level is drawn behind the page. */
   backdropRef?: Ref<HTMLDivElement>;
+  /** The all-time board. */
+  highScoresHref: string;
   onStart: () => void;
   onFlashingReduced: (reduced: boolean) => void;
 }
@@ -85,6 +88,7 @@ export const StartScreen = ({
   step,
   error,
   backdropRef,
+  highScoresHref,
   onStart,
   onFlashingReduced,
 }: StartScreenProps) => {
@@ -138,6 +142,7 @@ export const StartScreen = ({
               checked={flashingReduced}
               onChange={onFlashingReduced}
             />
+            <TextLink href={highScoresHref}>High scores</TextLink>
           </Options>
           {error && (
             <Status role="alert" $error>

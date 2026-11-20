@@ -9,7 +9,7 @@ how the code fits together is in [`docs/architecture.md`](docs/architecture.md).
 
 ```sh
 pnpm install
-pnpm dev            # http://localhost:5173
+pnpm dev            # http://localhost:3000
 ```
 
 Press **Drop in** or Enter (browsers only start audio from a press), then play. **Reduce flashing** beside it turns off the screen shake and flashes; it follows your system's reduced-motion setting until you change it. A finished run offers **Copy seed link** to share or replay its seed.
@@ -35,7 +35,7 @@ damaging and shoving back everything around it.
 
 ## Sound playground
 
-Open <http://localhost:5173/playground.html> while `pnpm dev` runs, press
+Open <http://localhost:3000/playground> while `pnpm dev` runs, press
 **Start audio**, and tune by ear. Every value that shapes the sound is on
 a control, and you hear it through the game's own voices, drums and
 arrangement at 140 BPM.
@@ -90,12 +90,15 @@ Switching tabs or turning the phone upright pauses the game too; only
 
 | Script                         | Runs                                                        |
 | ------------------------------ | ----------------------------------------------------------- |
-| `pnpm dev`                     | Vite dev server                                             |
-| `pnpm build`                   | Typecheck and production build                              |
+| `pnpm dev`                     | Next.js dev server                                          |
+| `pnpm start`                   | Serve the production build                                  |
+| `pnpm build`                   | Production build (typechecks too)                           |
 | `pnpm format` / `format:write` | Prettier check / fix                                        |
 | `pnpm lint`                    | ESLint                                                      |
 | `pnpm typecheck`               | `tsc --noEmit`                                              |
 | `pnpm test`                    | Vitest unit tests (Node, no DOM)                            |
+| `pnpm test:db`                 | Leaderboard policies and routers against the Neon database  |
+| `pnpm db:migrate`              | Apply `db/migrations` to the database in `.env.local`       |
 | `pnpm test:storybook`          | Storybook interaction tests in Chromium, Firefox and WebKit |
 | `pnpm test:e2e`                | Playwright end-to-end tests in Chromium, Firefox and WebKit |
 | `pnpm storybook`               | Storybook on port 6006                                      |
@@ -108,6 +111,7 @@ the unit tests on every commit. Never bypass it.
 TypeScript, [Tone.js](https://tonejs.github.io/) (audio and the one musical
 clock), [PixiJS](https://pixijs.com/) (WebGL rendering and the fullscreen
 shader), React with styled-components and `@pindakaasman/design-system`
-(screens only, never the game loop), Vite, Vitest, Storybook and Playwright.
+(screens only, never the game loop), Next.js on Vercel, Vitest and Storybook
+(both on Vite) and Playwright.
 Coding conventions come from the [mise](https://github.com/RamonGebben/mise)
 plugins listed in [`CLAUDE.md`](CLAUDE.md).

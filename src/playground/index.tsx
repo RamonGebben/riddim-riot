@@ -19,7 +19,7 @@ import { rollWeapon } from '~/game/weapons';
 import { PlaygroundScreen } from '~/templates/PlaygroundScreen';
 
 const DRAFT_KEY = 'sound-playground-draft';
-const ENDPOINT = '/__sound-design';
+const ENDPOINT = '/api/sound-design';
 /** Wait this long after the last change before rebuilding the sound. */
 const APPLY_DELAY_MS = 200;
 

@@ -14,3 +14,7 @@ export const Default: Story = {};
 export const Invalid: Story = {
   args: { $invalid: true, defaultValue: '0, x' },
 };
+
+export const Password: Story = {
+  args: { type: 'password', defaultValue: 'secret', 'aria-label': 'Password' },
+};

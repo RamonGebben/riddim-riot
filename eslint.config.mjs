@@ -9,6 +9,8 @@ export default defineConfig([
   { languageOptions: { globals: globals.browser } },
   globalIgnores([
     'dist/**',
+    '.next/**',
+    'next-env.d.ts',
     'playwright-report/**',
     'test-results/**',
     // Vendored impeccable skill scripts, kept as installed.

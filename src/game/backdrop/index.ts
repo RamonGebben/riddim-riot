@@ -38,55 +38,62 @@ export const attachBackdrop = (
   let detached = false;
   const started = performance.now();
 
-  void createStage(element, level).then(mounted => {
-    if (detached) {
-      mounted.destroy();
-      return;
-    }
-    stage = mounted;
-    mounted.onFrame(() => {
-      const t = (performance.now() - started) / 1000;
-      const { zoom, size } = mounted.view();
-      const screenWidth = size.x * zoom;
-      const aside =
-        screenWidth >= SIDE_BY_SIDE_MIN_WIDTH && size.x > size.y
-          ? size.x * ASIDE
-          : 0;
-      // Reduced, the camera holds still.
-      const drift = flashingReduced() ? 0 : 1;
-      const camera = clampCamera(
-        {
-          x: level.pad.x - aside + Math.cos(t * 0.11) * DRIFT.x * drift,
-          y: level.pad.y + Math.sin(t * 0.17) * DRIFT.y * drift,
-        },
-        size,
-        level,
-      );
-      // Halftime: the kick on beats 1 and 3, a flash every eight bars.
-      const kick = pulse(t, 0.14, BEAT_SECONDS * 2);
-      // A silent demo: shots off the circle landing on the kick.
-      const ghost = ghostAt(t, level.pad);
-      mounted.render({
-        world: {
-          ...world,
-          player: { ...world.player, position: level.pad, aim: ghost.aim },
-          enemies: ghost.enemies,
-          projectiles: ghost.projectiles,
-        },
-        // Reduced, the kills stop bursting; the shots still land.
-        bursts: flashingReduced() ? [] : ghost.bursts,
-        now: t,
-        camera,
-        shake: shakeOffset(t, kick * 3),
-        kick,
-        beat: pulse(t, 0.1),
-        shot: 0,
-        hit: 0,
-        drop: pulse(t, 0.6, BEAT_SECONDS * 32) * 0.6,
-        barSeconds: BEAT_SECONDS * 4,
+  void createStage(element, level)
+    .then(mounted => {
+      if (detached) {
+        mounted.destroy();
+        return;
+      }
+      stage = mounted;
+      mounted.onFrame(() => {
+        const t = (performance.now() - started) / 1000;
+        const { zoom, size } = mounted.view();
+        const screenWidth = size.x * zoom;
+        const aside =
+          screenWidth >= SIDE_BY_SIDE_MIN_WIDTH && size.x > size.y
+            ? size.x * ASIDE
+            : 0;
+        // Reduced, the camera holds still.
+        const drift = flashingReduced() ? 0 : 1;
+        const camera = clampCamera(
+          {
+            x: level.pad.x - aside + Math.cos(t * 0.11) * DRIFT.x * drift,
+            y: level.pad.y + Math.sin(t * 0.17) * DRIFT.y * drift,
+          },
+          size,
+          level,
+        );
+        // Halftime: the kick on beats 1 and 3, a flash every eight bars.
+        const kick = pulse(t, 0.14, BEAT_SECONDS * 2);
+        // A silent demo: shots off the circle landing on the kick.
+        const ghost = ghostAt(t, level.pad);
+        mounted.render({
+          world: {
+            ...world,
+            player: { ...world.player, position: level.pad, aim: ghost.aim },
+            enemies: ghost.enemies,
+            projectiles: ghost.projectiles,
+          },
+          // Reduced, the kills stop bursting; the shots still land.
+          bursts: flashingReduced() ? [] : ghost.bursts,
+          now: t,
+          camera,
+          shake: shakeOffset(t, kick * 3),
+          kick,
+          beat: pulse(t, 0.1),
+          shot: 0,
+          hit: 0,
+          drop: pulse(t, 0.6, BEAT_SECONDS * 32) * 0.6,
+          barSeconds: BEAT_SECONDS * 4,
+        });
       });
+    })
+    .catch((error: unknown) => {
+      // Leaving the page cancels the renderer's chunks mid-load (before any
+      // cleanup runs); a backdrop that can't draw just stays dark. A
+      // warning, not an error: it's scenery, and nothing depends on it.
+      if (!detached) console.warn('backdrop could not draw', error);
     });
-  });
 
   return () => {
     detached = true;

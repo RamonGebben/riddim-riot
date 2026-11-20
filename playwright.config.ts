@@ -23,9 +23,14 @@ export default defineConfig({
     { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport } },
     { name: 'webkit', use: { ...devices['Desktop Safari'], viewport } },
   ],
+  // CI plays the production build; locally the dev server compiles on
+  // first request, so the first test waits a little longer.
   webServer: {
-    command: `pnpm exec vite --port ${PORT} --strictPort`,
+    command: process.env.CI
+      ? `pnpm build && pnpm exec next start --port ${PORT}`
+      : `pnpm exec next dev --port ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
+    timeout: 300_000,
   },
 });

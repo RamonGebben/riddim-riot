@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn } from 'storybook/test';
+import { RunStanding } from '~/organisms/RunStanding';
 import { GameScreen, type SongPart } from '.';
 
 const SONG = [
@@ -169,6 +170,69 @@ export const RunEnded: Story = {
   },
 };
 
+export const RunEndedSignedOut: Story = {
+  args: {
+    ...RunEnded.args,
+    board: (
+      <RunStanding
+        boardHref="/leaderboard"
+        standing={{
+          kind: 'signedOut',
+          score: 4650,
+          isSubmitting: false,
+          error: null,
+          onEnter: fn(),
+          onSkip: fn(),
+        }}
+      />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText('Save 4,650 points to the high scores?'),
+    ).toBeVisible();
+  },
+};
+
+export const RunEndedOnTheBoard: Story = {
+  args: {
+    ...RunEnded.args,
+    board: (
+      <RunStanding
+        boardHref="/leaderboard"
+        standing={{
+          kind: 'saved',
+          name: 'RIDDIMRAT',
+          score: 4650,
+          before: { rank: 4, total: 583_470 },
+          after: { rank: 3, total: 588_120 },
+          rows: [
+            {
+              rank: 1,
+              name: 'WOBBLEKING',
+              totalPoints: 1_204_880,
+              runsCount: 212,
+            },
+            { rank: 2, name: 'SUBLO', totalPoints: 740_005, runsCount: 98 },
+            { rank: 3, name: 'RIDDIMRAT', totalPoints: 588_120, runsCount: 75 },
+            {
+              rank: 4,
+              name: 'K_HALFTIME',
+              totalPoints: 587_300,
+              runsCount: 121,
+            },
+          ],
+          share: 'idle',
+          onShare: fn(),
+        }}
+      />
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Up 1 place')).toBeVisible();
+  },
+};
+
 export const LevelCleared: Story = {
   args: {
     run: {
@@ -192,6 +256,9 @@ export const LevelCleared: Story = {
     },
   },
   play: async ({ args, canvas, userEvent }) => {
+    await expect(
+      canvas.getByText('Bonus').nextElementSibling,
+    ).toHaveTextContent('+10,000');
     await userEvent.click(canvas.getByRole('button', { name: 'Next level' }));
     await expect(args.onNextLevel).toHaveBeenCalled();
   },
