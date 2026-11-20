@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { formatNumber } from '~/utils/formatNumber';
 import { notFound } from 'next/navigation';
 import { publicCaller } from '~/server/caller';
 import { ordinal } from '~/utils/ordinal';
@@ -10,8 +11,6 @@ interface PlacePageProps {
   params: Promise<{ name: string }>;
 }
 
-const number = (value: number) => value.toLocaleString('en');
-
 export const generateMetadata = async ({
   params,
 }: PlacePageProps): Promise<Metadata> => {
@@ -19,7 +18,7 @@ export const generateMetadata = async ({
   if (!place) return { title: 'High scores · Bass Weapons' };
   const where = place.rank === null ? 'on' : `${ordinal(place.rank)} on`;
   const title = `${place.name} is ${where} the Bass Weapons high scores`;
-  const description = `${number(place.totalPoints)} points from ${number(place.runsCount)} runs. Every gun is a bass synth and every shot lands on the beat: play in your browser and beat it.`;
+  const description = `${formatNumber(place.totalPoints)} points from ${formatNumber(place.runsCount)} runs. Every gun is a bass synth and every shot lands on the beat: play in your browser and beat it.`;
   return {
     title,
     description,

@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { formatNumber } from '~/utils/formatNumber';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { darkMode } from '~/theme';
@@ -11,8 +12,6 @@ export const alt =
   "A player's place on the Bass Weapons high scores: their rank, name and all-time points.";
 
 const { colorPalette: color } = darkMode;
-const number = (value: number) => value.toLocaleString('en');
-
 /** The song track's shape: two drops brighter, the way the HUD draws it. */
 const TRACK = [
   { bars: 16, drop: false },
@@ -78,7 +77,7 @@ const PlaceCard = async ({ params }: CardProps) => {
         </span>
         <span style={{ color: color.secondary.base, fontSize: 36 }}>
           {place
-            ? `${number(place.totalPoints)} POINTS · ${number(place.runsCount)} RUNS`
+            ? `${formatNumber(place.totalPoints)} POINTS · ${formatNumber(place.runsCount)} RUNS`
             : 'EVERY GUN IS A BASS SYNTH'}
         </span>
       </div>

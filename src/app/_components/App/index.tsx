@@ -186,18 +186,30 @@ export const App = () => {
     if (ended && hud) saveBest(hud.score);
   }, [ended, hud]);
 
-  // Dying or winning goes on the board; quitting doesn't.
+  // Dying or winning goes on the board; quitting doesn't. Keyed on the
+  // run's numbers, not the HUD: it keeps changing after the end (the song
+  // clock, the combo lapsing), and a new object would keep the run on the
+  // device again after it was saved or skipped.
+  const endScore = ended ? hud?.score : undefined;
+  const endLevel = ended ? hud?.level : undefined;
+  const endKills = ended ? hud?.kills : undefined;
   const finished = useMemo((): PendingRun | null => {
-    if (!ended || !hud || !ticket) return null;
+    if (
+      !ticket ||
+      endScore === undefined ||
+      endLevel === undefined ||
+      endKills === undefined
+    )
+      return null;
     return {
       ticket,
-      score: hud.score,
-      level: hud.level,
-      kills: hud.kills,
+      score: endScore,
+      level: endLevel,
+      kills: endKills,
       seed: run.seed,
       outcome: won ? 'won' : 'died',
     };
-  }, [ended, hud, ticket, run.seed, won]);
+  }, [ticket, endScore, endLevel, endKills, run.seed, won]);
 
   // A cleared level shows its stats a moment, then the next one starts by
   // itself: the run flows on without a click.

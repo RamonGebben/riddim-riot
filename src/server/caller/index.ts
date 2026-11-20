@@ -9,5 +9,5 @@ export const publicCaller = () =>
     headers: new Headers(),
     resHeaders: new Headers(),
     token: null,
-    playerId: null,
+    playerId: () => Promise.resolve(null),
   });

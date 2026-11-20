@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { formatNumber } from '~/utils/formatNumber';
 import { ordinal } from '~/utils/ordinal';
 import { Gap } from './components/Gap';
 import { Notice } from './components/Notice';
@@ -25,8 +26,6 @@ export interface BoardTableProps {
   /** Rows that fill the space while loading, so nothing jumps. */
   loadingRows?: number;
 }
-
-const number = (value: number) => value.toLocaleString('en');
 
 /** The lifetime-points board, with gaps where ranks are skipped. */
 export const BoardTable = ({
@@ -84,10 +83,10 @@ export const BoardTable = ({
                   >
                     <td>{ordinal(row.rank)}</td>
                     <td>{row.name}</td>
-                    <td data-align="end">{number(row.totalPoints)}</td>
+                    <td data-align="end">{formatNumber(row.totalPoints)}</td>
                     {!compact && (
                       <td data-align="end" data-quiet>
-                        {number(row.runsCount)}
+                        {formatNumber(row.runsCount)}
                       </td>
                     )}
                   </Row>

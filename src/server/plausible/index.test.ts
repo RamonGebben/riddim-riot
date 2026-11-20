@@ -28,6 +28,12 @@ describe('implausible', () => {
     ).toBe('too many points for the kills');
   });
 
+  it('rejects a score that is not in hundreds', () => {
+    expect(
+      implausible({ score: 150, level: 1, kills: 1, outcome: 'died' }, MINUTE),
+    ).toBe('the score is off the scale');
+  });
+
   it('accepts an early death with nothing scored', () => {
     expect(
       implausible({ score: 0, level: 1, kills: 0, outcome: 'died' }, 20_000),
