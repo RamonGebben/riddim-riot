@@ -10,12 +10,6 @@ export const Controls = styled.dl<{ $pointer: 'mouse' | 'touch' }>`
   margin: 0;
   font-size: ${({ theme }) => theme.fontSize('s')};
 
-  & dt {
-    color: ${({ theme }) => theme.color('primary')};
-    font-family: ${({ theme }) => theme.fontFamily('mono')};
-    font-weight: ${({ theme }) => theme.fontWeight('bold')};
-  }
-
   & dd {
     margin: 0;
   }

@@ -34,6 +34,12 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
     opacity: 0.5;
   }
 
+  /* Busy but still focusable: a start that's under way. */
+  &[aria-disabled='true'] {
+    cursor: progress;
+    background: ${({ theme }) => theme.color('primary', 'emphasis')};
+  }
+
   ${({ $variant, theme }) =>
     $variant === 'quiet' &&
     css`

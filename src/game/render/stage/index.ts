@@ -1,8 +1,10 @@
 import { Application, Container } from 'pixi.js';
+import { flashingReduced } from '../../flashing';
 import type { Level } from '../../level';
 import type { World } from '../../sim/world';
 import { add, scale, type Vec } from '../../vec';
 import { viewOf, worldOffset } from '../camera';
+import { calmFrame } from '../calm';
 import { createEnemiesView } from '../enemiesView';
 import { createFxView, type Burst } from '../fxView';
 import { createLevelView } from '../levelView';
@@ -86,7 +88,8 @@ export const createStage = async (
     onFrame: update => {
       app.ticker.add(ticker => update(ticker.deltaMS / 1000));
     },
-    render: frame => {
+    render: drawn => {
+      const frame = flashingReduced() ? calmFrame(drawn) : drawn;
       const { zoom, size } = view();
       const offset = add(
         scale(worldOffset(frame.camera, size), zoom),

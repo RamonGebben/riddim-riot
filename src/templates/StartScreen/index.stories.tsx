@@ -9,7 +9,6 @@ const meta = {
     bpm: 140,
     levels: 5,
     best: 0,
-    seed: '42',
     weapons: [
       {
         name: 'Vandal Wobble 1/8 Echo',
@@ -33,8 +32,8 @@ const meta = {
         blasts: false,
       },
     ],
-    onSeed: fn(),
-    onRollSeed: fn(),
+    flashingReduced: false,
+    onFlashingReduced: fn(),
     isStarting: false,
     step: null,
     error: null,
@@ -48,22 +47,47 @@ type Story = StoryObj<typeof meta>;
 
 export const Idle: Story = {
   play: async ({ args, canvas, userEvent }) => {
-    await userEvent.click(
-      canvas.getByRole('button', { name: 'Press to start' }),
-    );
+    await userEvent.click(canvas.getByRole('button', { name: 'Drop in' }));
     await expect(args.onStart).toHaveBeenCalled();
   },
 };
 
-export const PickASeed: Story = {
+export const StartWithEnter: Story = {
+  play: async ({ args, userEvent }) => {
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onStart).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const ReadTheLoadout: Story = {
+  play: async ({ canvas }) => {
+    const loadout = canvas.getByRole('region', { name: 'Your loadout' });
+    await expect(loadout).toHaveTextContent('Lumen Laser 1/16');
+    await expect(loadout).toHaveTextContent('Rapid spray');
+    await expect(loadout).toHaveTextContent(
+      'Hold for a steady beam · hits burst and push back',
+    );
+  },
+};
+
+export const ReduceFlashing: Story = {
   play: async ({ args, canvas, userEvent }) => {
-    await userEvent.type(canvas.getByRole('textbox', { name: 'Seed' }), 'x');
-    await expect(args.onSeed).toHaveBeenCalledWith('42x');
-    await userEvent.click(canvas.getByRole('button', { name: 'Roll' }));
-    await expect(args.onRollSeed).toHaveBeenCalled();
-    await expect(
-      canvas.getByRole('region', { name: 'Your loadout' }),
-    ).toHaveTextContent('Laser 1/16');
+    await userEvent.click(
+      canvas.getByRole('switch', { name: 'Reduce flashing' }),
+    );
+    await expect(args.onFlashingReduced).toHaveBeenCalledWith(true);
+  },
+};
+
+export const ReduceFlashingWithTheKeyboard: Story = {
+  play: async ({ args, userEvent }) => {
+    // Start first, then the switch, in tab order.
+    await userEvent.tab();
+    await userEvent.tab();
+    // Enter flips the switch; it never starts the game.
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onFlashingReduced).toHaveBeenCalledWith(true);
+    await expect(args.onStart).not.toHaveBeenCalled();
   },
 };
 
@@ -76,10 +100,12 @@ export const WithABest: Story = {
 
 export const Starting: Story = {
   args: { isStarting: true, step: 'weapons' },
-  play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole('button', { name: 'Press to start' }),
-    ).toBeDisabled();
+  play: async ({ args, canvas, userEvent }) => {
+    // Busy, not disabled: it keeps the focus, and a second press does nothing.
+    const button = canvas.getByRole('button', { name: 'Dropping in…' });
+    await expect(button).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(button);
+    await expect(args.onStart).not.toHaveBeenCalled();
     await expect(canvas.getByRole('status')).toHaveTextContent(
       'Measuring your weapons…',
     );
@@ -89,12 +115,13 @@ export const Starting: Story = {
 export const Failed: Story = {
   args: { error: 'AudioContext was not allowed to start' },
   play: async ({ args, canvas, userEvent }) => {
-    await expect(canvas.getByRole('alert')).toHaveTextContent(
-      "Couldn't start: AudioContext was not allowed to start",
+    const alert = canvas.getByRole('alert');
+    await expect(alert).toHaveTextContent("Couldn't start the game.");
+    await expect(alert).toHaveTextContent('Press Drop in to try again');
+    await expect(alert).toHaveTextContent(
+      'AudioContext was not allowed to start',
     );
-    await userEvent.click(
-      canvas.getByRole('button', { name: 'Press to start' }),
-    );
+    await userEvent.click(canvas.getByRole('button', { name: 'Drop in' }));
     await expect(args.onStart).toHaveBeenCalled();
   },
 };
