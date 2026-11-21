@@ -5,9 +5,12 @@ export type ButtonVariant = 'primary' | 'secondary' | 'quiet';
 /**
  * `primary` is the big call to action, one per screen. `secondary` is the
  * same pill outlined, for the other ways on. `quiet` is a compact outlined
- * button for dense tool UIs; with `aria-pressed` it reads as a toggle.
+ * button for dense tool UIs; with `aria-pressed` it reads as a toggle. On a
+ * phone the pills draw a size down, to leave room for the game, and keep
+ * a full-size target in an invisible band above and below.
  */
 export const Button = styled.button<{ $variant?: ButtonVariant }>`
+  position: relative;
   min-block-size: max(${({ theme }) => theme.minTarget()}, 2.5em);
   padding: ${({ theme }) => theme.spacing('xs')}
     ${({ theme }) => theme.spacing('l')};
@@ -57,6 +60,22 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
       &:hover {
         border-color: ${theme.color('primary')};
         background: ${theme.color('formBackground')};
+      }
+    `}
+
+  ${({ $variant, theme }) =>
+    $variant !== 'quiet' &&
+    css`
+      @media (max-height: 500px), (max-width: 479px) {
+        min-block-size: 2.25em;
+        padding: ${theme.spacing('xxs')} ${theme.spacing('base')};
+        font-size: ${theme.fontSize('s')};
+
+        &::after {
+          content: '';
+          position: absolute;
+          inset: calc((2.25em - ${theme.minTarget()}) / 2) 0;
+        }
       }
     `}
 

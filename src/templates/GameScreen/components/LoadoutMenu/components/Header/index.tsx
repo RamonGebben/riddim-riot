@@ -53,12 +53,5 @@ export const Header = styled.header`
     & h2 {
       font-size: ${({ theme }) => theme.fontSize('m')};
     }
-
-    /* The way back stays a pill, just a size down, to leave room. */
-    & > div:last-child > button {
-      min-block-size: ${({ theme }) => theme.minTarget()};
-      padding-block: ${({ theme }) => theme.spacing('xxs')};
-      font-size: ${({ theme }) => theme.fontSize('base')};
-    }
   }
 `;
