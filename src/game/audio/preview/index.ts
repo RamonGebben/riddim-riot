@@ -1,13 +1,86 @@
 import { SOUND_DESIGN, type MenuPatch } from '../../sound';
+import { clipOf, encodeWav, layClips, type Clip } from '../clip';
 
 /** Beats in the looped bar: previews start on the next one. */
 const LOOP_BEATS = 4;
-/** Scheduling headroom, so a start never lands in the past. */
-const AHEAD = 0.03;
-/** How long a held-back context gets to start before a preview gives up. */
+/** Headroom before the next beat, so a start is never late for it. */
+const AHEAD = 0.05;
+/** How long a clip gets to load before a preview gives up on it. */
 const START_WAIT_MS = 1000;
+/** How often the highlight checks which bar is sounding. */
+const WATCH_MS = 25;
+/** Steps a fade takes, on its timer: fine enough not to be heard. */
+const FADE_STEPS = 20;
 
 const dbToGain = (db: number) => 10 ** (db / 20);
+
+/** A clip as a file a media element can play; revoke it when done. */
+const urlOf = (clip: Clip) =>
+  URL.createObjectURL(new Blob([encodeWav(clip)], { type: 'audio/wav' }));
+
+/** A moment of silence, played inside a press to unlock an element. */
+const SILENCE = `data:audio/wav;base64,${btoa(
+  String.fromCharCode(
+    ...new Uint8Array(
+      encodeWav({ channels: [new Float32Array(1)], sampleRate: 8000 }),
+    ),
+  ),
+)}`;
+
+/** Resolves once the element can play through, rejects if it can't. */
+const loaded = (element: HTMLAudioElement) =>
+  new Promise<void>((resolve, reject) => {
+    const done = (fail?: string) => {
+      clearTimeout(timer);
+      element.removeEventListener('canplaythrough', ok);
+      element.removeEventListener('error', failed);
+      if (fail) reject(new Error(fail));
+      else resolve();
+    };
+    const ok = () => done();
+    const failed = () => done('The preview sound failed to load');
+    const timer = setTimeout(
+      () => done('The preview sound took too long to load'),
+      START_WAIT_MS,
+    );
+    if (element.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) done();
+    element.addEventListener('canplaythrough', ok);
+    element.addEventListener('error', failed);
+  });
+
+/** Empties an element, so it holds no file and plays nothing. */
+const empty = (element: HTMLAudioElement) => {
+  element.pause();
+  element.removeAttribute('src');
+  element.load();
+};
+
+/**
+ * A bar looping under the low-pass, baked: the bar plays twice through the
+ * filter and the second pass is kept, so the filter has settled across the
+ * loop point.
+ */
+const filtered = async (bar: AudioBuffer, patch: MenuPatch): Promise<Clip> => {
+  const offline = new OfflineAudioContext(
+    bar.numberOfChannels,
+    bar.length * 2,
+    bar.sampleRate,
+  );
+  const source = offline.createBufferSource();
+  source.buffer = bar;
+  source.loop = true;
+  const filter = offline.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = patch.hz;
+  filter.Q.value = patch.resonance;
+  source.connect(filter).connect(offline.destination);
+  source.start(0);
+  const rendered = clipOf(await offline.startRendering());
+  return {
+    ...rendered,
+    channels: rendered.channels.map(samples => samples.slice(bar.length)),
+  };
+};
 
 export interface PreviewOptions {
   /** How far before its first shot a rendered bar starts. */
@@ -21,10 +94,9 @@ export interface PreviewOptions {
 /** Plays the menu's loop and weapon previews over it, one at a time. */
 export interface Previewer {
   /**
-   * Make sure the preview context exists and runs. Call it inside the
-   * press: Safari only starts a context during the gesture itself. Prime
-   * it while the game still plays, too: Firefox leaves a context started
-   * after the game's suspended running but silent.
+   * Make sure the loop and previews can play. Call it inside the press:
+   * Safari only lets an element play from a press, and the sound arrives
+   * after it.
    */
   prime: () => void;
   /** Loop a bar of the track under the menu's low-pass, fading in. */
@@ -34,7 +106,8 @@ export interface Previewer {
   /**
    * Play a preview from the top, cutting off the one before. With the loop
    * running it starts on the loop's next beat, `leadIn` early so its first
-   * shot lands on it. Rejects if the browser won't let the sound start.
+   * shot lands on it. Resolves once it sounds; rejects if the browser won't
+   * let it.
    */
   play: (buffer: AudioBuffer, options: PreviewOptions) => Promise<void>;
   /**
@@ -51,10 +124,13 @@ export interface Previewer {
 }
 
 /**
- * A context of its own, apart from the game's: the loadout menu freezes the
- * level by suspending the game's context, and the loop and previews have to
- * sound anyway. It only plays finished buffers through a filter and two
- * gains, so it's built from plain browser nodes, not Tone's.
+ * Plays through media elements, not an AudioContext: the loadout menu
+ * freezes the level by suspending the game's context, and Firefox on the
+ * desktop then holds every context on the page silent, while elements
+ * still sound. So the loop and previews are baked into WAV files - the
+ * low-pass, the level and an A/B's two bars included - and the elements
+ * only play them. An A/B is one two-bar file looping, so its turns stay
+ * exact; only a preview's start on the loop's beat follows a timer.
  */
 export const createPreviewer = ({
   barSeconds,
@@ -64,174 +140,226 @@ export const createPreviewer = ({
   barSeconds: number;
   patch?: MenuPatch;
 }): Previewer => {
-  let context: AudioContext | null = null;
+  let elements: { loop: HTMLAudioElement; preview: HTMLAudioElement } | null =
+    null;
   let loop: {
-    source: AudioBufferSourceNode;
-    fader: GainNode;
-    filter: BiquadFilterNode;
-    startedAt: number;
+    url: string | null;
     beatSeconds: number;
+    fade: ReturnType<typeof setInterval> | null;
   } | null = null;
-  /** What's sounding: its sources, the gain they share, and its timers. */
+  /** The last loop's fade out, until it's done. */
+  let fadingOut: ReturnType<typeof setInterval> | null = null;
+  /** What's sounding: its file, its timers, and who to tell it ended. */
   let playing: {
-    sources: Set<AudioBufferSourceNode>;
-    gain: GainNode;
+    url: string;
     timers: Array<ReturnType<typeof setTimeout>>;
     onEnd: () => void;
   } | null = null;
 
+  const elementsOf = () => {
+    elements ??= { loop: new Audio(), preview: new Audio() };
+    return elements;
+  };
+
+  /** Ramps an element's volume on a timer: a fade, not musical timing. */
+  const fade = (
+    element: HTMLAudioElement,
+    to: number,
+    then: () => void = () => {},
+  ) => {
+    const from = element.volume;
+    const steps = Math.max(Math.round(FADE_STEPS * Math.min(patch.fade, 1)), 1);
+    let step = 0;
+    const timer = setInterval(
+      () => {
+        step += 1;
+        element.volume = from + ((to - from) * step) / steps;
+        if (step < steps) return;
+        clearInterval(timer);
+        then();
+      },
+      (patch.fade * 1000) / steps,
+    );
+    return timer;
+  };
+
   const stop = () => {
     if (!playing) return;
-    const { sources, gain, timers, onEnd } = playing;
+    const { url, timers, onEnd } = playing;
     playing = null;
-    timers.forEach(clearTimeout);
-    sources.forEach(source => {
-      source.onended = null;
-      source.stop();
-      source.disconnect();
+    timers.forEach(timer => {
+      clearTimeout(timer);
+      clearInterval(timer);
     });
-    gain.disconnect();
+    if (elements) {
+      elements.preview.onended = null;
+      empty(elements.preview);
+    }
+    URL.revokeObjectURL(url);
     onEnd();
   };
 
   const stopLoop = () => {
-    if (!loop || !context) return;
-    const { source, fader, filter } = loop;
+    if (!loop || !elements) return;
+    const { url, fade: fading } = loop;
     loop = null;
-    const now = context.currentTime;
-    fader.gain.cancelScheduledValues(now);
-    fader.gain.setValueAtTime(fader.gain.value, now);
-    fader.gain.linearRampToValueAtTime(0, now + patch.fade);
-    source.stop(now + patch.fade);
-    source.onended = () => {
-      [source, filter, fader].forEach(node => node.disconnect());
-    };
-  };
-
-  /** When a preview's first shot should land: the loop's next beat. */
-  const nextBeat = (now: number) => {
-    if (!loop) return now + AHEAD;
-    const { startedAt, beatSeconds } = loop;
-    const beats = Math.ceil((now + AHEAD - startedAt) / beatSeconds);
-    return startedAt + Math.max(beats, 0) * beatSeconds;
+    if (fading) clearInterval(fading);
+    const element = elements.loop;
+    fadingOut = fade(element, 0, () => {
+      fadingOut = null;
+      empty(element);
+      if (url) URL.revokeObjectURL(url);
+    });
   };
 
   /**
-   * The context, running. A context the browser held back (autoplay rules)
-   * gets a moment to start from the press's resume; if it still hasn't, a
-   * preview would schedule into a frozen clock - silent, and never ending -
-   * so this says so instead.
+   * How long to wait before starting a clip that opens `leadIn` before its
+   * first shot, so the shot lands on the loop's next beat.
    */
-  const running = async () => {
-    const audio = context;
-    if (!audio) throw new Error('The preview sound was never started');
-    if (audio.state !== 'running')
-      await Promise.race([
-        audio.resume(),
-        new Promise(resolve => setTimeout(resolve, START_WAIT_MS)),
-      ]);
-    if (audio.state !== 'running')
-      throw new Error('The browser held the preview sound back');
-    return audio;
+  const untilBeat = (leadIn: number) => {
+    if (!loop?.url || !elements) return 0;
+    const { beatSeconds } = loop;
+    const at = elements.loop.currentTime;
+    const beat = Math.ceil((at + leadIn + AHEAD) / beatSeconds) * beatSeconds;
+    return beat - leadIn - at;
   };
 
   /**
-   * Start sounding: `bufferFor(turn)` from the next beat, a bar a turn,
-   * each turn queued as the one two before it ends. One turn plays once.
+   * Plays `clip`, once or looping, from the loop's next beat; tells each
+   * bar it reaches, counting on across loops.
    */
   const sound = async (
-    bufferFor: (turn: number) => AudioBuffer,
-    turns: number,
+    clip: Clip,
+    { looping, bar }: { looping: boolean; bar: number },
     { leadIn, onTurn, onEnd }: PreviewOptions,
   ) => {
     stop();
-    const audio = await running();
-    // Another preview may have started while this one waited.
-    stop();
-    const gain = audio.createGain();
-    gain.gain.value = dbToGain(patch.previewLevel);
-    gain.connect(audio.destination);
-    const current = {
-      sources: new Set<AudioBufferSourceNode>(),
-      gain,
-      timers: [] as Array<ReturnType<typeof setTimeout>>,
-      onEnd,
-    };
+    const element = elementsOf().preview;
+    const url = urlOf(clip);
+    const current = { url, timers: [], onEnd } as NonNullable<typeof playing>;
     playing = current;
-    const first = nextBeat(audio.currentTime);
-    const bar = loop ? loop.beatSeconds * LOOP_BEATS : barSeconds;
-    const queue = (turn: number) => {
-      const at = first + turn * bar;
-      const source = audio.createBufferSource();
-      source.buffer = bufferFor(turn);
-      source.connect(gain);
-      current.sources.add(source);
-      source.onended = () => {
-        current.sources.delete(source);
-        source.disconnect();
-        if (playing !== current) return;
-        if (turns === Infinity) queue(turn + 2);
-        else if (current.sources.size === 0) {
-          playing = null;
-          gain.disconnect();
-          onEnd();
-        }
-      };
-      source.start(Math.max(at - leadIn, audio.currentTime));
-      // Only the highlight follows a timer; the sound is on the audio clock.
-      if (onTurn)
-        current.timers.push(
-          setTimeout(
-            () => {
-              if (playing === current) onTurn(turn);
-            },
-            Math.max(at - audio.currentTime, 0) * 1000,
-          ),
-        );
+    element.src = url;
+    element.loop = looping;
+    element.volume = 1;
+    element.load();
+    try {
+      await loaded(element);
+    } catch (error) {
+      // Cut off meanwhile: nothing failed, it just isn't wanted.
+      if (playing !== current) return;
+      stop();
+      throw error;
+    }
+    if (playing !== current) return;
+    await new Promise<void>(resolve =>
+      current.timers.push(setTimeout(resolve, untilBeat(leadIn) * 1000)),
+    );
+    if (playing !== current) return;
+    element.onended = () => {
+      if (playing !== current) return;
+      // Ended by itself: clear up without cutting anything off.
+      playing = null;
+      current.timers.forEach(clearInterval);
+      element.onended = null;
+      empty(element);
+      URL.revokeObjectURL(url);
+      onEnd();
     };
-    Array.from({ length: Math.min(turns, 2) }, (_, turn) => queue(turn));
+    try {
+      await element.play();
+    } catch (error) {
+      // Cut off meanwhile: nothing failed, it just isn't wanted.
+      if (playing !== current) return;
+      stop();
+      throw error;
+    }
+    // Only the highlight follows a timer; the sound is all in the file.
+    let last = -1;
+    let turn = -1;
+    current.timers.push(
+      setInterval(() => {
+        if (playing !== current || element.currentTime < leadIn) return;
+        const index = Math.floor((element.currentTime - leadIn) / bar);
+        if (index === last) return;
+        last = index;
+        turn += 1;
+        onTurn?.(turn);
+      }, WATCH_MS),
+    );
   };
+
+  const level = dbToGain(patch.previewLevel);
 
   return {
     prime: () => {
-      context ??= new AudioContext();
-      if (context.state === 'suspended') void context.resume();
+      const { loop: looping, preview } = elementsOf();
+      [looping, preview]
+        .filter(element => !element.src)
+        .forEach(element => {
+          element.src = SILENCE;
+          void element.play().catch(() => {});
+        });
     },
     startLoop: bar => {
-      if (!context) return;
       stopLoop();
-      const now = context.currentTime + AHEAD;
-      const source = context.createBufferSource();
-      source.buffer = bar;
-      source.loop = true;
-      const filter = context.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = patch.hz;
-      filter.Q.value = patch.resonance;
-      // The bar arrives levelled (see `renderMenuLoop`): fade in to it.
-      const fader = context.createGain();
-      fader.gain.setValueAtTime(0, now);
-      fader.gain.linearRampToValueAtTime(1, now + patch.fade);
-      source.connect(filter).connect(fader).connect(context.destination);
-      source.start(now);
-      loop = {
-        source,
-        fader,
-        filter,
-        startedAt: now,
+      // The new loop takes the element over; the old one stops at once.
+      if (fadingOut) clearInterval(fadingOut);
+      fadingOut = null;
+      const current = {
+        url: null as string | null,
         beatSeconds: bar.duration / LOOP_BEATS,
+        fade: null as ReturnType<typeof setInterval> | null,
       };
+      loop = current;
+      void filtered(bar, patch)
+        .then(async clip => {
+          if (loop !== current) return;
+          const element = elementsOf().loop;
+          const url = urlOf(clip);
+          current.url = url;
+          element.src = url;
+          element.loop = true;
+          element.volume = 0;
+          element.load();
+          await loaded(element);
+          if (loop !== current) return;
+          await element.play();
+          current.fade = fade(element, 1);
+        })
+        .catch((error: unknown) => console.error(error));
     },
     stopLoop,
-    play: (buffer, options) => sound(() => buffer, 1, options),
-    alternate: (a, b, options) =>
-      sound(turn => (turn % 2 === 0 ? a : b), Infinity, options),
+    play: (buffer, options) => {
+      const clip = clipOf(buffer);
+      return sound(
+        layClips([{ clip, at: 0 }], { seconds: buffer.duration, gain: level }),
+        { looping: false, bar: buffer.duration },
+        options,
+      );
+    },
+    alternate: (a, b, options) => {
+      const bar = loop ? loop.beatSeconds * LOOP_BEATS : barSeconds;
+      return sound(
+        layClips(
+          [
+            { clip: clipOf(a), at: 0 },
+            { clip: clipOf(b), at: bar },
+          ],
+          { seconds: bar * 2, gain: level, wrap: true },
+        ),
+        { looping: true, bar },
+        options,
+      );
+    },
     stop,
     dispose: () => {
       stop();
-      stopLoop();
-      void context?.close();
-      context = null;
+      if (fadingOut) clearInterval(fadingOut);
+      if (loop?.fade) clearInterval(loop.fade);
+      if (loop?.url) URL.revokeObjectURL(loop.url);
+      loop = null;
+      if (elements) [elements.loop, elements.preview].forEach(empty);
+      elements = null;
     },
   };
 };

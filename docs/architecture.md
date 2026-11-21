@@ -299,14 +299,20 @@ level to level and empty at the start of every run.
   clock and the sim stay exact. The bar the track is on (drums, pad, air,
   backing, in its section and chord) is rendered offline from the level's
   own voices: a warm-up bar first, then one bar kept with a 30 ms seam
-  baked across its loop point. It loops on a small separate AudioContext
-  (`createPreviewer`, primed inside the press) under the `menu` patch's
-  low-pass. A Hear button renders a bar of the weapon's riff once (moved
+  baked across its loop point. It plays through `<audio>` elements
+  (`createPreviewer`, unlocked inside the press), not a second
+  AudioContext: on desktop Firefox a suspended context holds every other
+  context on the page silent - running, clock advancing, no sound - at any
+  sample rate and however early it started, while media elements still
+  sound. So everything is baked into WAV files (`audio/clip`): the loop
+  through the `menu` patch's low-pass (two passes, the second kept, so the
+  filter has settled across the loop point), each preview at the preview
+  level. A Hear button renders a bar of the weapon's riff once (moved
   onto the loop's chord, levelled to the weapon mix) and starts it on the
-  loop's next beat. The comparison's A/B (`Game.previewAB`,
-  `previewer.alternate`) plays the pick for a bar, then the slot's, back and
-  forth on the bar grid. Each next bar is queued as the one two before it
-  ends, on the audio clock. Only the highlight of the row that's sounding
+  loop's next beat, read off the loop element's time - a timer, so a few
+  milliseconds loose. The comparison's A/B (`Game.previewAB`,
+  `previewer.alternate`) is one two-bar file, the pick's bar then the
+  slot's with tails wrapped round, looping, so its turns stay exact. Only the highlight of the row that's sounding
   (and its playhead) follows a timer. Every offline render now waits its turn (`offlineTurn`),
   since `Offline` swaps Tone's global context. After a run there's no loop,
   because the track is still playing, muffled.

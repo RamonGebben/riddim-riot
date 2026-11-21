@@ -443,8 +443,6 @@ export const startGame = async ({
   });
   clock.start();
   const previewer = createPreviewer({ barSeconds: beatSeconds * 4 });
-  // Started with the level, not the menu: see `Previewer.prime`.
-  previewer.prime();
   /** What the track's playing, for the menu's loop. */
   let playingSection: { section: Section; part: SongPart | null } = {
     section: 'calm',

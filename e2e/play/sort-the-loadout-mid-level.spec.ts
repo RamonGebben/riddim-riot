@@ -1,14 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Every realtime AudioContext and every buffer the page starts playing, to
- * see the game freeze, the menu's loop come in and a preview play.
+ * Every realtime AudioContext, and every rendered file a media element
+ * starts playing, to see the game freeze, the menu's loop come in and a
+ * preview play.
  */
 const watchAudio = (page: Page) =>
   page.addInitScript(() => {
     const contexts: Array<AudioContext> = [];
-    const started: Array<BaseAudioContext> = [];
-    Object.assign(window, { audioContexts: contexts, buffersStarted: started });
+    const played: Array<HTMLMediaElement> = [];
+    Object.assign(window, { audioContexts: contexts, filesPlayed: played });
     const Native = window.AudioContext;
     window.AudioContext = class extends Native {
       constructor(options?: AudioContextOptions) {
@@ -16,16 +17,17 @@ const watchAudio = (page: Page) =>
         contexts.push(this);
       }
     };
-    const start = AudioBufferSourceNode.prototype.start;
-    AudioBufferSourceNode.prototype.start = function (...args) {
-      started.push(this.context);
-      return start.apply(this, args);
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      // Rendered sound comes as a blob; the unlocking silence doesn't.
+      if (this.src.startsWith('blob:')) played.push(this);
+      return play.call(this);
     };
   });
 
 interface Watched {
   audioContexts: Array<AudioContext>;
-  buffersStarted: Array<BaseAudioContext>;
+  filesPlayed: Array<HTMLMediaElement>;
 }
 
 /** The state of the context at `index` (the game's, or the menu's). */
@@ -38,13 +40,14 @@ const stateAt = (page: Page, index: number) =>
 const contextCount = (page: Page) =>
   page.evaluate(() => (window as unknown as Watched).audioContexts.length);
 
-/** Buffers started on the context at `index`: the loop and the previews. */
-const buffersOn = (page: Page, index: number) =>
-  page.evaluate(at => {
-    const watched = window as unknown as Watched;
-    const context = watched.audioContexts[at];
-    return watched.buffersStarted.filter(other => other === context).length;
-  }, index);
+/** The rendered files sounding now: looping (the loop) or not (a preview). */
+const sounding = (page: Page) =>
+  page.evaluate(() =>
+    (window as unknown as Watched).filesPlayed
+      .filter(element => !element.paused && element.src.startsWith('blob:'))
+      .map(element => (element.loop ? 'loop' : 'preview'))
+      .sort(),
+  );
 
 test('open the loadout mid-level, hear a weapon, trade two slots and fight on', async ({
   page,
@@ -57,10 +60,8 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   await page.getByRole('button', { name: 'Drop in' }).click();
   const playArea = page.getByRole('main', { name: 'Play area' });
   await expect(playArea.locator('canvas')).toBeVisible();
-  // The menu's context starts with the level, just after the game's: the
-  // two latest (an earlier probe may be closed).
-  const own = (await contextCount(page)) - 1;
-  const game = own - 1;
+  // The game's context is the latest so far (an earlier probe may be closed).
+  const game = (await contextCount(page)) - 1;
   const weapons = page.getByRole('list', { name: 'Weapons' });
   const first = await weapons
     .getByRole('button')
@@ -82,14 +83,14 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   const menu = page.getByRole('dialog', { name: 'Loadout' });
   await expect(menu).toBeVisible();
   await expect(menu.getByText('Bag 0/24')).toBeVisible();
-  // The level waits behind the menu while its bar loops on a context of
-  // its own.
+  // The level waits behind the menu while its bar loops on a media
+  // element, which sounds with every context on the page suspended.
   await expect.poll(() => stateAt(page, game)).toBe('suspended');
-  await expect.poll(() => stateAt(page, own)).toBe('running');
-  await expect.poll(() => buffersOn(page, own)).toBe(1);
+  await expect.poll(() => sounding(page), musical).toEqual(['loop']);
+  expect(await contextCount(page)).toBe(game + 1);
 
   await menu.getByRole('button', { name: `Hear ${firstName}` }).click();
-  await expect.poll(() => buffersOn(page, own)).toBe(2);
+  await expect.poll(() => sounding(page), musical).toEqual(['loop', 'preview']);
   await expect(
     menu.getByRole('button', { name: `Stop ${firstName}` }),
   ).toBeVisible();
