@@ -6,8 +6,6 @@ const LOOP_BEATS = 4;
 const AHEAD = 0.03;
 /** How long a held-back context gets to start before a preview gives up. */
 const START_WAIT_MS = 1000;
-/** Rates to run at: whichever one the game's context isn't using. */
-const RATES = [48000, 44100];
 
 const dbToGain = (db: number) => 10 ** (db / 20);
 
@@ -24,7 +22,9 @@ export interface PreviewOptions {
 export interface Previewer {
   /**
    * Make sure the preview context exists and runs. Call it inside the
-   * press: Safari only starts a context during the gesture itself.
+   * press: Safari only starts a context during the gesture itself. Prime
+   * it while the game still plays, too: Firefox leaves a context started
+   * after the game's suspended running but silent.
    */
   prime: () => void;
   /** Loop a bar of the track under the menu's low-pass, fading in. */
@@ -53,21 +53,15 @@ export interface Previewer {
 /**
  * A context of its own, apart from the game's: the loadout menu freezes the
  * level by suspending the game's context, and the loop and previews have to
- * sound anyway. It runs at another sample rate than the game's: Firefox
- * mixes contexts of one rate in one graph, and a suspended context holds
- * that graph's output silent for every other context in it. It only plays
- * finished buffers through a filter and two gains, so it's built from plain
- * browser nodes, not Tone's.
+ * sound anyway. It only plays finished buffers through a filter and two
+ * gains, so it's built from plain browser nodes, not Tone's.
  */
 export const createPreviewer = ({
   barSeconds,
-  gameRate,
   patch = SOUND_DESIGN.menu,
 }: {
   /** A bar at the game's tempo: an A/B's turns, without a loop to go by. */
   barSeconds: number;
-  /** The game context's sample rate, to keep apart from. */
-  gameRate: number;
   patch?: MenuPatch;
 }): Previewer => {
   let context: AudioContext | null = null;
@@ -200,9 +194,7 @@ export const createPreviewer = ({
 
   return {
     prime: () => {
-      context ??= new AudioContext({
-        sampleRate: RATES.find(rate => rate !== gameRate),
-      });
+      context ??= new AudioContext();
       if (context.state === 'suspended') void context.resume();
     },
     startLoop: bar => {

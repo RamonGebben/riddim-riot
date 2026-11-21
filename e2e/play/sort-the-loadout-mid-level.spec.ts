@@ -57,8 +57,10 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   await page.getByRole('button', { name: 'Drop in' }).click();
   const playArea = page.getByRole('main', { name: 'Play area' });
   await expect(playArea.locator('canvas')).toBeVisible();
-  // The game's context is the latest so far (an earlier probe may be closed).
-  const game = (await contextCount(page)) - 1;
+  // The menu's context starts with the level, just after the game's: the
+  // two latest (an earlier probe may be closed).
+  const own = (await contextCount(page)) - 1;
+  const game = own - 1;
   const weapons = page.getByRole('list', { name: 'Weapons' });
   const first = await weapons
     .getByRole('button')
@@ -83,7 +85,6 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   // The level waits behind the menu while its bar loops on a context of
   // its own.
   await expect.poll(() => stateAt(page, game)).toBe('suspended');
-  const own = game + 1;
   await expect.poll(() => stateAt(page, own)).toBe('running');
   await expect.poll(() => buffersOn(page, own)).toBe(1);
 
