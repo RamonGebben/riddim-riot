@@ -1,4 +1,4 @@
-import { immediate, now } from 'tone';
+import { getContext, immediate, now } from 'tone';
 import {
   createArrangement,
   createBacking,
@@ -442,7 +442,10 @@ export const startGame = async ({
     onTick: tick => bus.emit('tick', tick),
   });
   clock.start();
-  const previewer = createPreviewer({ barSeconds: beatSeconds * 4 });
+  const previewer = createPreviewer({
+    barSeconds: beatSeconds * 4,
+    gameRate: getContext().sampleRate,
+  });
   /** What the track's playing, for the menu's loop. */
   let playingSection: { section: Section; part: SongPart | null } = {
     section: 'calm',
