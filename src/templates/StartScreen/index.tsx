@@ -1,5 +1,4 @@
 import { useEffect, type Ref } from 'react';
-import { Button } from '~/atoms/Button';
 import { TextLink } from '~/atoms/TextLink';
 import { Icon } from '~/atoms/Icon';
 import { Toggle } from '~/atoms/Toggle';
@@ -16,6 +15,7 @@ import { Meta } from './components/Meta';
 import { Options } from './components/Options';
 import { Page } from './components/Page';
 import { Shade } from './components/Shade';
+import { StartButton } from './components/StartButton';
 import { Shortcut } from './components/Shortcut';
 import { StartRow } from './components/StartRow';
 import { Status } from './components/Status';
@@ -104,9 +104,9 @@ export const StartScreen = ({
           </Lead>
           <StartRow>
             {/* Not disabled while starting: the button keeps the focus. */}
-            <Button onClick={start} aria-disabled={isStarting}>
+            <StartButton onClick={start} aria-disabled={isStarting}>
               {isStarting ? 'Dropping in…' : 'Drop in'}
-            </Button>
+            </StartButton>
             {!isStarting && (
               <Shortcut>
                 or press <Key>Enter</Key>
