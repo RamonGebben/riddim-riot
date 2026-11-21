@@ -1,10 +1,11 @@
 import styled, { css } from 'styled-components';
 
-export type ButtonVariant = 'primary' | 'quiet';
+export type ButtonVariant = 'primary' | 'secondary' | 'quiet';
 
 /**
- * `primary` is the big call to action. `quiet` is a compact outlined button
- * for dense tool UIs; with `aria-pressed` it reads as a toggle.
+ * `primary` is the big call to action, one per screen. `secondary` is the
+ * same pill outlined, for the other ways on. `quiet` is a compact outlined
+ * button for dense tool UIs; with `aria-pressed` it reads as a toggle.
  */
 export const Button = styled.button<{ $variant?: ButtonVariant }>`
   min-block-size: max(${({ theme }) => theme.minTarget()}, 2.5em);
@@ -39,6 +40,25 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
     cursor: progress;
     background: ${({ theme }) => theme.color('primary', 'emphasis')};
   }
+
+  ${({ $variant, theme }) =>
+    $variant === 'secondary' &&
+    css`
+      border: ${theme.borderWidth('s')} solid
+        color-mix(
+          in srgb,
+          ${theme.color('background', 'text')} 25%,
+          transparent
+        );
+      background: transparent;
+      color: ${theme.color('background', 'text')};
+      font-weight: ${theme.fontWeight('medium')};
+
+      &:hover {
+        border-color: ${theme.color('primary')};
+        background: ${theme.color('formBackground')};
+      }
+    `}
 
   ${({ $variant, theme }) =>
     $variant === 'quiet' &&

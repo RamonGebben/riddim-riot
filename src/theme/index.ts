@@ -19,7 +19,8 @@ const tokens = {
     fontFamily: {
       base: 'system-ui, sans-serif',
       heading: 'system-ui, sans-serif',
-      mono: 'ui-monospace, monospace',
+      // ui-monospace is Safari's alone; the rest keep Chromium and Firefox off Courier.
+      mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
     },
     fontWeight: {
       regular: 400,

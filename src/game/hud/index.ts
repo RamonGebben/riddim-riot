@@ -13,19 +13,9 @@ import {
   type SongSection,
   type SurvivalPhase,
 } from '../sim/survival';
-import { nearestPickup } from '../sim/loot';
+import { BAG_SIZE } from '../sim/loot';
 import { DASH } from '../sim/player';
-import type { FxPart, LfoPart, OscillatorPart, WeaponRecipe } from '../weapons';
-
-/** A weapon on the ground, as the prompt to take it describes it. */
-export interface PickupView {
-  name: string;
-  oscillator: OscillatorPart;
-  lfo: LfoPart;
-  fx: FxPart | null;
-  /** A slow weapon whose shots burst. */
-  blasts: boolean;
-}
+import type { WeaponRecipe } from '../weapons';
 
 /** What the screen around the stage shows; React renders it, not the loop. */
 export interface HudView {
@@ -54,8 +44,9 @@ export interface HudView {
   songBar: number | null;
   /** The boss's health, 0-1, while it's up. */
   boss: number | null;
-  /** The weapon the player is standing on, if any. */
-  pickup: PickupView | null;
+  /** Weapons in the run's bag, out of `bagSize`. */
+  bag: number;
+  bagSize: number;
   /**
    * The dash's cooldown in seconds while it's coming back, null when
    * ready; `dashKey` changes with every dash, to restart its animation.
@@ -65,9 +56,15 @@ export interface HudView {
 }
 
 /** Before the stage is up: a fresh level. */
-export const initialHud = (
-  carry: Pick<HudView, 'level' | 'hp' | 'kills' | 'score'>,
-): HudView => ({
+export const initialHud = ({
+  level,
+  hp,
+  kills,
+  score,
+  bag,
+}: Pick<HudView, 'level' | 'hp' | 'kills' | 'score'> & {
+  bag: Array<WeaponRecipe>;
+}): HudView => ({
   status: 'playing',
   levels: RUN_LEVELS,
   maxHp: PLAYER_MAX_HP,
@@ -76,22 +73,21 @@ export const initialHud = (
   phase: 'waiting',
   part: null,
   secondsLeft: null,
-  song: songFor(carry.level),
+  song: songFor(level),
   songBar: null,
   boss: null,
-  pickup: null,
+  bag: bag.length,
+  bagSize: BAG_SIZE,
   dashCooldown: null,
   dashKey: 0,
-  ...carry,
+  level,
+  hp,
+  kills,
+  score,
 });
 
 export const hudOf = (
   world: World,
-  /**
-   * Describes a recipe in the level's key - the same object for the same
-   * recipe, so an unchanged pickup doesn't count as a change.
-   */
-  describe: (recipe: WeaponRecipe) => PickupView,
   /** The beat being heard, to tell a live combo from a lapsed one. */
   beat = 0,
   /** For turning the beats left in the part into a countdown. */
@@ -105,7 +101,6 @@ export const hudOf = (
   });
   // Counted in beats so it ticks down steadily, not a bar at a time.
   const beatsLeft = at ? (at.bars - at.bar) * 4 - (beat % 4) : null;
-  const underfoot = nearestPickup(world.pickups, world.player.position);
   const boss = world.enemies.find(enemy => enemy.kind === 'boss');
   return {
     status: world.status,
@@ -126,7 +121,8 @@ export const hudOf = (
     boss: boss
       ? Math.max(Math.round((boss.hp / world.rules.bossHp) * 100) / 100, 0)
       : null,
-    pickup: underfoot ? describe(underfoot.recipe) : null,
+    bag: world.bag.length,
+    bagSize: BAG_SIZE,
     dashCooldown:
       now < world.dash.readyAt
         ? world.dash.readyAt - (world.dash.until - DASH.seconds)

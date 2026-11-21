@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from '@neondatabase/serverless';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { asPlayer, players, runs } from '.';
+import { asPlayer, loadouts, players, runs } from '.';
 
 // Runs against the real database (`pnpm test:db`): the policies are only
 // as good as what Postgres actually enforces.
@@ -104,6 +104,40 @@ describe('row level security', () => {
       ),
     );
     expect(error).toMatch(/permission denied/);
+  });
+
+  it("keeps a player's loadout theirs alone", async () => {
+    const recipes = [{ seed: 1 }, { seed: 2 }, { seed: 3 }];
+    await asPlayer(ids.a, tx =>
+      tx.insert(loadouts).values({ playerId: ids.a, recipes }),
+    );
+    const own = await asPlayer(ids.a, tx => tx.select().from(loadouts));
+    expect(own.map(row => row.recipes)).toEqual([recipes]);
+    const seen = await asPlayer(ids.b, tx => tx.select().from(loadouts));
+    expect(seen.filter(row => row.playerId === ids.a)).toEqual([]);
+    const forged = await failure(
+      asPlayer(ids.b, tx =>
+        tx.insert(loadouts).values({ playerId: ids.a, recipes }),
+      ),
+    );
+    expect(forged).toMatch(/row-level security|duplicate key/);
+    const overwritten = await asPlayer(ids.b, tx =>
+      tx
+        .update(loadouts)
+        .set({ recipes: [{ seed: 9 }, { seed: 9 }, { seed: 9 }] })
+        .where(eq(loadouts.playerId, ids.a))
+        .returning(),
+    );
+    expect(overwritten).toEqual([]);
+  });
+
+  it('keeps a loadout to three slots', async () => {
+    const error = await failure(
+      asPlayer(ids.b, tx =>
+        tx.insert(loadouts).values({ playerId: ids.b, recipes: [{ seed: 1 }] }),
+      ),
+    );
+    expect(error).toMatch(/check constraint/);
   });
 
   it('keeps password hashes and sessions out of reach', async () => {

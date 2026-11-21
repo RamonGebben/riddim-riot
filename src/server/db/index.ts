@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import * as schema from './schema';
 
-export { players, runs } from './schema';
+export { loadouts, players, runs } from './schema';
 
 const createDb = () => {
   const url = process.env.DATABASE_URL;

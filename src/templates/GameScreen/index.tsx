@@ -3,6 +3,7 @@ import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { PAUSE_ICON } from '~/game/icons';
 import { LEVEL_CLEAR_BONUS } from '~/game/sim';
+import { BagButton } from './components/BagButton';
 import { Combo } from './components/Combo';
 import { DashButton } from './components/DashButton';
 import { Health } from './components/Health';
@@ -12,21 +13,26 @@ import { HudActions } from './components/HudActions';
 import { HudPanel } from './components/HudPanel';
 import { IconButton } from './components/IconButton';
 import { LevelBadge } from './components/LevelBadge';
+import { LoadoutMenu, type LoadoutMenuProps } from './components/LoadoutMenu';
 import { Loadout, type LoadoutProps } from './components/Loadout';
 import { LockPage } from './components/LockPage';
-import { Overlay } from './components/Overlay';
+import { Overlay, type OverlayAction } from './components/Overlay';
 import { PointerOnly } from './components/PointerOnly';
 import { Prompt } from './components/Prompt';
 import { RotateNotice } from './components/RotateNotice';
 import { Score } from './components/Score';
 import { SongTrack } from './components/SongTrack';
 import { Surface } from './components/Surface';
-import { TakeButton } from './components/TakeButton';
-import { WeaponTag } from '~/molecules/WeaponTag';
-import type { LevelPhase, SongPart, WeaponFace } from './types';
+import type { LevelPhase, SongPart } from './types';
 
 export type { LevelPhase, SongPart, WeaponFace } from './types';
 export type { LoadoutProps, SlotProps } from './components/Loadout';
+export type {
+  Choice,
+  LoadoutMenuProps,
+  MenuWeapon,
+  WeaponStats,
+} from './components/LoadoutMenu';
 
 export interface RunProps {
   status: 'playing' | 'dead' | 'cleared';
@@ -50,8 +56,9 @@ export interface RunProps {
   songBar: number | null;
   /** The boss's health, 0-1, while it's up. */
   boss: number | null;
-  /** The weapon the player is standing on, if any. */
-  pickup: WeaponFace | null;
+  /** Weapons in the run's bag, out of `bagSize`. */
+  bag: number;
+  bagSize: number;
   /** Seconds until the dash is back; null when ready. */
   dashCooldown: number | null;
   /** Changes with every dash. */
@@ -70,6 +77,11 @@ export interface GameScreenProps {
   board?: ReactNode;
   /** Frozen mid-level, waiting for Resume. */
   paused: boolean;
+  /**
+   * The loadout menu, open over a frozen level or a finished run; null
+   * when closed.
+   */
+  menu?: LoadoutMenuProps | null;
   /** The browser is holding the sound back, so the game waits for it. */
   soundBlocked: boolean;
   /** The element the game attaches its input and canvas to. */
@@ -86,8 +98,8 @@ export interface GameScreenProps {
   /** Copy a link that plays this seed; resolves whether it worked. */
   onCopySeed: () => Promise<boolean>;
   onNextLevel: () => void;
-  /** Take the weapon underfoot: the touch screen's button for F. */
-  onTakeWeapon: () => void;
+  /** Open the loadout menu: the bag button, Tab or B. */
+  onOpenMenu: () => void;
   /** A slot button held: switch to it and fire; let go to stop. */
   onFireSlot: (slot: number) => void;
   onReleaseSlot: (slot: number) => void;
@@ -156,6 +168,7 @@ export const GameScreen = ({
   best,
   board,
   paused,
+  menu = null,
   soundBlocked,
   surfaceRef,
   onStop,
@@ -166,33 +179,69 @@ export const GameScreen = ({
   onNewRun,
   onCopySeed,
   onNextLevel,
-  onTakeWeapon,
+  onOpenMenu,
   onFireSlot,
   onReleaseSlot,
   onDash,
 }: GameScreenProps) => {
   const [copy, setCopy] = useState<keyof typeof COPY_LABELS>('idle');
+  /** The menu was opened since the run ended: its loot has been seen. */
+  const [looked, setLooked] = useState(false);
+  const [losing, setLosing] = useState<{
+    label: string;
+    start: () => void;
+  } | null>(null);
   const copySeed = {
     label: COPY_LABELS[copy],
     onClick: () =>
       void onCopySeed().then(copied => setCopy(copied ? 'copied' : 'failed')),
   };
-  const holding = loadout.slots[loadout.active];
-  const prompt = run.pickup ? (
-    <PointerOnly $pointer="mouse">
-      <kbd>F</kbd> take <WeaponTag {...run.pickup} />
-      {holding && (
-        <>
-          {' '}
-          for your <WeaponTag {...holding} />
-        </>
-      )}
-    </PointerOnly>
-  ) : (
-    CIRCLE_PROMPTS[run.phase]
-  );
-  const playing = run.status === 'playing' && !paused;
+  const prompt = CIRCLE_PROMPTS[run.phase];
+  const playing = run.status === 'playing' && !paused && !menu;
   const won = run.status === 'cleared' && run.level >= run.levels;
+  const weapons = `${run.bag} ${run.bag === 1 ? 'weapon' : 'weapons'}`;
+  /** The end of a run: keep the best loot before the next run empties the bag. */
+  const keepLoot = {
+    label: run.bag > 0 ? `Keep loot (${run.bag})` : 'Loadout',
+    onClick: () => {
+      setLooked(true);
+      setLosing(null);
+      onOpenMenu();
+    },
+    variant: 'secondary' as const,
+  };
+  const copyLink = { ...copySeed, variant: 'secondary' as const };
+  /**
+   * A press that starts the next run, held for one confirm while the bag
+   * still holds loot nobody has looked at: a reflex retry mustn't lose it.
+   */
+  const guard = (label: string, start: () => void) => () => {
+    if (run.bag > 0 && !looked) setLosing({ label, start });
+    else start();
+  };
+  /** Said on the end panel, so the bag's fate isn't news in the menu. */
+  const bagWarning = losing
+    ? [`${weapons} in your bag will be lost when the next run starts.`]
+    : run.bag > 0
+      ? [
+          `${weapons} in your bag. Keep the best before your next run: the bag empties when it starts.`,
+        ]
+      : undefined;
+  /** The end panel's ways on; asking first while a press is held. */
+  const endActions = (
+    main: OverlayAction,
+    others: Array<OverlayAction>,
+  ): Array<OverlayAction> =>
+    losing
+      ? [
+          { ...keepLoot, variant: undefined },
+          {
+            label: `Lose them: ${losing.label.toLowerCase()}`,
+            onClick: losing.start,
+            variant: 'secondary',
+          },
+        ]
+      : [main, keepLoot, ...others, copyLink];
   return (
     <>
       <LockPage />
@@ -201,7 +250,7 @@ export const GameScreen = ({
           <Hint>
             <PointerOnly $pointer="mouse">
               WASD move · mouse aim and fire · Space dash · 1-3, Q/E or wheel
-              switch · F take weapon
+              switch · Tab or B loadout
             </PointerOnly>
             <PointerOnly $pointer="touch">
               left: aim, push further to move · right: tap or hold to fire ·
@@ -211,11 +260,6 @@ export const GameScreen = ({
         )}
       </Surface>
       {prompt && playing && <Prompt>{prompt}</Prompt>}
-      {run.pickup && playing && (
-        <TakeButton onClick={onTakeWeapon}>
-          Take <WeaponTag {...run.pickup} />
-        </TakeButton>
-      )}
       <Loadout
         {...loadout}
         paused={!playing}
@@ -249,9 +293,16 @@ export const GameScreen = ({
             <Score aria-label="Score">{run.score.toLocaleString('en')}</Score>
           </HudPanel>
           {playing && (
-            <IconButton aria-label="Pause" onClick={onPause}>
-              <Icon icon={PAUSE_ICON} />
-            </IconButton>
+            <>
+              <BagButton
+                count={run.bag}
+                size={run.bagSize}
+                onOpen={onOpenMenu}
+              />
+              <IconButton aria-label="Pause" onClick={onPause}>
+                <Icon icon={PAUSE_ICON} />
+              </IconButton>
+            </>
           )}
         </HudActions>
       </Hud>
@@ -284,24 +335,33 @@ export const GameScreen = ({
           ]}
         />
       )}
+      {/* Hidden, not gone, under the menu: the board's form keeps its state. */}
       {run.status === 'dead' && (
-        <Overlay
-          heading="Run over"
-          badge={isNewBest(run.score, best) ? 'New best!' : undefined}
-          stats={[
-            { label: 'Level', value: `${run.level}/${run.levels}` },
-            kills(run.kills),
-            ...scoreStats(run.score, best),
-          ]}
-          note={`seed ${seed}`}
-          actions={[
-            { label: 'Try again', onClick: onRetry },
-            { label: 'New run', onClick: onNewRun },
-            copySeed,
-          ]}
-        >
-          {board}
-        </Overlay>
+        <div hidden={Boolean(menu)}>
+          <Overlay
+            heading="Run over"
+            badge={isNewBest(run.score, best) ? 'New best!' : undefined}
+            stats={[
+              { label: 'Level', value: `${run.level}/${run.levels}` },
+              kills(run.kills),
+              ...scoreStats(run.score, best),
+            ]}
+            message={bagWarning}
+            note={`seed ${seed}`}
+            actions={endActions(
+              { label: 'Try again', onClick: guard('Try again', onRetry) },
+              [
+                {
+                  label: 'New run',
+                  onClick: guard('New run', onNewRun),
+                  variant: 'secondary',
+                },
+              ],
+            )}
+          >
+            {board}
+          </Overlay>
+        </div>
       )}
       <RotateNotice />
       {run.status === 'cleared' && !won && (
@@ -317,24 +377,33 @@ export const GameScreen = ({
         />
       )}
       {won && (
-        <Overlay
-          heading="Run complete"
-          badge={isNewBest(run.score, best) ? 'New best!' : undefined}
-          stats={[
-            { label: 'Levels', value: formatNumber(run.levels) },
-            kills(run.kills),
-            ...scoreStats(run.score, best),
-          ]}
-          note={`seed ${seed}`}
-          actions={[
-            { label: 'New run', onClick: onNewRun },
-            { label: 'Play this seed again', onClick: onRetry },
-            copySeed,
-          ]}
-        >
-          {board}
-        </Overlay>
+        <div hidden={Boolean(menu)}>
+          <Overlay
+            heading="Run complete"
+            badge={isNewBest(run.score, best) ? 'New best!' : undefined}
+            stats={[
+              { label: 'Levels', value: formatNumber(run.levels) },
+              kills(run.kills),
+              ...scoreStats(run.score, best),
+            ]}
+            message={bagWarning}
+            note={`seed ${seed}`}
+            actions={endActions(
+              { label: 'New run', onClick: guard('New run', onNewRun) },
+              [
+                {
+                  label: 'Play this seed again',
+                  onClick: guard('Play this seed again', onRetry),
+                  variant: 'secondary',
+                },
+              ],
+            )}
+          >
+            {board}
+          </Overlay>
+        </div>
       )}
+      {menu && <LoadoutMenu {...menu} />}
     </>
   );
 };

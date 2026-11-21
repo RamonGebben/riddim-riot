@@ -73,6 +73,20 @@ export const PAUSE_ICON: Icon = [
   { d: 'M14 4 H17 V20 H14 Z', fill: true },
 ];
 
+/** A triangle: play a weapon's preview. */
+export const PLAY_ICON: Icon = [{ d: 'M7 4.5 L19.5 12 L7 19.5 Z', fill: true }];
+
+/** A square: stop the preview. */
+export const STOP_ICON: Icon = [
+  { d: 'M6.5 6.5 H17.5 V17.5 H6.5 Z', fill: true },
+];
+
+/** A bag with a handle: the loadout menu and the loot in it. */
+export const BAG_ICON: Icon = [
+  { d: 'M4 9 H20 L18.5 21 H5.5 Z' },
+  { d: 'M9 9 V7 A3 3 0 0 1 15 7 V9' },
+];
+
 /** A chevron up: climbing the board. */
 export const CLIMB_ICON: Icon = [{ d: 'M5 15 L12 8 L19 15' }];
 

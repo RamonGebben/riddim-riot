@@ -202,3 +202,52 @@ describe('runs', () => {
     ).toBeNull();
   });
 });
+
+describe('loadout', () => {
+  const player = browser();
+  const recipes = [
+    { seed: 11, oscillator: 'wobble' as const },
+    { seed: 12, manufacturer: 'vandal' as const, fx: 'echo' as const },
+    { seed: 13 },
+  ];
+
+  it('has no account to keep one on before signing in', async () => {
+    expect(await player.run(caller => caller.loadout.mine())).toBeNull();
+    expect(
+      await code(player.run(caller => caller.loadout.save({ recipes }))),
+    ).toBe('UNAUTHORIZED');
+  });
+
+  it('keeps the latest loadout on the account', async () => {
+    await player.run(caller =>
+      caller.account.enter({ name: `${NAME}L`, password: PASSWORD }),
+    );
+    expect(await player.run(caller => caller.loadout.mine())).toBeNull();
+    await player.run(caller => caller.loadout.save({ recipes }));
+    const swapped = [recipes[2], recipes[0], recipes[1]];
+    await player.run(caller => caller.loadout.save({ recipes: swapped }));
+    expect(await player.run(caller => caller.loadout.mine())).toEqual({
+      recipes: swapped,
+      savedAt: expect.any(Number),
+    });
+  });
+
+  it('refuses a loadout that is no weapons', async () => {
+    expect(
+      await code(
+        player.run(caller =>
+          caller.loadout.save({ recipes: recipes.slice(0, 2) }),
+        ),
+      ),
+    ).toBe('BAD_REQUEST');
+    expect(
+      await code(
+        player.run(caller =>
+          caller.loadout.save({
+            recipes: [{ seed: -1 }, { seed: 2 }, { seed: 3 }],
+          }),
+        ),
+      ),
+    ).toBe('BAD_REQUEST');
+  });
+});

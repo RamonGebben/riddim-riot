@@ -1,16 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { generateLevel } from '../level';
-import { createWorld, placePickup, rulesFor } from '../sim/world';
-import { hudOf, initialHud, sameHud, type PickupView } from '.';
-
-const gun: PickupView = {
-  name: 'gun',
-  oscillator: 'wobble',
-  lfo: '1/8',
-  fx: null,
-  blasts: false,
-};
-const describe_ = () => gun;
+import { createWorld, rulesFor } from '../sim/world';
+import { BAG_SIZE } from '../sim/loot';
+import { hudOf, initialHud, sameHud } from '.';
 
 describe('hudOf', () => {
   it('shows the run as the world has it', () => {
@@ -18,7 +10,7 @@ describe('hudOf', () => {
       hp: 3,
       kills: 7,
     });
-    expect(hudOf(world, describe_)).toEqual({
+    expect(hudOf(world)).toEqual({
       status: 'playing',
       level: 2,
       levels: 5,
@@ -34,7 +26,8 @@ describe('hudOf', () => {
       song: world.rules.song,
       songBar: null,
       boss: null,
-      pickup: null,
+      bag: 0,
+      bagSize: BAG_SIZE,
       dashCooldown: null,
       dashKey: 0,
     });
@@ -47,24 +40,21 @@ describe('hudOf', () => {
       survival: { ...world.survival, phase: 'song' as const, startBar: 2 },
     };
     // The 16-bar intro from bar 2 ends on beat 72; at 0.5 s a beat.
-    const intro = hudOf(playing, describe_, 8, 0.5);
+    const intro = hudOf(playing, 8, 0.5);
     expect(intro).toMatchObject({
       part: 'intro',
       secondsLeft: 32,
       songBar: 0,
     });
-    expect(hudOf(playing, describe_, 71, 0.5).secondsLeft).toBe(1);
-    expect(hudOf(playing, describe_, 72, 0.5).part).toBe('breakdown');
+    expect(hudOf(playing, 71, 0.5).secondsLeft).toBe(1);
+    expect(hudOf(playing, 72, 0.5).part).toBe('breakdown');
   });
 
-  it('names the weapon the player is standing on', () => {
-    const world = createWorld(generateLevel(1));
-    const onIt = placePickup(world, { seed: 3 }, world.player.position);
-    const named = hudOf(onIt, recipe => ({
-      ...gun,
-      name: `gun ${recipe.seed}`,
-    }));
-    expect(named.pickup?.name).toBe('gun 3');
+  it('counts what the bag holds', () => {
+    const world = createWorld(generateLevel(1), rulesFor({ level: 1 }), {
+      bag: [{ seed: 3 }, { seed: 4 }],
+    });
+    expect(hudOf(world).bag).toBe(2);
   });
 
   it("shows the boss's health while it's up", () => {
@@ -80,27 +70,34 @@ describe('hudOf', () => {
       spawnAt: 0,
       aim: null,
     };
-    expect(hudOf(world, describe_).boss).toBeNull();
-    expect(hudOf({ ...world, enemies: [boss] }, describe_).boss).toBe(0.5);
+    expect(hudOf(world).boss).toBeNull();
+    expect(hudOf({ ...world, enemies: [boss] }).boss).toBe(0.5);
   });
 });
 
 describe('initialHud', () => {
   it('starts a level from what the run carries', () => {
     expect(
-      initialHud({ level: 3, hp: 2, kills: 40, score: 900 }),
+      initialHud({
+        level: 3,
+        hp: 2,
+        kills: 40,
+        score: 900,
+        bag: [{ seed: 1 }],
+      }),
     ).toMatchObject({
       status: 'playing',
       level: 3,
       hp: 2,
       kills: 40,
+      bag: 1,
     });
   });
 });
 
 describe('sameHud', () => {
   it('spots any change', () => {
-    const hud = hudOf(createWorld(generateLevel(1)), describe_);
+    const hud = hudOf(createWorld(generateLevel(1)));
     expect(sameHud(hud, { ...hud })).toBe(true);
     expect(sameHud(hud, { ...hud, kills: 1 })).toBe(false);
   });

@@ -37,13 +37,13 @@ typography:
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: 'ui-monospace, monospace'
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
     fontSize: '0.75rem'
     fontWeight: 700
     lineHeight: 1.5
     letterSpacing: '0.2em'
   data:
-    fontFamily: 'ui-monospace, monospace'
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
     fontSize: '0.75rem'
     fontWeight: 400
     lineHeight: 1.5
@@ -157,8 +157,8 @@ reward, Alarm Coral for health and danger.
 
 - **Strobe Blue** (#60a5fa): the player's own things and the main action.
   The "Drop in" button, the active weapon slot's border and halo,
-  loaded magazine cells, weapon tags, control key names, the Take button's
-  border, and the played part of a normal song segment.
+  loaded magazine cells, weapon tags, control key names, a picked weapon
+  card's border and halo, and the played part of a normal song segment.
 - **Strobe Blue Bright** (#93c5fd): the hover state of Strobe Blue, and the
   focus ring on every interactive element.
 - **Strobe Ink** (#0b1220): text on a Strobe Blue fill.
@@ -208,7 +208,7 @@ never design for them.
 
 **Display Font:** system-ui (with sans-serif)
 **Body Font:** system-ui (with sans-serif)
-**Label/Mono Font:** ui-monospace (with monospace)
+**Label/Mono Font:** ui-monospace, then SFMono-Regular, Menlo, Consolas and Liberation Mono (Chromium and Firefox don't resolve `ui-monospace` and would fall back to Courier)
 
 **Character:** A native sans, pushed to weight 900 italic for the wordmark
 and kept plain everywhere else, paired with a monospace that does the
@@ -258,14 +258,14 @@ scrolls. The level card is a single centred stack with `gap: s`.
 
 The game HUD sits in fixed clusters around the edges of the stage, leaving
 the middle clear. Touch controls own the bottom corners and centre: dash
-in the bottom right, Take in the bottom centre, the stick under the left
+in the bottom right, the bag button beside Pause, the stick under the left
 thumb. Every fixed edge element adds `env(safe-area-inset-*)` to its
 offset, and full-height pages use `100dvh` (with a `100vh` fallback).
 
 Breakpoints: 768px (tablet), 1024px (tablet landscape) and 1440px
 (desktop) change only the root font size. Layout changes key off
 `(pointer: coarse)`, which gives bigger slots and dash, swaps the controls
-list and shows the Take button, and off `(max-height: 500px)`, which
+list, and off `(max-height: 500px)`, which
 tightens overlay panels on landscape phones. Phones are played landscape
 only.
 
@@ -300,10 +300,10 @@ the overlay panel, which freezes play.
 Gently rounded and consistent. Panels, cards, slots and stat tiles share
 an 8px radius. Fields, quiet buttons and small chrome use 4px. Anything you
 press as a single action is a full pill or a circle: the primary button,
-the Take button, the dash button, icon buttons, badges and the boss bar.
+the bag button, the dash button, icon buttons, badges and the boss bar.
 Small data marks stay nearly square (magazine cells 1px, song segments
 2px), so they read as meters rather than buttons. Borders are 1px
-hairlines on surfaces and 2px on stateful controls (slot, dash, Take,
+hairlines on surfaces and 2px on stateful controls (slot, dash, menu card,
 focus ring).
 
 ## Components
@@ -386,6 +386,60 @@ Icons are `currentColor` SVGs sized at 1em.
 End-of-run stats are tiles: a 1px Console Edge border and 8px radius,
 holding a large bold mono number with a small uppercase Smoke Grey label
 above it. A new best is a Hype Amber pill badge with Floor Black mono caps.
+
+### Loadout Menu (sequencer rack)
+
+A dialog sheet over the frozen level, which keeps playing its bar under a
+low-pass. It's the overlay panel's opaque floor black at a fixed width
+(62rem), never taller than the screen. A header carries the name, where
+the loadout is kept, any alert, Undo changes (a secondary pill, only after
+a change) and the one primary pill ("Back to the fight", or "Done" after a
+run, with "· discard n" while weapons are marked). The way out is always
+on screen.
+
+Below a hairline, two columns split by another hairline, each scrolling
+on its own: the rack (Equipped, then the comparison) and the bag beside
+it. Narrower than 720px they stack.
+
+- **Tracks.** Each equipped slot is a one-line track: key cap, engine
+  icon, beat, the engine's name with FX and blast as **inserts** (UV
+  Violet mono chips with a 45% violet hairline), a **step grid**, then a
+  round cue button. Under 480px the name gives way so the steps keep
+  their room.
+- **Step grid.** 16 flat cells on the magazine's meter language. Cells are
+  Strobe Blue where the weapon fires, 40% blue for an echo, and Console
+  Edge at rest. A beat's first cell sits 2px apart. A beam is one
+  unbroken strip. The row being heard gets a Haze White playhead sweeping
+  the bar (hidden under reduced flashing) and lights its label Strobe
+  Blue.
+- **Comparison ("Side by side").** Under a hairline, not a card. Two tracks
+  share one fixed-column grid (Pick over Slot n), each ending in its
+  damage a bar, and the pick's with a verdict tag: Stronger (Hype Amber
+  fill), Trade-off (outlined Haze White) or Weaker (grey outline). An
+  **A/B** pill (an icon-button widened with a word) alternates the two a
+  bar each; it fills Strobe Blue with the state halo while running. Below,
+  each side's caption, name, tag, plain words and stat list (mono,
+  tabular; damage a bar leads a size up). Differences sit on the pick's
+  side, Hype Amber where better and Haze White where worse.
+- **Placing.** "Equip in 1 2 3" quiet buttons (44px) and Discard / Keep it
+  close the section.
+- **Bag cards.** Booth Black with the slot's 15% hairline and Smoke Grey
+  text: engine, beat and badges (an amber up-chevron first when it beats
+  its likely slot), the engine and FX in words, then a mini step grid.
+  The sort reads Newest / Best / Engine from six weapons, beside "Discard
+  weaker (n)".
+- **Card states.** Picked: Strobe Blue border and halo. A slot the pick
+  would go into: a dashed 60% blue edge. Marked to discard: 45% opacity,
+  struck through. New: a Hype Amber dot, grouped under "New", and a
+  one-time staggered rise. Boss loot gets a Hype Amber "Boss" tag. Tags
+  never drop below the scale's 0.75rem floor.
+
+The HUD's bag button is an icon-button pill holding the bag icon and the
+count, which pops Hype Amber for a moment when a weapon drifts in. On the
+end-of-run panels, **Keep loot (n)** is the first **secondary** pill
+(transparent, with a 25% Haze White ring that turns Strobe Blue on hover).
+A run-starting press with unseen loot swaps the panel's actions for one
+confirm: Keep loot as primary, and "Lose them: try again" as secondary.
 
 ### Dash Button
 

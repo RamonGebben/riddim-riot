@@ -8,3 +8,5 @@ export * from './heardTime';
 export * from './nativeContext';
 export * from './arrangement';
 export * from './saturate';
+export * from './preview';
+export * from './menuLoop';

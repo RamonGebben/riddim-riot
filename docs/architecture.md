@@ -207,7 +207,9 @@ the only mutable reference:
   it stacks a bonus heart on top (up to 3, `BONUS_HEARTS`), lost first and
   carried between levels, so saving health pays off. Hearts within 170 px
   drift in while there's room to heal (`sim/loot` `attractHearts`); weapons
-  stay where they fell, so taking one is a choice. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
+  drift in the same way while the run's bag has room (`attractPickups`),
+  and land in `world.bag` (up to `BAG_SIZE`, 24). A full bag leaves them
+  on the floor until the player makes room. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
   it's `cleared`. Either way it freezes.
 
 `WaveRules` (from `rulesFor({ level, stress })`) set the song, boss HP
@@ -255,12 +257,79 @@ pure function of the clock and lands exactly on the beat.
   lined-up dash. Beams don't blast.
 - **Loadout** (`loadout`): three slots. Switching fades the old tail
   (0.35 s), moves sub ownership (the others are high-passed at 180 Hz) and
-  carries a held trigger over. `replaceActive` swaps loot in. A new run
-  opens with one of each engine.
+  carries a held trigger over. `arrange` puts the loadout menu's choice in
+  the slots: weapons already armed move over with their magazines, only
+  new ones are armed. A new run opens with the player's kept loadout, or
+  one of each engine (`starterRecipes`).
 - **Loot** (`sim/loot`): any kill has a 10% chance of a weapon, else 8% of
   a heart. The boss always drops a good weapon (Vandal with an FX, pinned
-  through `WeaponRecipe`) and two hearts. Rolls are seeded per level. **F** on a
-  weapon swaps it into the active slot and drops the old one in its place.
+  through `WeaponRecipe`) and two hearts. Rolls are seeded per level.
+  Weapons go into the bag, not the hand (see [Loadout and bag](#loadout-and-bag)).
+
+### Loadout and bag
+
+Loot used to pile up on the floor, one F-swap at a time. Now every weapon
+drifts into a per-run **bag** (`RunState.bag`, `World.bag`), carried from
+level to level and empty at the start of every run.
+
+- **The menu** (`templates/GameScreen` `LoadoutMenu`), a sequencer rack.
+  Tab, B or the HUD's bag button opens it as a dialog (focus kept inside).
+  Done always sits in its header, and reads "· discard n" while weapons
+  are marked. Each slot is a track row: key cap, engine, beat, name with
+  its FX and blast as inserts, a 16-step grid lit where it fires
+  (`steps.ts`: hits on its division, echoes an 1/8 later, a beam held
+  through the bar), and a cue button. The bag is a crate of cards, each
+  with a mini step grid. Pick a bag weapon and the comparison stacks it
+  over the slot it would replace (the one aimed at, else the same
+  engine's) on one shared grid. Each row shows its damage a bar, and the
+  pick gets a verdict (`verdict.ts`: stronger, trade-off or weaker, judged
+  on damage a bar first). Under them: hit, shots, reach and blast with the
+  differences. "Equip in 1/2/3", 1-3 or a double-click place it. Arrow
+  keys walk the slots or the bag, then across. Bag cards that beat their
+  likely slot get an amber chevron. "Best" sorts by damage a bar, and
+  "Discard weaker" marks every clearly weaker weapon at once. Discards are
+  only marks until Done; Esc asks once before throwing them out, and Undo
+  changes puts everything back. A full bag says drops are waiting on the
+  floor. New loot is grouped first and revealed once. A picked weapon's
+  verdict is announced in one line, not the whole comparison. Done calls
+  `Game.arrange`, which arms any new weapon while still frozen. The pure
+  moves live in `rack.ts`.
+- **The loop and previews** (`audio/menuLoop`, `audio/preview`). Opening
+  the menu mid-level suspends the game's context as Pause does, so the
+  clock and the sim stay exact. The bar the track is on (drums, pad, air,
+  backing, in its section and chord) is rendered offline from the level's
+  own voices: a warm-up bar first, then one bar kept with a 30 ms seam
+  baked across its loop point. It loops on a small separate AudioContext
+  (`createPreviewer`, primed inside the press) under the `menu` patch's
+  low-pass. A Hear button renders a bar of the weapon's riff once (moved
+  onto the loop's chord, levelled to the weapon mix) and starts it on the
+  loop's next beat. The comparison's A/B (`Game.previewAB`,
+  `previewer.alternate`) plays the pick for a bar, then the slot's, back and
+  forth on the bar grid. Each next bar is queued as the one two before it
+  ends, on the audio clock. Only the highlight of the row that's sounding
+  (and its playhead) follows a timer. Every offline render now waits its turn (`offlineTurn`),
+  since `Offline` swaps Tone's global context. After a run there's no loop,
+  because the track is still playing, muffled.
+- **After a run** the death and victory screens say how many weapons are
+  in the bag and that it empties. **Keep loot (n)** is the first secondary
+  pill, and Try again or New run ask once before emptying a bag nobody has
+  looked at.
+  It opens the same menu over the finished run. The end screen stays
+  mounted (hidden) under it, so the board's sign-in form keeps its state.
+- **Kept between runs** (`app/_components/useKeptLoadout`,
+  `utils/keptLoadout`). Whatever the menu last closed on is the loadout
+  every fresh run opens with (`newRun(seed, recipes)`). A run already under
+  way (quit at level 3 and pressed Drop in) keeps its own. Every choice is
+  kept on the device with when it was made, so a guest keeps theirs between
+  visits. Signed in, it's also saved to the account (`loadout.save`, a
+  `public.loadouts` row only its owner can read or write,
+  `db/migrations/0003_loadouts.sql`) and read back on any device
+  (`loadout.mine`, with its `savedAt`). The newer of the two wins; a device
+  choice newer than the account's goes up when the player signs in.
+  Recipes are checked against the parts pool by one schema
+  (`loadoutSchema`) on the device, on the way in and on the way out. They're
+  not proved to have been looted, so a forged loadout is possible, like a
+  forged score within `plausible`'s limits.
 
 ### Scoring (`sim/combo`)
 
