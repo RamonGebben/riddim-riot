@@ -517,11 +517,14 @@ export const DiscardingWeakerLoot: Story = {
   },
   play: async ({ args, canvas, userEvent }) => {
     // Upgrades are marked on the card itself, no pick needed (once new
-    // loot has risen in).
-    await waitFor(() =>
-      expect(
-        canvas.getByRole('button', { name: /stronger than slot 2$/ }),
-      ).toBeVisible(),
+    // loot has risen in: the staggered reveal outlasts waitFor's default
+    // second on a slow runner).
+    await waitFor(
+      () =>
+        expect(
+          canvas.getByRole('button', { name: /stronger than slot 2$/ }),
+        ).toBeVisible(),
+      { timeout: 3000 },
     );
     await userEvent.click(
       canvas.getByRole('button', { name: 'Discard weaker (1)' }),
