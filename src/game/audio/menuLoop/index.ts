@@ -28,9 +28,6 @@ export interface TrackMoment {
   drums: boolean;
 }
 
-/** Overlap baked across the loop point, so it repeats without a click. */
-const SEAM = 0.03;
-
 /**
  * One bar of the track as it stands - drums, pad, air and backing, in the
  * section and chord the level is in - rendered offline and ready to loop
@@ -92,13 +89,15 @@ export const renderMenuLoop = (
         });
         getTransport().start(0);
       },
-      barSeconds * 2 + SEAM,
+      // A seam's spare past the end: the offline length truncates, and the
+      // crossfade reads up to a sample past two rounded bars plus the seam.
+      barSeconds * 2 + design.menu.seam * 2,
     );
     const source = rendered.get();
     if (!source) throw new Error('The loop rendered nothing');
     const start = Math.round(barSeconds * source.sampleRate);
     const length = Math.round(barSeconds * source.sampleRate);
-    const seam = Math.round(SEAM * source.sampleRate);
+    const seam = Math.round(design.menu.seam * source.sampleRate);
     const loop = new AudioBuffer({
       numberOfChannels: source.numberOfChannels,
       length,

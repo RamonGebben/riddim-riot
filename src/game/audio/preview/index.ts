@@ -3,8 +3,6 @@ import { clipOf, encodeWav, layClips, type Clip } from '../clip';
 
 /** Beats in the looped bar: previews start on the next one. */
 const LOOP_BEATS = 4;
-/** Headroom before the next beat, so a start is never late for it. */
-const AHEAD = 0.05;
 /** How long a clip gets to load before a preview gives up on it. */
 const START_WAIT_MS = 1000;
 /** How often the highlight checks which bar is sounding. */
@@ -147,8 +145,18 @@ export const createPreviewer = ({
     beatSeconds: number;
     fade: ReturnType<typeof setInterval> | null;
   } | null = null;
-  /** The last loop's fade out, until it's done. */
-  let fadingOut: ReturnType<typeof setInterval> | null = null;
+  /** The last loop's fade out and its file, until it's done. */
+  let fadingOut: {
+    timer: ReturnType<typeof setInterval>;
+    url: string | null;
+  } | null = null;
+  /** Cuts the last loop's fade out short, letting its file go. */
+  const endFadeOut = () => {
+    if (!fadingOut) return;
+    clearInterval(fadingOut.timer);
+    if (fadingOut.url) URL.revokeObjectURL(fadingOut.url);
+    fadingOut = null;
+  };
   /** What's sounding: its file, its timers, and who to tell it ended. */
   let playing: {
     url: string;
@@ -173,7 +181,11 @@ export const createPreviewer = ({
     const timer = setInterval(
       () => {
         step += 1;
-        element.volume = from + ((to - from) * step) / steps;
+        // Clamped: the sum can land an ulp outside 0-1, which throws.
+        element.volume = Math.min(
+          Math.max(from + ((to - from) * step) / steps, 0),
+          1,
+        );
         if (step < steps) return;
         clearInterval(timer);
         then();
@@ -205,11 +217,15 @@ export const createPreviewer = ({
     loop = null;
     if (fading) clearInterval(fading);
     const element = elements.loop;
-    fadingOut = fade(element, 0, () => {
-      fadingOut = null;
-      empty(element);
-      if (url) URL.revokeObjectURL(url);
-    });
+    endFadeOut();
+    fadingOut = {
+      url,
+      timer: fade(element, 0, () => {
+        fadingOut = null;
+        empty(element);
+        if (url) URL.revokeObjectURL(url);
+      }),
+    };
   };
 
   /**
@@ -220,7 +236,8 @@ export const createPreviewer = ({
     if (!loop?.url || !elements) return 0;
     const { beatSeconds } = loop;
     const at = elements.loop.currentTime;
-    const beat = Math.ceil((at + leadIn + AHEAD) / beatSeconds) * beatSeconds;
+    const beat =
+      Math.ceil((at + leadIn + patch.ahead) / beatSeconds) * beatSeconds;
     return beat - leadIn - at;
   };
 
@@ -303,8 +320,7 @@ export const createPreviewer = ({
     startLoop: bar => {
       stopLoop();
       // The new loop takes the element over; the old one stops at once.
-      if (fadingOut) clearInterval(fadingOut);
-      fadingOut = null;
+      endFadeOut();
       const current = {
         url: null as string | null,
         beatSeconds: bar.duration / LOOP_BEATS,
@@ -354,7 +370,7 @@ export const createPreviewer = ({
     stop,
     dispose: () => {
       stop();
-      if (fadingOut) clearInterval(fadingOut);
+      endFadeOut();
       if (loop?.fade) clearInterval(loop.fade);
       if (loop?.url) URL.revokeObjectURL(loop.url);
       loop = null;

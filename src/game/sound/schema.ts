@@ -603,6 +603,20 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       num(['menu', 'resonance'], 'Loop resonance', [0.1, 12, 0.1]),
       num(['menu', 'fade'], 'Loop fade', [0, 2, 0.01], 's'),
       num(['menu', 'previewLevel'], 'Preview level', [-24, 12, 0.5], 'dB'),
+      num(
+        ['menu', 'seam'],
+        'Loop seam',
+        [0.001, 0.2, 0.001],
+        's',
+        'Crossfade across the loop point',
+      ),
+      num(
+        ['menu', 'ahead'],
+        'Preview headroom',
+        [0, 0.3, 0.005],
+        's',
+        'Slack before the beat a preview starts on',
+      ),
     ],
   },
   {

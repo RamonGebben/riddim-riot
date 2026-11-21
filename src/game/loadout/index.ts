@@ -160,7 +160,12 @@ export const createLoadout = async ({
 
   /** One arrangement at a time: arming can't overlap. */
   const arrange = async (next: Array<WeaponRecipe>) => {
-    if (busy || next.length !== size) return;
+    // Rejects rather than doing nothing, so the caller doesn't take an
+    // arrangement that never happened as done.
+    if (busy) throw new Error('Already arranging the loadout');
+    if (next.length !== size) {
+      throw new Error(`A loadout holds ${size} weapons, not ${next.length}`);
+    }
     busy = true;
     const spare = [...slots];
     /** An armed weapon for this recipe, each used once. */
@@ -169,20 +174,34 @@ export const createLoadout = async ({
       return at < 0 ? null : spare.splice(at, 1)[0];
     };
     const kept = next.map(reuse);
-    const arranged = await next.reduce<Promise<Array<Armed>>>(
-      async (done, recipe, index) => [
-        ...(await done),
-        kept[index] ?? (await arm(recipe)),
-      ],
-      Promise.resolve([]),
-    );
-    spare.forEach(({ voice }) => voice.dispose());
-    putAway(slots[active]);
-    slots = arranged;
-    slots.forEach((armed, index) =>
-      index === active ? takeOut(armed) : putAway(armed),
-    );
-    busy = false;
+    const fresh: Array<Armed> = [];
+    try {
+      const arranged = await next.reduce<Promise<Array<Armed>>>(
+        async (done, recipe, index) => {
+          const before = await done;
+          const reused = kept[index];
+          if (reused) return [...before, reused];
+          const armed = await arm(recipe);
+          fresh.push(armed);
+          return [...before, armed];
+        },
+        Promise.resolve([]),
+      );
+      // Holstered before anything is disposed: the old active weapon may be
+      // one of the spares.
+      putAway(slots[active]);
+      spare.forEach(({ voice }) => voice.dispose());
+      slots = arranged;
+      slots.forEach((armed, index) =>
+        index === active ? takeOut(armed) : putAway(armed),
+      );
+    } catch (error) {
+      // Nothing changed: the weapons armed for it go.
+      fresh.forEach(({ voice }) => voice.dispose());
+      throw error;
+    } finally {
+      busy = false;
+    }
     onChange(view());
   };
 

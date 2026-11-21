@@ -71,6 +71,12 @@ export const useKeptLoadout = () => {
       const kept = { recipes, savedAt: Date.now() };
       keepLoadout(kept);
       setOnDevice(kept);
+      // Sent now, not left to the effect: it compares this device's clock
+      // with the server's, and a server running ahead would hold it back.
+      if (signedIn) {
+        sent.current = kept;
+        mutate({ recipes });
+      }
     },
   };
 };

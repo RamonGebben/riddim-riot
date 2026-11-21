@@ -356,6 +356,10 @@ export interface MenuPatch {
   fade: number;
   /** A weapon preview's level against the loop, in dB. */
   previewLevel: number;
+  /** Overlap baked across the loop point, so it repeats without a click. */
+  seam: number;
+  /** Headroom before the loop's next beat, so a preview is never late for it. */
+  ahead: number;
 }
 
 export interface SoundDesign {
@@ -619,7 +623,15 @@ export const BASE_DESIGN: SoundDesign = {
     echoFeedback: 0.3,
     echoWet: 0.25,
   },
-  menu: { level: -24, hz: 900, resonance: 1.2, fade: 0.35, previewLevel: 0 },
+  menu: {
+    level: -24,
+    hz: 900,
+    resonance: 1.2,
+    fade: 0.35,
+    previewLevel: 0,
+    seam: 0.03,
+    ahead: 0.05,
+  },
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
