@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { F_MINOR, type Key } from '../../music';
-import { weaponFrom } from '.';
+import { sameRecipe, weaponFrom } from '.';
 
 const G_MINOR: Key = { root: 7, scale: 'minor' };
+
+describe('sameRecipe', () => {
+  it('matches on the seed and every pin', () => {
+    expect(sameRecipe({ seed: 5 }, { seed: 5 })).toBe(true);
+    expect(sameRecipe({ seed: 5 }, { seed: 6 })).toBe(false);
+    expect(sameRecipe({ seed: 5, fx: 'echo' }, { seed: 5 })).toBe(false);
+  });
+});
 
 describe('weaponFrom', () => {
   it('rolls the same weapon in a new key, transposed', () => {

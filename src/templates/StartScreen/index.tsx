@@ -4,7 +4,7 @@ import { TextLink } from '~/atoms/TextLink';
 import { Icon } from '~/atoms/Icon';
 import { Toggle } from '~/atoms/Toggle';
 import { WEAPON_ICONS } from '~/game/icons';
-import type { WeaponFace } from '~/molecules/WeaponTag';
+import { describeTraits, type WeaponFace } from '~/molecules/WeaponTag';
 import { Backdrop } from './components/Backdrop';
 import { Briefing } from './components/Briefing';
 import { Controls } from './components/Controls';
@@ -57,25 +57,6 @@ const STEP_LABELS = {
   kit: 'Building the drum kit…',
   weapons: 'Measuring your weapons…',
 } satisfies Record<StartStep, string>;
-
-/** How a weapon's beat feels to fire. */
-const RATES = {
-  '1/2': 'Very slow, heavy hits',
-  '1/4': 'Slow, heavy hits',
-  '1/8': 'Steady fire',
-  '1/16': 'Rapid spray',
-} satisfies Record<WeaponFace['lfo'], string>;
-
-/** What a weapon does, in words a first-timer can read. */
-export const describeTraits = ({ oscillator, lfo, fx, blasts }: WeaponFace) =>
-  [
-    oscillator === 'beam' ? 'Hold for a steady beam' : RATES[lfo],
-    blasts && 'shots explode',
-    fx === 'distortion' && 'hits burst and push back',
-    fx === 'echo' && 'every shot echoes',
-  ]
-    .filter(Boolean)
-    .join(' · ');
 
 export const StartScreen = ({
   musicalKey,
@@ -171,7 +152,10 @@ export const StartScreen = ({
                 </Weapon>
               ))}
             </WeaponList>
-            <p>Swap in loot as you find it.</p>
+            <p>
+              Loot drifts into your bag. Swap it in whenever you like; the game
+              waits.
+            </p>
           </Group>
           <Group aria-labelledby="how-heading">
             <h2 id="how-heading">How to play</h2>
@@ -193,9 +177,9 @@ export const StartScreen = ({
               </dt>
               <dd>switch weapon</dd>
               <dt>
-                <Key>F</Key>
+                <Key>Tab · B</Key>
               </dt>
-              <dd>take a weapon</dd>
+              <dd>loadout and loot</dd>
             </Controls>
             <Controls $pointer="touch">
               <dt>
@@ -214,6 +198,10 @@ export const StartScreen = ({
                 <Key as="span">Dash</Key>
               </dt>
               <dd>the round button, bottom right</dd>
+              <dt>
+                <Key as="span">Bag</Key>
+              </dt>
+              <dd>the button top right: loadout and loot</dd>
             </Controls>
             <p>Shots snap to the beat; a press right on it hits harder.</p>
           </Group>

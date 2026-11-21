@@ -26,6 +26,10 @@ Running and controls are in `README.md`.
   ("param must be an AudioParam"). Call it first in the click, before
   anything that spends the gesture: a fullscreen request does, and a
   context started after it stays suspended.
+- **Sound while the game's context is suspended plays through `<audio>`
+  elements** (`src/game/audio/preview`). Desktop Firefox holds every other
+  AudioContext on the page silent then - running, no sound - whatever its
+  sample rate or start time.
 - **Keep Tone out of pure modules.** `grid`, `rng`, `bus` and pattern
   generators must not import `tone` (directly or through a domain `index.ts`
   that does), so they run in the Node `unit` Vitest project.

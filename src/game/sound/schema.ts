@@ -587,6 +587,39 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
     ],
   },
   {
+    id: 'menu',
+    title: 'Loadout menu',
+    description:
+      "The track's bar looping under a low-pass while the loadout menu is open, and the weapon previews over it.",
+    fields: [
+      num(
+        ['menu', 'level'],
+        'Loop loudness',
+        [-50, -6, 0.5],
+        'dB',
+        'RMS before the low-pass; previews sit at the weapon target over it',
+      ),
+      num(['menu', 'hz'], 'Loop filter', [100, 20000, 10], 'Hz'),
+      num(['menu', 'resonance'], 'Loop resonance', [0.1, 12, 0.1]),
+      num(['menu', 'fade'], 'Loop fade', [0, 2, 0.01], 's'),
+      num(['menu', 'previewLevel'], 'Preview level', [-24, 12, 0.5], 'dB'),
+      num(
+        ['menu', 'seam'],
+        'Loop seam',
+        [0.001, 0.2, 0.001],
+        's',
+        'Crossfade across the loop point',
+      ),
+      num(
+        ['menu', 'ahead'],
+        'Preview headroom',
+        [0, 0.3, 0.005],
+        's',
+        'Slack before the beat a preview starts on',
+      ),
+    ],
+  },
+  {
     id: 'score',
     title: 'Score',
     description:

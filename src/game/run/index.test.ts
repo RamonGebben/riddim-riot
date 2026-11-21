@@ -10,12 +10,17 @@ describe('newRun', () => {
       hp: 5,
       kills: 0,
       active: 0,
+      bag: [],
     });
     expect(run.recipes.map(recipe => recipe.oscillator)).toEqual([
       'wobble',
       'laser',
       'beam',
     ]);
+  });
+
+  it('opens with a kept loadout instead, when there is one', () => {
+    expect(newRun(42, [{ seed: 7 }]).recipes).toEqual([{ seed: 7 }]);
   });
 
   it('is reproducible from its seed', () => {
@@ -34,7 +39,7 @@ describe('levelSeed', () => {
 });
 
 describe('nextLevel', () => {
-  it('carries health, kills, score and the loadout into the next level', () => {
+  it('carries health, kills, score, the loadout and the bag on', () => {
     const run = newRun(42);
     const next = nextLevel(run, {
       hp: 2,
@@ -42,6 +47,7 @@ describe('nextLevel', () => {
       score: 2400,
       recipes: [{ seed: 9 }],
       active: 0,
+      bag: [{ seed: 4 }],
     });
     expect(next).toEqual({
       ...run,
@@ -50,6 +56,7 @@ describe('nextLevel', () => {
       kills: 17,
       score: 2400,
       recipes: [{ seed: 9 }],
+      bag: [{ seed: 4 }],
     });
   });
 });

@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   attractHearts,
+  attractPickups,
   dropOnKill,
   goodLootRecipe,
   heartsInReach,
   lootRecipe,
-  nearestPickup,
   PICKUP_RADIUS,
+  pickupsInReach,
 } from '.';
 
 describe('dropOnKill', () => {
@@ -50,18 +51,44 @@ describe('lootRecipe', () => {
   });
 });
 
-describe('nearestPickup', () => {
+describe('pickupsInReach', () => {
   const pickups = [
-    { id: 1, position: { x: 100, y: 0 }, recipe: { seed: 1 } },
-    { id: 2, position: { x: 20, y: 0 }, recipe: { seed: 2 } },
+    { id: 1, position: { x: 30, y: 0 }, recipe: { seed: 1 } },
+    { id: 2, position: { x: 10, y: 0 }, recipe: { seed: 2 } },
+    { id: 3, position: { x: 300, y: 0 }, recipe: { seed: 3 } },
   ];
 
-  it('picks the closest one in reach', () => {
-    expect(nearestPickup(pickups, { x: 0, y: 0 })?.id).toBe(2);
+  it('finds the ones in reach, closest first', () => {
+    expect(pickupsInReach(pickups, { x: 0, y: 0 }).map(({ id }) => id)).toEqual(
+      [2, 1],
+    );
   });
 
   it('finds nothing out of reach', () => {
-    expect(nearestPickup(pickups, { x: 0, y: PICKUP_RADIUS * 3 })).toBeNull();
+    expect(pickupsInReach(pickups, { x: 0, y: PICKUP_RADIUS * 3 })).toEqual([]);
+  });
+});
+
+describe('attractPickups', () => {
+  const player = { x: 0, y: 0 };
+  const pickup = { id: 3, position: { x: 100, y: 0 }, recipe: { seed: 1 } };
+
+  it('draws weapons in while the bag has room', () => {
+    const [drawn] = attractPickups([pickup], {
+      player,
+      dt: 1 / 60,
+      hasRoom: true,
+    });
+    expect(drawn.position.x).toBeLessThan(100);
+  });
+
+  it('leaves them on the floor when the bag is full', () => {
+    const [kept] = attractPickups([pickup], {
+      player,
+      dt: 1 / 60,
+      hasRoom: false,
+    });
+    expect(kept.position.x).toBe(100);
   });
 });
 

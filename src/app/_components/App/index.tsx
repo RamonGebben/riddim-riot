@@ -2,22 +2,32 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   attachBackdrop,
+  BAG_SIZE,
+  BPM,
   describeLevel,
   describeLoadout,
+  describeWeapons,
   newRun,
   readFlashing,
   reducesFlashing,
   RUN_LEVELS,
+  sameRecipe,
   saveFlashing,
   setFlashingReduced,
   startGame,
   type Game,
   type HudView,
+  type Inventory,
   type LoadoutView,
   type RunState,
   type StartStep,
+  type WeaponRecipe,
 } from '~/game';
-import { GameScreen } from '~/templates/GameScreen';
+import {
+  GameScreen,
+  type LoadoutMenuProps,
+  type Choice,
+} from '~/templates/GameScreen';
 import { LevelCard } from '~/templates/LevelCard';
 import { useTRPC } from '~/providers/TrpcProvider';
 import { StartScreen } from '~/templates/StartScreen';
@@ -28,6 +38,7 @@ import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
 import type { PendingRun } from '~/utils/pendingRun';
 import { RunBoard } from '../RunBoard';
 import { SavePendingRun } from '../SavePendingRun';
+import { useKeptLoadout, type KeptStatus } from '../useKeptLoadout';
 
 type SessionStatus = 'idle' | 'starting' | 'playing';
 
@@ -71,6 +82,33 @@ const withTimeout = (starting: Promise<Game>, step: () => StartStep | null) =>
 
 const HIGH_SCORES_HREF = '/leaderboard';
 
+/** What the loadout menu is auditioning (see `LoadoutMenuProps.preview`). */
+type Audition = NonNullable<LoadoutMenuProps['preview']>;
+
+/** Under the loadout menu: where the loadout is kept, and the bag's fate. */
+const KEPT_NOTES = {
+  guest:
+    'Your loadout is kept on this device. Sign in after a run to take it to any device.',
+  saving: 'Saving your loadout to your account…',
+  saved: 'Your loadout is kept on your account.',
+  failed:
+    "Couldn't save your loadout to your account; it's kept on this device.",
+} satisfies Record<KeptStatus, string>;
+
+/**
+ * Bag weapons not among `seen` - picked up since the menu last closed.
+ * Matched one for one: the same recipe can drop twice.
+ */
+const freshIn = (bag: Array<WeaponRecipe>, seen: Array<WeaponRecipe>) => {
+  const left = [...seen];
+  return bag.map(recipe => {
+    const at = left.findIndex(other => sameRecipe(other, recipe));
+    if (at < 0) return true;
+    left.splice(at, 1);
+    return false;
+  });
+};
+
 export const App = () => {
   const trpc = useTRPC();
   const startRun = useMutation(trpc.runs.start.mutationOptions());
@@ -78,6 +116,26 @@ export const App = () => {
   const [ticket, setTicket] = useState<string | null>(null);
   const runCount = useRef(0);
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
+  const kept = useKeptLoadout();
+  /** A fresh run on `seed`, opening with the kept loadout if there is one. */
+  const freshRun = (seed: number) => newRun(seed, kept.recipes ?? undefined);
+  // A level-1 run hasn't started yet (later levels are a run under way,
+  // left by quitting): it opens with the kept loadout as it is now.
+  const ready = useMemo(
+    () =>
+      run.level === 1 && kept.recipes
+        ? { ...run, recipes: kept.recipes, active: 0 }
+        : run,
+    [run, kept.recipes],
+  );
+  /** The loadout menu's inventory while it's open, with ids for each weapon. */
+  const [menu, setMenu] = useState<Inventory | null>(null);
+  const [arranging, setArranging] = useState(false);
+  const [menuError, setMenuError] = useState<string | null>(null);
+  /** What the menu is auditioning, and which weapon is sounding now. */
+  const [previewing, setPreviewing] = useState<Audition | null>(null);
+  /** What the menu last closed on, so new loot can be marked. */
+  const seen = useRef<Array<WeaponRecipe>>([]);
   const backdrop = useRef<HTMLDivElement>(null);
   /** Shake and flashes turned down: the player's choice, else the system's. */
   const [flashingReduced, setReduced] = useState(() =>
@@ -94,7 +152,7 @@ export const App = () => {
     }),
   );
   const level = useMemo(() => describeLevel(run), [run]);
-  const weapons = useMemo(() => describeLoadout(run), [run]);
+  const weapons = useMemo(() => describeLoadout(ready), [ready]);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
@@ -231,11 +289,17 @@ export const App = () => {
   // Esc or P toggles; leaving the tab or turning the phone upright pauses,
   // and only a press resumes (an AudioContext needs a gesture to restart).
   useEffect(() => {
-    if (!fighting) return;
+    // The menu keeps the game frozen and takes its own keys.
+    if (!fighting || menu) return;
     const portrait = window.matchMedia(
       `${TOUCH_SCREEN} and (orientation: portrait)`,
     );
     const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.code === 'Tab' || event.code === 'KeyB') && !paused) {
+        event.preventDefault();
+        if (!event.repeat) openMenu();
+        return;
+      }
       if (event.code !== 'Escape' && event.code !== 'KeyP') return;
       if (paused) resume();
       else pause();
@@ -265,6 +329,8 @@ export const App = () => {
     game.current?.stop();
     game.current = null;
     setPaused(false);
+    setMenu(null);
+    if (fresh) seen.current = [];
     setBetween(!fresh);
     if (fresh) setBest(readBest());
     setStatus('starting');
@@ -317,8 +383,140 @@ export const App = () => {
     game.current?.stop();
     game.current = null;
     setPaused(false);
+    setMenu(null);
     setStatus('idle');
   };
+
+  /**
+   * Mid-level the game freezes behind the menu, its bar looping under a
+   * low-pass; after a run, it's over and the track plays on.
+   */
+  const openMenu = () => {
+    const current = game.current;
+    if (!current) return;
+    if (current.hud().status === 'playing') current.openMenu();
+    setMenuError(null);
+    setMenu(current.inventory());
+  };
+
+  /** The menu's weapons, described once per opening, with ids for each. */
+  const menuWeapons = useMemo(() => {
+    if (!menu) return null;
+    const fresh = freshIn(menu.bag, seen.current);
+    return {
+      slots: describeWeapons(menu.recipes, run).map((face, i) => ({
+        ...face,
+        id: `slot-${i}`,
+      })),
+      bag: describeWeapons(menu.bag, run).map((face, i) => ({
+        ...face,
+        id: `bag-${i}`,
+        fresh: fresh[i],
+      })),
+      recipes: new Map<string, WeaponRecipe>([
+        ...menu.recipes.map((recipe, i) => [`slot-${i}`, recipe] as const),
+        ...menu.bag.map((recipe, i) => [`bag-${i}`, recipe] as const),
+      ]),
+    };
+  }, [menu, run]);
+
+  const closeMenu = async ({ slots, bag }: Choice) => {
+    const current = game.current;
+    if (!menuWeapons || !current) return;
+    const pick = (ids: Array<string>) =>
+      ids.flatMap(id => {
+        const recipe = menuWeapons.recipes.get(id);
+        return recipe ? [recipe] : [];
+      });
+    const chosen = { recipes: pick(slots), bag: pick(bag) };
+    setArranging(true);
+    try {
+      // Armed while still frozen, so the level resumes with the new weapons.
+      await current.arrange(chosen);
+    } catch (error) {
+      console.error(error);
+      setMenuError(
+        "Couldn't arm the new weapons. Try again, or undo the changes to fight on.",
+      );
+      return;
+    } finally {
+      setArranging(false);
+    }
+    seen.current = [...chosen.recipes, ...chosen.bag];
+    kept.keep(chosen.recipes);
+    setMenu(null);
+    setPreviewing(null);
+    if (current.hud().status === 'playing') current.closeMenu();
+  };
+
+  /**
+   * Hear `ids` - one weapon, or two as an A/B. The menu learns which one
+   * sounds as each bar starts, and it clears when they stop, unless
+   * another audition has taken over since.
+   */
+  const audition = (ids: Array<string>) => {
+    const recipes = ids.flatMap(id => {
+      const recipe = menuWeapons?.recipes.get(id);
+      return recipe ? [recipe] : [];
+    });
+    const current = game.current;
+    if (!current || recipes.length !== ids.length) return;
+    setPreviewing({ ids, sounding: null, turn: 0 });
+    const heard = (id: string) =>
+      setPreviewing(playing =>
+        playing?.ids === ids
+          ? { ids, sounding: id, turn: playing.turn + 1 }
+          : playing,
+      );
+    const failed = (error: unknown) => {
+      console.error(error);
+      setPreviewing(now => (now?.ids === ids ? null : now));
+      setMenuError(
+        "Couldn't play the preview: the browser held the sound back. Press it again to retry.",
+      );
+    };
+    const [a, b] = recipes;
+    setMenuError(null);
+    // Called right here, inside the press: the preview's sound can only
+    // start from a gesture, and a deferred call would have spent it.
+    try {
+      const playing = b
+        ? current.previewAB(a, b, which => heard(ids[which]))
+        : current.preview(a, () => heard(ids[0]));
+      void playing.then(
+        () => setPreviewing(now => (now?.ids === ids ? null : now)),
+        failed,
+      );
+    } catch (error) {
+      failed(error);
+    }
+  };
+
+  const menuProps = ((): LoadoutMenuProps | null => {
+    if (!menuWeapons) return null;
+    const over = hud?.status !== 'playing';
+    return {
+      heading: over ? 'Your loadout' : 'Loadout',
+      slots: menuWeapons.slots,
+      bag: menuWeapons.bag,
+      bagSize: BAG_SIZE,
+      note: over
+        ? `${KEPT_NOTES[kept.status]} The bag empties when the next run starts.`
+        : KEPT_NOTES[kept.status],
+      doneLabel: over ? 'Done' : 'Back to the fight',
+      isApplying: arranging,
+      error: menuError,
+      preview: previewing,
+      barSeconds: (60 / BPM) * 4,
+      onPreview: id => audition([id]),
+      onPreviewAB: (a, b) => audition([a, b]),
+      onStopPreview: () => {
+        game.current?.stopPreview();
+        setPreviewing(null);
+      },
+      onDone: choice => void closeMenu(choice),
+    };
+  })();
 
   const handleNextLevel = () => {
     if (game.current) void play(game.current.nextRun(), { fresh: false });
@@ -336,17 +534,18 @@ export const App = () => {
           ended ? <RunBoard key={ticket ?? 'none'} run={finished} /> : undefined
         }
         paused={paused}
+        menu={menuProps}
         surfaceRef={surface}
         onStop={handleStop}
         onPause={pause}
         onResume={resume}
         soundBlocked={soundBlocked}
         onRetrySound={() => game.current?.retrySound()}
-        onRetry={() => play(newRun(run.seed))}
-        onNewRun={() => play(newRun(randomSeed()))}
+        onRetry={() => play(freshRun(run.seed))}
+        onNewRun={() => play(freshRun(randomSeed()))}
         onCopySeed={copySeed}
         onNextLevel={handleNextLevel}
-        onTakeWeapon={() => game.current?.takeWeapon()}
+        onOpenMenu={openMenu}
         onFireSlot={slot => game.current?.fireSlot(slot)}
         onReleaseSlot={slot => game.current?.releaseSlot(slot)}
         onDash={() => game.current?.dash()}
@@ -376,7 +575,7 @@ export const App = () => {
         step={startStep}
         error={startError}
         highScoresHref={HIGH_SCORES_HREF}
-        onStart={() => play(run)}
+        onStart={() => play(ready)}
       />
     </>
   );

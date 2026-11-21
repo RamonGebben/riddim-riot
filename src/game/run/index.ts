@@ -13,25 +13,39 @@ export interface RunState {
   score: number;
   recipes: Array<WeaponRecipe>;
   active: number;
+  /** Weapons picked up this run and not equipped; empty at a run's start. */
+  bag: Array<WeaponRecipe>;
 }
 
 /** Keeps weapon rolls their own random stream, apart from drums and spawns. */
 const WEAPON_STREAM = 2;
 const LEVEL_STREAM = 20;
-/** A run opens with one of each engine. */
+/** A run opens with one of each engine, unless the player kept a loadout. */
 const STARTING_ENGINES: Array<OscillatorPart> = ['wobble', 'laser', 'beam'];
 
-export const newRun = (seed: number): RunState => ({
+/** The weapons a run on `seed` opens with when there's no kept loadout. */
+export const starterRecipes = (seed: number): Array<WeaponRecipe> =>
+  STARTING_ENGINES.map((oscillator, slot) => ({
+    seed: deriveSeed(seed, WEAPON_STREAM, slot, 0),
+    oscillator,
+  }));
+
+/**
+ * A fresh run: full health, an empty bag, and the loadout the player kept
+ * from their last run (`recipes`) or the seed's starter.
+ */
+export const newRun = (
+  seed: number,
+  recipes: Array<WeaponRecipe> = starterRecipes(seed),
+): RunState => ({
   seed,
   level: 1,
   hp: PLAYER_MAX_HP,
   kills: 0,
   score: 0,
-  recipes: STARTING_ENGINES.map((oscillator, slot) => ({
-    seed: deriveSeed(seed, WEAPON_STREAM, slot, 0),
-    oscillator,
-  })),
+  recipes,
   active: 0,
+  bag: [],
 });
 
 /** The seed of the level the run is on: a fresh layout, key and palette. */
@@ -40,5 +54,8 @@ export const levelSeed = ({ seed, level }: RunState): number =>
 
 export const nextLevel = (
   run: RunState,
-  carry: Pick<RunState, 'hp' | 'kills' | 'score' | 'recipes' | 'active'>,
+  carry: Pick<
+    RunState,
+    'hp' | 'kills' | 'score' | 'recipes' | 'active' | 'bag'
+  >,
 ): RunState => ({ ...run, ...carry, level: run.level + 1 });

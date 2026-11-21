@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button } from '~/atoms/Button';
+import { Button, type ButtonVariant } from '~/atoms/Button';
 import { Actions } from './components/Actions';
 import { Backdrop } from './components/Backdrop';
 import { Badge } from './components/Badge';
@@ -15,6 +15,12 @@ export interface OverlayStat {
   value: string;
 }
 
+export interface OverlayAction {
+  label: string;
+  onClick: () => void;
+  variant?: ButtonVariant;
+}
+
 export interface OverlayProps {
   heading: string;
   /** A bright callout under the heading, like a new best. */
@@ -24,7 +30,8 @@ export interface OverlayProps {
   message?: Array<string>;
   /** A quiet line under the stats, like the seed to share. */
   note?: string;
-  actions: Array<{ label: string; onClick: () => void }>;
+  /** The first is the main way on; others can step back as `secondary`. */
+  actions: Array<OverlayAction>;
   /** More under the note, like where the run puts you on the board. */
   children?: ReactNode;
 }
@@ -61,8 +68,8 @@ export const Overlay = ({
         {children}
         <Actions>
           {/* Keyed by place: a label that changes (Link copied) keeps focus. */}
-          {actions.map(({ label, onClick }, index) => (
-            <Button key={index} onClick={onClick}>
+          {actions.map(({ label, onClick, variant }, index) => (
+            <Button key={index} $variant={variant} onClick={onClick}>
               {label}
             </Button>
           ))}

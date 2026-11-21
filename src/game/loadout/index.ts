@@ -1,13 +1,14 @@
 import type { Tick } from '../clock';
 import type { WeaponAction } from '../input';
 import type { WeaponSlot } from '../sim/weaponSlot';
-import type {
-  FxPart,
-  LfoPart,
-  ManufacturerPart,
-  OscillatorPart,
-  Weapon,
-  WeaponRecipe,
+import {
+  sameRecipe,
+  type FxPart,
+  type LfoPart,
+  type ManufacturerPart,
+  type OscillatorPart,
+  type Weapon,
+  type WeaponRecipe,
 } from '../weapons';
 
 /** A weapon in a slot: its trigger on the clock, and its voice. */
@@ -53,8 +54,12 @@ export interface Loadout {
   press: (options?: { onBeat?: boolean }) => void;
   release: () => void;
   act: (action: WeaponAction) => void;
-  /** Swap a weapon into the active slot; resolves with the one it replaced. */
-  replaceActive: (recipe: WeaponRecipe) => Promise<WeaponRecipe>;
+  /**
+   * Put these weapons in the slots, in this order - the loadout menu's
+   * choice. Weapons already armed move over with their magazines; only
+   * new ones are armed. The active slot stays the active slot.
+   */
+  arrange: (recipes: Array<WeaponRecipe>) => Promise<void>;
   view: () => LoadoutView;
   activeWeapon: () => Weapon;
   /** What to carry into the next level. */
@@ -153,23 +158,51 @@ export const createLoadout = async ({
     onChange(view());
   };
 
-  /** Re-arm one slot; one replacement at a time. */
-  const replace = async (
-    index: number,
-    recipe: WeaponRecipe,
-  ): Promise<WeaponRecipe> => {
-    const old = slots[index].recipe;
-    if (busy) return recipe;
+  /** One arrangement at a time: arming can't overlap. */
+  const arrange = async (next: Array<WeaponRecipe>) => {
+    // Rejects rather than doing nothing, so the caller doesn't take an
+    // arrangement that never happened as done.
+    if (busy) throw new Error('Already arranging the loadout');
+    if (next.length !== size) {
+      throw new Error(`A loadout holds ${size} weapons, not ${next.length}`);
+    }
     busy = true;
-    const fresh = await arm(recipe);
-    slots[index].voice.dispose();
-    slots = slots.map((armed, i) => (i === index ? fresh : armed));
-    // The player may have switched away while it was being armed.
-    if (index === active) takeOut(fresh);
-    else putAway(fresh);
-    busy = false;
+    const spare = [...slots];
+    /** An armed weapon for this recipe, each used once. */
+    const reuse = (recipe: WeaponRecipe) => {
+      const at = spare.findIndex(armed => sameRecipe(armed.recipe, recipe));
+      return at < 0 ? null : spare.splice(at, 1)[0];
+    };
+    const kept = next.map(reuse);
+    const fresh: Array<Armed> = [];
+    try {
+      const arranged = await next.reduce<Promise<Array<Armed>>>(
+        async (done, recipe, index) => {
+          const before = await done;
+          const reused = kept[index];
+          if (reused) return [...before, reused];
+          const armed = await arm(recipe);
+          fresh.push(armed);
+          return [...before, armed];
+        },
+        Promise.resolve([]),
+      );
+      // Holstered before anything is disposed: the old active weapon may be
+      // one of the spares.
+      putAway(slots[active]);
+      spare.forEach(({ voice }) => voice.dispose());
+      slots = arranged;
+      slots.forEach((armed, index) =>
+        index === active ? takeOut(armed) : putAway(armed),
+      );
+    } catch (error) {
+      // Nothing changed: the weapons armed for it go.
+      fresh.forEach(({ voice }) => voice.dispose());
+      throw error;
+    } finally {
+      busy = false;
+    }
     onChange(view());
-    return old;
   };
 
   return {
@@ -195,7 +228,7 @@ export const createLoadout = async ({
         select((active + action.direction + size) % size);
       }
     },
-    replaceActive: recipe => replace(active, recipe),
+    arrange,
     view,
     activeWeapon: () => slots[active].weapon,
     recipes: () => slots.map(({ recipe }) => recipe),

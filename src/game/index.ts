@@ -8,11 +8,15 @@ import {
   createMusicBus,
   createRechargeSound,
   createReloadSound,
+  createPreviewer,
   createScoreSound,
   createWeaponVoice,
   heardTime,
   startAudio,
   measureWeaponLoudness,
+  PREVIEW_LEAD_IN,
+  renderMenuLoop,
+  renderWeaponPreview,
 } from './audio';
 import { createBus } from './bus';
 import { createClock, type Tick } from './clock';
@@ -26,19 +30,30 @@ import {
 } from './grid';
 import { chordAt, progressionFor, shiftFor, transposeInKey } from './harmony';
 import { createLoadout, type Armed, type LoadoutView } from './loadout';
-import { generateLevel } from './level';
+import { generateLevel, TILE_SIZE } from './level';
 import { degreeToMidi, keyName, midiToHz } from './music';
-import { startPlay, type Pulses } from './play';
+import { startPlay, type Play, type Pulses } from './play';
+import type { Section, SongPart } from './sim/survival';
 import { rulesFor } from './sim/world';
 import { createPulse } from './render/pulse';
 import { levelSeed, nextLevel, type RunState } from './run';
 import { createWeaponSlot } from './sim';
 import { MAX_MULTIPLIER } from './sim/combo';
 import { SOUND_DESIGN } from './sound';
-import { spreadAngle, weaponFrom, type WeaponRecipe } from './weapons';
+import {
+  MANUFACTURERS,
+  spreadAngle,
+  weaponFrom,
+  type FxPart,
+  type LfoPart,
+  type OscillatorPart,
+  type WeaponRecipe,
+} from './weapons';
 
 export type { HudView } from './hud';
 export { levelSeed, newRun, type RunState } from './run';
+export { sameRecipe, type WeaponRecipe } from './weapons';
+export { BAG_SIZE } from './sim/loot';
 export type { LoadoutView } from './loadout';
 export { RUN_LEVELS } from './sim/world';
 export { attachBackdrop } from './backdrop';
@@ -70,26 +85,83 @@ export const describeLevel = (run: RunState) => {
   return { key: keyName(key), palette: palette.name, bpm: BPM };
 };
 
-/** The run's weapons as the landing page previews them, in its key. */
-export const describeLoadout = (run: RunState) => {
+/** What a weapon does, as numbers to compare: bigger is better in each. */
+export interface WeaponStats {
+  /**
+   * Damage a full bar of direct hits deals, echoes included, in tenths:
+   * the one number to judge a weapon by.
+   */
+  perBar: number;
+  /** Damage per shot (or per beam tick), in tenths. */
+  hit: number;
+  /** Shots in a bar: a full magazine. */
+  shots: number;
+  /** How far a shot carries, in tiles. */
+  reach: number;
+  /** A blast's radius in tiles; 0 when shots don't burst. */
+  area: number;
+}
+
+/** A weapon as the screens name and draw it. */
+export interface WeaponCard {
+  name: string;
+  /** Who made it: Vandal hits harder, Lumen shoots faster. */
+  maker: string;
+  oscillator: OscillatorPart;
+  lfo: LfoPart;
+  fx: FxPart | null;
+  /** A slow weapon whose shots burst. */
+  blasts: boolean;
+  /** Dropped by a boss: always the heavier maker with an FX. */
+  bossLoot: boolean;
+  stats: WeaponStats;
+}
+
+const oneDecimal = (value: number) => Math.round(value * 10) / 10;
+
+/** Weapons as they play in the key of the run's current level. */
+export const describeWeapons = (
+  recipes: Array<WeaponRecipe>,
+  run: RunState,
+): Array<WeaponCard> => {
   const { key } = generateLevel(levelSeed(run));
-  return run.recipes.map(recipe => {
-    const { name, parts, projectile } = weaponFrom(recipe, key);
+  return recipes.map(recipe => {
+    const { name, parts, projectile, timing, echo } = weaponFrom(recipe, key);
     return {
       name,
+      maker: MANUFACTURERS[parts.manufacturer].label,
       oscillator: parts.oscillator,
       lfo: parts.lfo,
       fx: parts.fx,
       blasts: projectile.detonates === true,
+      // Only boss loot pins its maker (see `goodLootRecipe`).
+      bossLoot: recipe.manufacturer !== undefined,
+      stats: {
+        perBar: Math.round(
+          (projectile.damage + (echo?.damage ?? 0)) * timing.magazine * 10,
+        ),
+        hit: Math.round(projectile.damage * 10),
+        shots: timing.magazine,
+        reach: oneDecimal((projectile.speed * projectile.lifetime) / TILE_SIZE),
+        area: oneDecimal((projectile.splash?.radius ?? 0) / TILE_SIZE),
+      },
     };
   });
 };
 
+/** The run's weapons as the landing page previews them, in its key. */
+export const describeLoadout = (run: RunState) =>
+  describeWeapons(run.recipes, run);
+
+/** What the loadout menu sorts: the slots, and the bag beside them. */
+export interface Inventory {
+  recipes: Array<WeaponRecipe>;
+  bag: Array<WeaponRecipe>;
+}
+
 export interface Game {
   /** Mount the stage and input on the play area; returns detach. */
   attach: (element: HTMLElement) => () => void;
-  /** Take the weapon the player is standing on, for touch screens. */
-  takeWeapon: () => void;
   /**
    * Switch to a slot and hold its trigger - a touch screen's slot button,
    * so every weapon is a press away. `releaseSlot` lets go, unless another
@@ -114,6 +186,38 @@ export interface Game {
   /** Try to start the sound again. Must be called from a user gesture. */
   retrySound: () => void;
   loadout: () => LoadoutView;
+  /** The slots' weapons and the bag, for the loadout menu. */
+  inventory: () => Inventory;
+  /**
+   * The loadout menu's choice: these weapons in the slots, the rest in the
+   * bag. Resolves once any new ones are armed; call it while paused.
+   */
+  arrange: (inventory: Inventory) => Promise<void>;
+  /**
+   * Freeze the level for the loadout menu: a pause, with the bar the track
+   * is on looping under a low-pass so the groove carries on. Call it from
+   * a press (the loop's context starts on it).
+   */
+  openMenu: () => void;
+  /** Close the menu: the loop fades and the level carries on. */
+  closeMenu: () => void;
+  /**
+   * Audition a weapon: a bar of its riff in the level's key, heard even
+   * while the level is frozen. Call it from a press; `onStart` fires as it
+   * sounds, and it resolves when the bar ends or another preview (or
+   * `stopPreview`) cuts it off.
+   */
+  preview: (recipe: WeaponRecipe, onStart?: () => void) => Promise<void>;
+  /**
+   * An A/B: `a` for a bar, `b` the next, back and forth until stopped.
+   * `onTurn` says which is sounding (0 for `a`, 1 for `b`) as each starts.
+   */
+  previewAB: (
+    a: WeaponRecipe,
+    b: WeaponRecipe,
+    onTurn: (which: 0 | 1) => void,
+  ) => Promise<void>;
+  stopPreview: () => void;
   /** Called on every weapon switch or reroll; returns unsubscribe. */
   onLoadout: (listener: (view: LoadoutView) => void) => () => void;
   hud: () => HudView;
@@ -338,7 +442,41 @@ export const startGame = async ({
     onTick: tick => bus.emit('tick', tick),
   });
   clock.start();
-  let takeWeapon = () => {};
+  const previewer = createPreviewer({ barSeconds: beatSeconds * 4 });
+  /** What the track's playing, for the menu's loop. */
+  let playingSection: { section: Section; part: SongPart | null } = {
+    section: 'calm',
+    part: null,
+  };
+  let trackIn = false;
+  let menuOpen = false;
+  /** The riff moved onto the chord being played, as a preview plays it. */
+  const chordShift = () =>
+    lastTick
+      ? shiftFor(chordAt(progression, chordBar(lastTick.bar)).degree)
+      : 0;
+  /** Each weapon's preview, rendered once. */
+  const previews = new Map<string, Promise<AudioBuffer>>();
+  /** Bumped by every preview and stop, so a slow render can't play late. */
+  let previewTurn = 0;
+  const previewOf = (recipe: WeaponRecipe) => {
+    const shift = chordShift();
+    const id = `${JSON.stringify(recipe)}@${shift}`;
+    const known = previews.get(id);
+    if (known) return known;
+    const rendering = renderWeaponPreview(weaponFrom(recipe, key), {
+      bpm: BPM,
+      pitch: note => transposeInKey(key, note, shift),
+    });
+    previews.set(id, rendering);
+    // A failed render is tried again next time, not remembered.
+    rendering.catch(() => previews.delete(id));
+    return rendering;
+  };
+  let mounted: Play | null = null;
+  /** The bag while no stage holds it: before it mounts, after it's gone. */
+  let detachedBag = run.bag;
+  const bag = () => mounted?.bag() ?? detachedBag;
   let dash = () => {};
 
   return {
@@ -361,7 +499,6 @@ export const startGame = async ({
           if (!frozen()) loadout.act(action);
         },
         isPaused: frozen,
-        swapWeapon: loadout.replaceActive,
         pulses,
         sounds: {
           impact: impact.play,
@@ -371,6 +508,7 @@ export const startGame = async ({
           dead: musicBus.muffle,
           section: (section, at) => {
             const bar = chordBar(at.bar);
+            playingSection = { section, part: at.part };
             arrangement.onBar(section, { ...at, chordBar: bar });
             backing.onBar({ time: at.time, bar, part: at.part });
           },
@@ -383,24 +521,25 @@ export const startGame = async ({
             // The slam's own tick has already gone by the drums: play it.
             if (!drumsIn) drums.onTick(tick);
             drumsIn = true;
+            trackIn = true;
           },
         },
         stepSeconds,
         audioNow: immediate,
         heardNow,
       });
-      void play.then(mounted => {
-        takeWeapon = mounted.takeWeapon;
-        dash = mounted.dash;
+      void play.then(started => {
+        mounted = started;
+        dash = started.dash;
       });
       return () => {
-        takeWeapon = () => {};
+        // The bag outlives the stage: the end-of-run menu still sorts it.
+        const kept = bag();
+        mounted = null;
+        detachedBag = kept;
         dash = () => {};
-        void play.then(mounted => mounted.detach());
+        void play.then(started => started.detach());
       };
-    },
-    takeWeapon: () => {
-      if (!frozen()) takeWeapon();
     },
     dash: () => {
       if (!frozen()) dash();
@@ -424,6 +563,82 @@ export const startGame = async ({
       void audio.resume().then(tellSound);
     },
     loadout: loadout.view,
+    inventory: () => ({ recipes: loadout.recipes(), bag: bag() }),
+    arrange: async ({ recipes, bag: sorted }) => {
+      await loadout.arrange(recipes);
+      if (mounted) mounted.setBag(sorted);
+      else detachedBag = sorted;
+    },
+    openMenu: () => {
+      previewer.prime();
+      pause();
+      menuOpen = true;
+      if (!lastTick || hud.status !== 'playing') return;
+      const at = lastTick;
+      void renderMenuLoop({
+        seed,
+        key,
+        progression,
+        bpm: BPM,
+        rootHz: rootHz(1),
+        bar: at.bar,
+        chordBar: chordBar(at.bar),
+        drums: trackIn,
+        ...playingSection,
+      }).then(
+        bar => {
+          // Closed again while it rendered: nothing to loop under.
+          if (menuOpen) previewer.startLoop(bar);
+        },
+        (error: unknown) => console.error(error),
+      );
+    },
+    closeMenu: () => {
+      menuOpen = false;
+      previewTurn += 1;
+      previewer.stop();
+      previewer.stopLoop();
+      resume();
+    },
+    preview: async (recipe, onStart) => {
+      previewer.prime();
+      const turn = ++previewTurn;
+      previewer.stop();
+      const buffer = await previewOf(recipe);
+      if (turn !== previewTurn) return;
+      // Rejects, rather than hanging, when the browser holds the sound back.
+      await new Promise<void>((resolve, reject) => {
+        previewer
+          .play(buffer, {
+            leadIn: PREVIEW_LEAD_IN,
+            onTurn: () => onStart?.(),
+            onEnd: resolve,
+          })
+          .catch(reject);
+      });
+    },
+    previewAB: async (a, b, onTurn) => {
+      previewer.prime();
+      const turn = ++previewTurn;
+      previewer.stop();
+      // One after the other: offline renders take turns anyway.
+      const first = await previewOf(a);
+      const second = await previewOf(b);
+      if (turn !== previewTurn) return;
+      await new Promise<void>((resolve, reject) => {
+        previewer
+          .alternate(first, second, {
+            leadIn: PREVIEW_LEAD_IN,
+            onTurn: bar => onTurn(bar % 2 === 0 ? 0 : 1),
+            onEnd: resolve,
+          })
+          .catch(reject);
+      });
+    },
+    stopPreview: () => {
+      previewTurn += 1;
+      previewer.stop();
+    },
     hud: () => hud,
     nextRun: () =>
       nextLevel(run, {
@@ -432,6 +647,7 @@ export const startGame = async ({
         score: hud.score,
         recipes: loadout.recipes(),
         active: loadout.active(),
+        bag: bag(),
       }),
     onHud: listener => {
       hudListeners.add(listener);
@@ -443,6 +659,7 @@ export const startGame = async ({
     },
     stop: () => {
       offAudio();
+      previewer.dispose();
       soundListeners.clear();
       unsubscribe.forEach(off => off());
       clock.dispose();

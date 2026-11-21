@@ -339,6 +339,29 @@ export interface BackingPatch {
   };
 }
 
+/**
+ * The loadout menu mid-level: the track's current bar loops under a
+ * low-pass while the game waits, and weapon previews play over it.
+ */
+export interface MenuPatch {
+  /**
+   * How loud the loop is, in dB RMS before its low-pass: it's levelled to
+   * this whatever the section, so a calm bar is as audible as a drop.
+   */
+  level: number;
+  /** The low-pass over the loop, and its resonance. */
+  hz: number;
+  resonance: number;
+  /** How long the loop takes to fade in and out. */
+  fade: number;
+  /** A weapon preview's level against the loop, in dB. */
+  previewLevel: number;
+  /** Overlap baked across the loop point, so it repeats without a click. */
+  seam: number;
+  /** Headroom before the loop's next beat, so a preview is never late for it. */
+  ahead: number;
+}
+
 export interface SoundDesign {
   wobble: WobblePatch;
   laser: LaserPatch;
@@ -354,6 +377,7 @@ export interface SoundDesign {
   backing: BackingPatch;
   mix: MixPatch;
   score: ScorePatch;
+  menu: MenuPatch;
 }
 
 /** The values the game shipped with before any tuning. */
@@ -598,6 +622,15 @@ export const BASE_DESIGN: SoundDesign = {
     echoBeats: 0.75,
     echoFeedback: 0.3,
     echoWet: 0.25,
+  },
+  menu: {
+    level: -24,
+    hz: 900,
+    resonance: 1.2,
+    fade: 0.35,
+    previewLevel: 0,
+    seam: 0.03,
+    ahead: 0.05,
   },
 };
 

@@ -1,7 +1,7 @@
 import type { Bus } from '../bus';
 import type { Tick } from '../clock';
 import type { GameEvents } from '../events';
-import { hudOf, sameHud, type HudView, type PickupView } from '../hud';
+import { hudOf, sameHud, type HudView } from '../hud';
 import { nextGridTime, STEPS_PER_BEAT } from '../grid';
 import {
   attachControls,
@@ -30,17 +30,15 @@ import {
   type SongPart,
 } from '../sim/survival';
 import { AIM_ASSIST } from '../sim/aimAssist';
-import { nearestPickup } from '../sim/loot';
 import { add, scale } from '../vec';
-import { weaponFrom, type WeaponRecipe } from '../weapons';
+import type { WeaponRecipe } from '../weapons';
 import {
   createWorld,
   onBar,
   onBeat,
-  placePickup,
   queueShot,
+  setBag,
   stepWorld,
-  takePickup,
   type View,
   type WaveRules,
 } from '../sim/world';
@@ -70,7 +68,7 @@ export interface PlaySounds {
   charge: (time: number, seconds: number) => void;
   /** A drop's crash and boom, for a drop that follows another. */
   dropHit: (time: number) => void;
-  /** A heart picked up. */
+  /** A heart picked up, or a weapon into the bag. */
   heal: (time: number) => void;
   /** The boss fires a ring of orbs. */
   volley: (time: number) => void;
@@ -108,8 +106,10 @@ const SPAWN_STREAM = 1;
  * impact is scheduled on the next 1/16 slot.
  */
 export interface Play {
-  /** Take the weapon underfoot - F, or the touch screen's button. */
-  takeWeapon: () => void;
+  /** The weapons picked up this run, oldest first. */
+  bag: () => Array<WeaponRecipe>;
+  /** The bag as the loadout menu left it. */
+  setBag: (bag: Array<WeaponRecipe>) => void;
   /** Dash on the next frame - the touch screen's button for Space. */
   dash: () => void;
   detach: () => void;
@@ -126,7 +126,6 @@ export const startPlay = async ({
   onHud,
   onWeaponAction,
   isPaused,
-  swapWeapon,
   pulses,
   sounds,
   stepSeconds,
@@ -136,8 +135,13 @@ export const startPlay = async ({
   element: HTMLElement;
   level: Level;
   rules: WaveRules;
-  /** Health, kills and score carried in from the run. */
-  carry: { hp: number; kills: number; score: number };
+  /** Health, kills, score and the bag carried in from the run. */
+  carry: {
+    hp: number;
+    kills: number;
+    score: number;
+    bag: Array<WeaponRecipe>;
+  };
   seed: number;
   bus: Bus<GameEvents>;
   trigger: TriggerHandlers;
@@ -146,8 +150,6 @@ export const startPlay = async ({
   onWeaponAction: (action: WeaponAction) => void;
   /** Paused: the stage holds its last frame. */
   isPaused: () => boolean;
-  /** Swap a weapon into the active slot; resolves with the one it replaced. */
-  swapWeapon: (recipe: WeaponRecipe) => Promise<WeaponRecipe>;
   pulses: Pulses;
   sounds: PlaySounds;
   stepSeconds: number;
@@ -159,17 +161,7 @@ export const startPlay = async ({
   const stage = await createStage(element, level);
   const controls = attachControls(element);
   const detachTrigger = attachTrigger(element, trigger);
-  const takeWeapon = () => {
-    const underfoot = nearestPickup(world.pickups, world.player.position);
-    if (!underfoot || world.status !== 'playing') return;
-    world = takePickup(world, underfoot.id);
-    void swapWeapon(underfoot.recipe).then(old => {
-      world = placePickup(world, old, underfoot.position);
-    });
-  };
-  const detachWeaponKeys = attachWeaponKeys(element, action =>
-    action.type === 'pickup' ? takeWeapon() : onWeaponAction(action),
-  );
+  const detachWeaponKeys = attachWeaponKeys(element, onWeaponAction);
   const touch = attachTouchControls(element, { trigger });
 
   let world = createWorld(level, rules, carry);
@@ -183,22 +175,7 @@ export const startPlay = async ({
   let drumsIn = false;
   const beatSeconds = stepSeconds * STEPS_PER_BEAT;
   const barSeconds = beatSeconds * 4;
-  const described = new Map<number, PickupView>();
-  const describe = (recipe: WeaponRecipe) => {
-    const known = described.get(recipe.seed);
-    if (known) return known;
-    const { name, parts, projectile } = weaponFrom(recipe, level.key);
-    const view = {
-      name,
-      oscillator: parts.oscillator,
-      lfo: parts.lfo,
-      fx: parts.fx,
-      blasts: projectile.detonates === true,
-    };
-    described.set(recipe.seed, view);
-    return view;
-  };
-  let hud = hudOf(world, describe);
+  let hud = hudOf(world);
   onHud(hud);
 
   const onTick = (tick: Tick) => {
@@ -328,13 +305,11 @@ export const startPlay = async ({
     });
     // Kills in one frame share a slot: one note for where the combo got to.
     if (killed.length > 0) sounds.score(killed[0].time, world.combo.count);
-    if (result.healed.length > 0) {
+    const picked = [...result.healed, ...result.collected];
+    if (picked.length > 0) {
       const time = nextSlot(audioNow());
       sounds.heal(time);
-      bursts = [
-        ...bursts,
-        ...result.healed.map(position => ({ position, time })),
-      ];
+      bursts = [...bursts, ...picked.map(position => ({ position, time }))];
     }
     if (result.playerHit) {
       sounds.duck(audioNow());
@@ -347,7 +322,7 @@ export const startPlay = async ({
     if (world.dash.until !== dashedAt) {
       bursts = [...bursts, { position: world.player.position, time: now }];
     }
-    const nextHud = hudOf(world, describe, beat, beatSeconds, now);
+    const nextHud = hudOf(world, beat, beatSeconds, now);
     if (!sameHud(hud, nextHud)) {
       hud = nextHud;
       onHud(hud);
@@ -378,7 +353,10 @@ export const startPlay = async ({
   });
 
   return {
-    takeWeapon,
+    bag: () => world.bag,
+    setBag: bag => {
+      world = setBag(world, bag);
+    },
     dash: () => {
       dashPressed = true;
     },

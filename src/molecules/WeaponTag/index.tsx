@@ -16,6 +16,25 @@ export interface WeaponFace {
   blasts: boolean;
 }
 
+/** How a weapon's beat feels to fire. */
+const RATES = {
+  '1/2': 'Very slow, heavy hits',
+  '1/4': 'Slow, heavy hits',
+  '1/8': 'Steady fire',
+  '1/16': 'Rapid spray',
+} satisfies Record<Rate, string>;
+
+/** What a weapon does, in words a first-timer can read. */
+export const describeTraits = ({ oscillator, lfo, fx, blasts }: WeaponFace) =>
+  [
+    oscillator === 'beam' ? 'Hold for a steady beam' : RATES[lfo],
+    blasts && 'shots explode',
+    fx === 'distortion' && 'hits burst and push back',
+    fx === 'echo' && 'every shot echoes',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
 const ENGINES = { wobble: 'Wobble', laser: 'Laser', beam: 'Beam' };
 const EFFECTS = { distortion: 'Crush', echo: 'Echo' };
 

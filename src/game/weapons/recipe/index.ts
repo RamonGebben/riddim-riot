@@ -20,6 +20,13 @@ export interface WeaponRecipe {
   fx?: FxPart;
 }
 
+/** The same weapon: seed and pins alike, whatever object carries them. */
+export const sameRecipe = (a: WeaponRecipe, b: WeaponRecipe): boolean =>
+  a.seed === b.seed &&
+  a.oscillator === b.oscillator &&
+  a.manufacturer === b.manufacturer &&
+  a.fx === b.fx;
+
 export const weaponFrom = (
   { seed, oscillator, manufacturer, fx }: WeaponRecipe,
   key: Key,

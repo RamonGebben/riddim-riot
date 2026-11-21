@@ -37,13 +37,13 @@ typography:
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: 'ui-monospace, monospace'
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
     fontSize: '0.75rem'
     fontWeight: 700
     lineHeight: 1.5
     letterSpacing: '0.2em'
   data:
-    fontFamily: 'ui-monospace, monospace'
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
     fontSize: '0.75rem'
     fontWeight: 400
     lineHeight: 1.5

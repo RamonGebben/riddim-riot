@@ -51,12 +51,15 @@ import { kickRecoil, NO_RECOIL, type Recoil } from '../recoil';
 import { NO_COMBO, registerKill, type Combo } from '../combo';
 import {
   attractHearts,
+  attractPickups,
+  BAG_SIZE,
   BONUS_HEARTS,
   BOSS_HEARTS,
   dropOnKill,
   goodLootRecipe,
   heartsInReach,
   lootRecipe,
+  pickupsInReach,
   type Heart,
   type Pickup,
 } from '../loot';
@@ -137,6 +140,8 @@ export interface World {
   survival: Survival;
   enemies: Array<Enemy>;
   pickups: Array<Pickup>;
+  /** Weapons picked up this run, oldest first, up to `BAG_SIZE`. */
+  bag: Array<WeaponRecipe>;
   hearts: Array<Heart>;
   projectiles: Array<Projectile>;
   /** The boss's orbs in flight. */
@@ -196,7 +201,13 @@ export const createWorld = (
     hp = PLAYER_MAX_HP,
     kills = 0,
     score = 0,
-  }: { hp?: number; kills?: number; score?: number } = {},
+    bag = [],
+  }: {
+    hp?: number;
+    kills?: number;
+    score?: number;
+    bag?: Array<WeaponRecipe>;
+  } = {},
 ): World => ({
   level,
   rules,
@@ -210,6 +221,7 @@ export const createWorld = (
   survival: rules.fill ? songFrom(0) : INITIAL_SURVIVAL,
   enemies: [],
   pickups: [],
+  bag,
   hearts: [],
   projectiles: [],
   hostiles: [],
@@ -420,10 +432,10 @@ export const placePickup = (
   nextId: world.nextId + 1,
 });
 
-/** Lift a weapon off the ground (the loadout swaps it in). */
-export const takePickup = (world: World, id: number): World => ({
+/** The bag sorted in the loadout menu: what's left in it, in its order. */
+export const setBag = (world: World, bag: Array<WeaponRecipe>): World => ({
   ...world,
-  pickups: world.pickups.filter(pickup => pickup.id !== id),
+  bag: bag.slice(0, BAG_SIZE),
 });
 
 const placeHeart = (world: World, position: Vec): World => ({
@@ -593,6 +605,8 @@ export interface FrameResult {
   blasts: Array<Blast>;
   /** Hearts picked up this frame. */
   healed: Array<Vec>;
+  /** Weapons that went into the bag this frame. */
+  collected: Array<Vec>;
   /** Where an enemy or an orb hit the player, if one did this frame. */
   playerHit: Vec | null;
 }
@@ -621,7 +635,14 @@ export const stepWorld = (
 ): FrameResult => {
   // A finished run freezes where it ended.
   if (world.status !== 'playing') {
-    return { world, kills: [], blasts: [], playerHit: null, healed: [] };
+    return {
+      world,
+      kills: [],
+      blasts: [],
+      playerHit: null,
+      healed: [],
+      collected: [],
+    };
   }
 
   const { map } = world.level;
@@ -729,6 +750,14 @@ export const stepWorld = (
   const reachable = heartsInReach(hearts, player.position);
   const healed = hurt > 0 ? reachable.slice(0, hpCap(world) - hurt) : [];
   const hp = hurt + healed.length;
+  // Weapons drift in too, and drop into the bag while it has room.
+  const room = BAG_SIZE - world.bag.length;
+  const pickups = attractPickups(world.pickups, {
+    player: player.position,
+    dt,
+    hasRoom: room > 0,
+  });
+  const collected = pickupsInReach(pickups, player.position).slice(0, room);
   const standingIn = onPad(world, player.position);
   const onExit = isExitOpen(world) && standingIn;
   const status = hp <= 0 ? 'dead' : onExit ? 'cleared' : 'playing';
@@ -742,7 +771,16 @@ export const stepWorld = (
   );
   const looted = hits.killed.reduce(
     (acc, kill) => dropLoot(acc, kill.enemy, kill.position),
-    { ...world, hearts },
+    {
+      ...world,
+      hearts,
+      pickups: pickups.filter(pickup => !collected.includes(pickup)),
+      // The same bag when nothing went in, so the HUD sees no change.
+      bag:
+        collected.length > 0
+          ? [...world.bag, ...collected.map(pickup => pickup.recipe)]
+          : world.bag,
+    },
   );
   // A dead boss's orbs fizzle with it.
   const bossDown = hits.killed.some(kill => kill.enemy.kind === 'boss');
@@ -778,5 +816,6 @@ export const stepWorld = (
     blasts,
     playerHit,
     healed: healed.map(heart => heart.position),
+    collected: collected.map(pickup => pickup.position),
   };
 };

@@ -2,7 +2,7 @@ import { createRng, deriveSeed } from '../../rng';
 import { add, length, normalize, scale, subtract, type Vec } from '../../vec';
 import type { FxPart, WeaponRecipe } from '../../weapons';
 
-/** A weapon lying in the level, waiting to be swapped in. */
+/** A weapon lying in the level, drifting into the bag once in reach. */
 export interface Pickup {
   id: number;
   position: Vec;
@@ -21,9 +21,9 @@ const WEAPON_DROP_CHANCE = 0.1;
 const HEART_DROP_CHANCE = 0.08;
 /** The boss always drops a good weapon and this many hearts. */
 export const BOSS_HEARTS = 2;
-/** How close the player has to stand to take a weapon. */
+/** How close a heart or a weapon has to come to be picked up. */
 export const PICKUP_RADIUS = 40;
-/** Hearts this close drift in towards the player, faster as they near. */
+/** Loot this close drifts in towards the player, faster as they near. */
 export const MAGNET_RADIUS = 170;
 /** px/s at the magnet's rim, and how much faster it gets right up close. */
 const MAGNET_SPEED = 240;
@@ -34,6 +34,11 @@ const MAGNET_PULL = 1100;
  */
 export const BONUS_HEARTS = 3;
 const LOOT_STREAM = 30;
+/**
+ * Weapons a run's bag holds. Past it, drops wait on the floor until the
+ * player makes room, so a full bag never loses one.
+ */
+export const BAG_SIZE = 24;
 
 export type Drop = 'weapon' | 'heart' | null;
 
@@ -70,17 +75,19 @@ export const heartsInReach = (
     heart => length(subtract(heart.position, position)) <= PICKUP_RADIUS,
   );
 
-export const nearestPickup = (
+/** Weapons the player is over, nearest first. */
+export const pickupsInReach = (
   pickups: Array<Pickup>,
   position: Vec,
-): Pickup | null =>
+): Array<Pickup> =>
   pickups
     .map(pickup => ({
       pickup,
       distance: length(subtract(pickup.position, position)),
     }))
     .filter(({ distance }) => distance <= PICKUP_RADIUS)
-    .sort((a, b) => a.distance - b.distance)[0]?.pickup ?? null;
+    .toSorted((a, b) => a.distance - b.distance)
+    .map(({ pickup }) => pickup);
 
 /**
  * One frame of the magnet: `position` drifts towards `target` when within
@@ -101,8 +108,7 @@ export const pullTowards = (
 
 /**
  * Hearts drift in while there's health (or a bonus heart) to gain, so
- * they're easy to grab mid-fight. Weapons stay where they fell: the player
- * walks over to the one they want.
+ * they're easy to grab mid-fight.
  */
 export const attractHearts = (
   hearts: Array<Heart>,
@@ -114,3 +120,18 @@ export const attractHearts = (
         position: pullTowards(heart.position, player, { dt }),
       }))
     : hearts;
+
+/**
+ * Weapons drift in while the bag has room, so loot never piles up on the
+ * floor: the player sorts it in the loadout menu instead.
+ */
+export const attractPickups = (
+  pickups: Array<Pickup>,
+  { player, dt, hasRoom }: { player: Vec; dt: number; hasRoom: boolean },
+): Array<Pickup> =>
+  hasRoom
+    ? pickups.map(pickup => ({
+        ...pickup,
+        position: pullTowards(pickup.position, player, { dt }),
+      }))
+    : pickups;

@@ -137,11 +137,24 @@ describe('createLoadout', () => {
     expect(overlapped).toBe(false);
   });
 
-  it('swaps a weapon into the active slot and hands back the old one', async () => {
+  it('arranges new weapons in, arming only the ones it lacks', async () => {
+    const { armed, loadout, onChange } = await setup();
+    await loadout.arrange([{ seed: 3 }, { seed: 99 }, { seed: 1 }]);
+    expect(armed).toHaveLength(4);
+    expect(armed[3].recipe).toEqual({ seed: 99 });
+    expect(armed[1].voice.dispose).toHaveBeenCalled();
+    expect(armed[0].voice.dispose).not.toHaveBeenCalled();
+    expect(loadout.recipes()).toEqual([{ seed: 3 }, { seed: 99 }, { seed: 1 }]);
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ active: 0 }),
+    );
+  });
+
+  it('holsters the old weapon and draws whatever lands in the active slot', async () => {
     const { armed, loadout } = await setup();
-    const old = await loadout.replaceActive({ seed: 99 });
-    expect(old).toEqual({ seed: 1 });
-    expect(armed[0].voice.dispose).toHaveBeenCalled();
-    expect(loadout.recipes()).toEqual([{ seed: 99 }, { seed: 2 }, { seed: 3 }]);
+    await loadout.arrange([{ seed: 2 }, { seed: 1 }, { seed: 3 }]);
+    expect(armed[0].voice.holster).toHaveBeenCalled();
+    expect(armed[1].voice.setSubOwner).toHaveBeenLastCalledWith(true, 1);
+    expect(loadout.activeWeapon()).toBe(armed[1].weapon);
   });
 });

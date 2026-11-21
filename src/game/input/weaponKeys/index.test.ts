@@ -6,10 +6,9 @@ describe('weaponKeyAction', () => {
     expect(weaponKeyAction('Digit2')).toEqual({ type: 'select', slot: 1 });
   });
 
-  it('cycles on Q and E, takes a weapon on F', () => {
+  it('cycles on Q and E', () => {
     expect(weaponKeyAction('KeyQ')).toEqual({ type: 'cycle', direction: -1 });
     expect(weaponKeyAction('KeyE')).toEqual({ type: 'cycle', direction: 1 });
-    expect(weaponKeyAction('KeyF')).toEqual({ type: 'pickup' });
     expect(weaponKeyAction('KeyR')).toBeNull();
   });
 

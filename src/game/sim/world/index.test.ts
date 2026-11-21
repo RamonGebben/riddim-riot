@@ -11,9 +11,10 @@ import {
 } from '../../level';
 import { createRng } from '../../rng';
 import type { Enemy } from '../enemy';
-import { BONUS_HEARTS } from '../loot';
+import { BAG_SIZE, BONUS_HEARTS } from '../loot';
 import {
   createWorld,
+  DEFAULT_RULES,
   hpCap,
   isExitOpen,
   onBar,
@@ -24,7 +25,7 @@ import {
   queueShot,
   rulesFor,
   stepWorld,
-  takePickup,
+  setBag,
   type World,
 } from '.';
 
@@ -423,13 +424,6 @@ describe('stepWorld', () => {
     expect(left.position).toEqual(far.position);
   });
 
-  it('leaves weapons where they fell', () => {
-    const beside = { x: start.x + 60, y: start.y };
-    const dropped = placePickup(createWorld(level), { seed: 7 }, beside);
-    const after = stepWorld(dropped, { input: still, dt: 1 / 60, now: 1 });
-    expect(after.world.pickups[0].position).toEqual(beside);
-  });
-
   it('bursts a slow shot at the end of its range', () => {
     const lobbed = {
       ...shot(1),
@@ -532,12 +526,41 @@ describe('stepWorld', () => {
     expect(hit.world.enemies).toHaveLength(1);
   });
 
-  it('puts weapons down and picks them up', () => {
+  it('puts weapons down, and bags them when the player walks over', () => {
     const world = placePickup(createWorld(level), { seed: 7 }, start);
     expect(world.pickups).toEqual([
       { id: expect.any(Number), position: start, recipe: { seed: 7 } },
     ]);
-    expect(takePickup(world, world.pickups[0].id).pickups).toEqual([]);
+    const taken = stepWorld(world, { input: still, dt: 1 / 60, now: 1 });
+    expect(taken.world.pickups).toEqual([]);
+    expect(taken.world.bag).toEqual([{ seed: 7 }]);
+    expect(taken.collected).toEqual([start]);
+  });
+
+  it('pulls weapons in from nearby', () => {
+    const near = { x: start.x + 120, y: start.y };
+    const world = placePickup(createWorld(level), { seed: 7 }, near);
+    const pulled = stepWorld(world, { input: still, dt: 1 / 60, now: 1 });
+    expect(pulled.world.pickups[0].position.x).toBeLessThan(near.x);
+  });
+
+  it('leaves weapons on the floor once the bag is full', () => {
+    const full = Array.from({ length: BAG_SIZE }, (_, seed) => ({ seed }));
+    const world = placePickup(
+      { ...createWorld(level), bag: full },
+      { seed: 99 },
+      start,
+    );
+    const left = stepWorld(world, { input: still, dt: 1 / 60, now: 1 });
+    expect(left.world.pickups).toHaveLength(1);
+    expect(left.world.bag).toBe(full);
+    expect(left.collected).toEqual([]);
+  });
+
+  it('carries the bag in, and takes it back sorted', () => {
+    const world = createWorld(level, DEFAULT_RULES, { bag: [{ seed: 1 }] });
+    expect(world.bag).toEqual([{ seed: 1 }]);
+    expect(setBag(world, [{ seed: 2 }]).bag).toEqual([{ seed: 2 }]);
   });
 
   it('only lets the player out once the final wave has fallen', () => {

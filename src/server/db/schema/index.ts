@@ -1,12 +1,14 @@
 import {
   bigint,
   integer,
+  jsonb,
   pgTable,
   smallint,
   text,
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import type { WeaponRecipe } from '~/game/weapons';
 
 // Mirrors db/migrations, which own the tables, policies and functions.
 
@@ -30,6 +32,14 @@ export const runs = pgTable('runs', {
   durationMs: integer('duration_ms').notNull(),
   outcome: text('outcome', { enum: ['died', 'won'] }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const loadouts = pgTable('loadouts', {
+  playerId: uuid('player_id').primaryKey(),
+  recipes: jsonb('recipes').$type<Array<WeaponRecipe>>().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
