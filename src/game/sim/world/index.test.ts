@@ -16,6 +16,7 @@ import {
   createWorld,
   DEFAULT_RULES,
   hpCap,
+  INVULNERABLE_BEATS,
   isExitOpen,
   onBar,
   onBeat,
@@ -600,19 +601,27 @@ describe('stepWorld', () => {
     ).toBe(2_300 + LEVEL_CLEAR_BONUS);
   });
 
-  it('hits the player once, then gives a moment of invulnerability', () => {
+  it('hits the player once, then gives two beats of invulnerability', () => {
     const near = { x: start.x + 10, y: start.y };
+    const beatSeconds = 0.5;
     const hit = stepWorld(withEnemies(createWorld(level), [enemyAt(1, near)]), {
       input: still,
       dt: 1 / 60,
       now: 1,
+      beatSeconds,
     });
     expect(hit.playerHit).not.toBeNull();
-    const again = stepWorld(withEnemies(hit.world, [enemyAt(2, near)]), {
-      input: still,
-      dt: 1 / 60,
-      now: 1.2,
-    });
-    expect(again.playerHit).toBeNull();
+    expect(hit.world.invulnerableUntil).toBe(
+      1 + INVULNERABLE_BEATS * beatSeconds,
+    );
+    const hitAt = (now: number) =>
+      stepWorld(withEnemies(hit.world, [enemyAt(2, near)]), {
+        input: still,
+        dt: 1 / 60,
+        now,
+        beatSeconds,
+      }).playerHit;
+    expect(hitAt(1.9)).toBeNull();
+    expect(hitAt(2)).not.toBeNull();
   });
 });
