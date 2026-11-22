@@ -38,8 +38,7 @@ test('wait for sound the browser holds back, and start it on a press', async ({
   await page.evaluate(() => Object.assign(window, { soundAllowed: true }));
   await page.getByRole('button', { name: 'Start sound' }).click();
   await expect(blocked).toBeHidden();
-  await expect(page.getByRole('status')).toHaveText(
-    'Step into the circle to start',
-  );
+  // At the circle: a first run's walkthrough of the controls.
+  await expect(page.getByRole('region', { name: 'Move' })).toBeVisible();
   expect(errors).toEqual([]);
 });

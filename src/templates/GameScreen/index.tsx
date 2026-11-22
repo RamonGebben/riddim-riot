@@ -23,6 +23,7 @@ import { RotateNotice } from './components/RotateNotice';
 import { Score } from './components/Score';
 import { SongTrack } from './components/SongTrack';
 import { Surface } from './components/Surface';
+import { Tutorial } from './components/Tutorial';
 import type { LevelPhase, SongPart } from './types';
 
 export type { LevelPhase, SongPart, WeaponFace } from './types';
@@ -84,6 +85,13 @@ export interface GameScreenProps {
   menu?: LoadoutMenuProps | null;
   /** The browser is holding the sound back, so the game waits for it. */
   soundBlocked: boolean;
+  /**
+   * Walk the player through the controls while the circle waits: the first
+   * level, until they've been through it once.
+   */
+  tutorial?: boolean;
+  /** The walkthrough was skipped or read to the end. */
+  onTutorialDone?: () => void;
   /** The element the game attaches its input and canvas to. */
   surfaceRef?: Ref<HTMLElement>;
   onStop: () => void;
@@ -170,6 +178,8 @@ export const GameScreen = ({
   paused,
   menu = null,
   soundBlocked,
+  tutorial = false,
+  onTutorialDone,
   surfaceRef,
   onStop,
   onPause,
@@ -185,6 +195,7 @@ export const GameScreen = ({
   onDash,
 }: GameScreenProps) => {
   const [copy, setCopy] = useState<keyof typeof COPY_LABELS>('idle');
+  const [tutorialStep, setTutorialStep] = useState(0);
   /** The menu was opened since the run ended: its loot has been seen. */
   const [looked, setLooked] = useState(false);
   const [losing, setLosing] = useState<{
@@ -196,8 +207,11 @@ export const GameScreen = ({
     onClick: () =>
       void onCopySeed().then(copied => setCopy(copied ? 'copied' : 'failed')),
   };
-  const prompt = CIRCLE_PROMPTS[run.phase];
   const playing = run.status === 'playing' && !paused && !menu;
+  const walkthrough =
+    tutorial && run.status === 'playing' && run.phase === 'waiting';
+  // The walkthrough ends on the circle's prompt, so it stands in for it.
+  const prompt = walkthrough ? null : CIRCLE_PROMPTS[run.phase];
   const won = run.status === 'cleared' && run.level >= run.levels;
   const weapons = `${run.bag} ${run.bag === 1 ? 'weapon' : 'weapons'}`;
   /** The end of a run: keep the best loot before the next run empties the bag. */
@@ -246,7 +260,7 @@ export const GameScreen = ({
     <>
       <LockPage />
       <Surface ref={surfaceRef} aria-label="Play area">
-        {run.phase === 'waiting' && (
+        {run.phase === 'waiting' && !walkthrough && (
           <Hint>
             <PointerOnly $pointer="mouse">
               WASD move · mouse aim and fire · Space dash · 1-3, Q/E or wheel
@@ -260,6 +274,14 @@ export const GameScreen = ({
         )}
       </Surface>
       {prompt && playing && <Prompt>{prompt}</Prompt>}
+      {walkthrough && (
+        <Tutorial
+          step={tutorialStep}
+          onStep={setTutorialStep}
+          onDone={() => onTutorialDone?.()}
+          hidden={!playing}
+        />
+      )}
       <Loadout
         {...loadout}
         paused={!playing}

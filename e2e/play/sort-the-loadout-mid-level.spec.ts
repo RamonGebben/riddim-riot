@@ -73,6 +73,7 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   // musical: up to two bar lines, with room for a slow runner.
   test.setTimeout(60_000);
   const musical = { timeout: 20_000 };
+  await page.getByRole('button', { name: 'Skip' }).click();
   await playArea.click();
   await page.keyboard.down('KeyW');
   await expect(page.getByText(/charging/)).toBeVisible(musical);

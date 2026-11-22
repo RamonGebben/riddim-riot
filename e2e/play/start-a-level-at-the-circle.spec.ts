@@ -33,6 +33,15 @@ test('step into the circle to start the fight', async ({ page }) => {
   await page.getByRole('button', { name: 'Drop in' }).click();
   const playArea = page.getByRole('main', { name: 'Play area' });
   await expect(playArea.locator('canvas')).toBeVisible();
+
+  // A first run walks through the controls, ending on the circle.
+  await expect(page.getByRole('region', { name: 'Move' })).toBeVisible();
+  const next = page.getByRole('button', { name: 'Next', exact: true });
+  for (let step = 1; step < 7; step++) await next.click();
+  await expect(page.getByRole('region', { name: 'Ready' })).toHaveText(
+    /Now step into the circle to start your run\./,
+  );
+  await page.getByRole('button', { name: 'Got it' }).click();
   await expect(page.getByRole('status')).toHaveText(
     'Step into the circle to start',
   );
