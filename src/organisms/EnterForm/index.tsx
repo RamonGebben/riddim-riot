@@ -93,7 +93,7 @@ export const EnterForm = ({
           autoComplete="username"
           autoCapitalize="characters"
           spellCheck={false}
-          maxLength={NAME_MAX + 4}
+          maxLength={NAME_MAX}
           $invalid={Boolean(problems.name)}
           aria-invalid={Boolean(problems.name)}
         />
