@@ -1,3 +1,5 @@
+import { isTyping } from '../typing';
+
 export type WeaponAction =
   { type: 'select'; slot: number } | { type: 'cycle'; direction: 1 | -1 };
 
@@ -23,6 +25,7 @@ export const attachWeaponKeys = (
   let lastWheel = 0;
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (isTyping(event)) return;
     const action = weaponKeyAction(event.code);
     if (!action || event.repeat) return;
     onAction(action);
