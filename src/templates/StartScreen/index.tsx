@@ -4,6 +4,7 @@ import { Icon } from '~/atoms/Icon';
 import { Toggle } from '~/atoms/Toggle';
 import { WEAPON_ICONS } from '~/game/icons';
 import { describeTraits, type WeaponFace } from '~/molecules/WeaponTag';
+import { Account, type StartAccount } from './components/Account';
 import { Backdrop } from './components/Backdrop';
 import { Briefing } from './components/Briefing';
 import { Controls } from './components/Controls';
@@ -46,11 +47,14 @@ export interface StartScreenProps {
   backdropRef?: Ref<HTMLDivElement>;
   /** The all-time board. */
   highScoresHref: string;
+  /** Who's playing, and signing in before a run. */
+  account: StartAccount;
   onStart: () => void;
   onFlashingReduced: (reduced: boolean) => void;
 }
 
 export type StartStep = 'audio' | 'kit' | 'weapons';
+export type { StartAccount };
 
 const STEP_LABELS = {
   audio: 'Starting audio…',
@@ -70,6 +74,7 @@ export const StartScreen = ({
   error,
   backdropRef,
   highScoresHref,
+  account,
   onStart,
   onFlashingReduced,
 }: StartScreenProps) => {
@@ -125,6 +130,7 @@ export const StartScreen = ({
             />
             <TextLink href={highScoresHref}>High scores</TextLink>
           </Options>
+          <Account account={account} />
           {error && (
             <Status role="alert" $error>
               Couldn't start the game. Press Drop in to try again; if it keeps

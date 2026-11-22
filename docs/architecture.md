@@ -203,7 +203,9 @@ the only mutable reference:
   their ray (`sim/beam`), then hits, Crush blasts (`sim/splash`) and
   contacts resolve.
   Kills score into the combo, may drop loot, and hits cost one of 5 HP (then
-  0.6 s of invulnerability). Walking over a heart heals one; at full health
+  two beats of invulnerability, `INVULNERABLE_BEATS`: enemies move on the
+  beat, so that's two or three steps to get clear of a crowd; the player
+  blinks on eighth notes meanwhile, or holds dim when flashing is reduced). Walking over a heart heals one; at full health
   it stacks a bonus heart on top (up to 3, `BONUS_HEARTS`), lost first and
   carried between levels, so saving health pays off. Hearts within 170 px
   drift in while there's room to heal (`sim/loot` `attractHearts`); weapons
@@ -332,6 +334,11 @@ level to level and empty at the start of every run.
   `db/migrations/0003_loadouts.sql`) and read back on any device
   (`loadout.mine`, with its `savedAt`). The newer of the two wins; a device
   choice newer than the account's goes up when the player signs in.
+  Players can sign in at a run's end, on the start page (**Sign in to count
+  every run**, under the options) or in the board's "Your place" card; one
+  hook (`app/_components/useAccount`) does it everywhere and drops the last
+  account's kept loadout. Signed in, every finished run goes on the board
+  by itself.
   Recipes are checked against the parts pool by one schema
   (`loadoutSchema`) on the device, on the way in and on the way out. They're
   not proved to have been looted, so a forged loadout is possible, like a

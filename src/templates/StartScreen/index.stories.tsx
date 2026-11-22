@@ -38,6 +38,12 @@ const meta = {
     isStarting: false,
     step: null,
     error: null,
+    account: {
+      kind: 'signedOut',
+      isEntering: false,
+      error: null,
+      onEnter: fn(),
+    },
     onStart: fn(),
   },
   parameters: { layout: 'fullscreen' },
@@ -124,5 +130,36 @@ export const Failed: Story = {
     );
     await userEvent.click(canvas.getByRole('button', { name: 'Drop in' }));
     await expect(args.onStart).toHaveBeenCalled();
+  },
+};
+
+export const SignInBeforeARun: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Sign in to count every run' }),
+    );
+    await userEvent.type(canvas.getByLabelText(/Name/), 'riddim rat');
+    await userEvent.type(canvas.getByLabelText(/Password/), 'correct horse');
+    // Enter in the form signs in; it doesn't start the run.
+    await userEvent.keyboard('{Enter}');
+    await expect(
+      args.account.kind === 'signedOut' && args.account.onEnter,
+    ).toHaveBeenCalledWith({ name: 'RIDDIM_RAT', password: 'correct horse' });
+    await expect(args.onStart).not.toHaveBeenCalled();
+    await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }));
+    await expect(
+      canvas.getByRole('button', { name: 'Sign in to count every run' }),
+    ).toBeVisible();
+  },
+};
+
+export const SignedIn: Story = {
+  args: { account: { kind: 'signedIn', name: 'RIDDIMRAT', onSignOut: fn() } },
+  play: async ({ args, canvas, userEvent }) => {
+    await expect(canvas.getByText('RIDDIMRAT')).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign out' }));
+    await expect(
+      args.account.kind === 'signedIn' && args.account.onSignOut,
+    ).toHaveBeenCalled();
   },
 };

@@ -15,12 +15,16 @@ import { Problem } from './components/Problem';
 export interface EnterFormProps {
   /** What pressing the button does, e.g. "Save to the board". */
   submitLabel: string;
+  /** The button while it's under way; "Saving…" unless given. */
+  submittingLabel?: string;
   isSubmitting: boolean;
   /** Why the last try failed, from the server. */
   error: string | null;
   onSubmit: (credentials: { name: string; password: string }) => void;
   /** Leave without signing in; omitted, there's no Skip. */
   onSkip?: () => void;
+  /** The way out's label; "Skip" unless given. */
+  skipLabel?: string;
 }
 
 /**
@@ -29,10 +33,12 @@ export interface EnterFormProps {
  */
 export const EnterForm = ({
   submitLabel,
+  submittingLabel = 'Saving…',
   isSubmitting,
   error,
   onSubmit,
   onSkip,
+  skipLabel = 'Skip',
 }: EnterFormProps) => {
   const id = useId();
   const [name, setName] = useState('');
@@ -91,11 +97,11 @@ export const EnterForm = ({
       )}
       <Buttons>
         <Button type="submit" $variant="quiet" aria-disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : submitLabel}
+          {isSubmitting ? submittingLabel : submitLabel}
         </Button>
         {onSkip && (
           <Button type="button" $variant="quiet" onClick={onSkip}>
-            Skip
+            {skipLabel}
           </Button>
         )}
       </Buttons>

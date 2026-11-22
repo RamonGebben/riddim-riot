@@ -12,13 +12,22 @@ const PLAYER = {
 
 const meta = {
   component: PlayerCard,
-  args: { kind: 'signedOut' },
+  args: { kind: 'signedOut', isEntering: false, error: null, onEnter: fn() },
 } satisfies Meta<typeof PlayerCard>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const SignedOut: Story = {};
+export const SignedOut: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.type(canvas.getByLabelText(/Name/), 'sublo');
+    await userEvent.type(canvas.getByLabelText(/Password/), 'correct horse');
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }));
+    await expect(
+      args.kind === 'signedOut' && args.onEnter,
+    ).toHaveBeenCalledWith({ name: 'SUBLO', password: 'correct horse' });
+  },
+};
 
 export const Loading: Story = { args: { kind: 'loading' } };
 

@@ -1,7 +1,14 @@
 import styled from 'styled-components';
 
-/** A quiet link in running UI: underlined, brightening on hover. */
+/**
+ * A quiet link in running UI: underlined, brightening on hover. As a
+ * `button` it looks the same, for an action that stays on the page.
+ */
 export const TextLink = styled.a`
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
   color: ${({ theme }) => theme.color('background', 'text')};
   font-size: ${({ theme }) => theme.fontSize('s')};
   text-decoration: underline;
