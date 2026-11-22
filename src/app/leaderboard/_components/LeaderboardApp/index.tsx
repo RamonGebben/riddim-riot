@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
   readFlashing,
@@ -16,6 +16,7 @@ import { ordinal } from '~/utils/ordinal';
 import { placePath, sharePlace, type ShareResult } from '~/utils/sharePlace';
 import { boardError } from '../../../_components/boardErrors';
 import { SavePendingRun } from '../../../_components/SavePendingRun';
+import { useAccount } from '../../../_components/useAccount';
 
 export interface LeaderboardAppProps {
   /** The board as the server rendered it; null when it couldn't. */
@@ -37,18 +38,11 @@ export const LeaderboardApp = ({
   shared,
 }: LeaderboardAppProps) => {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const board = useQuery({
     ...trpc.board.top.queryOptions(),
     initialData: initialBoard ?? undefined,
   });
-  const me = useQuery(trpc.account.me.queryOptions());
-  const signOut = useMutation(
-    trpc.account.signOut.mutationOptions({
-      onSuccess: () =>
-        queryClient.invalidateQueries(trpc.account.me.queryFilter()),
-    }),
-  );
+  const { me, signIn, signOut } = useAccount();
   const [share, setShare] = useState<ShareResult>('idle');
   const backdrop = useRef<HTMLDivElement>(null);
 
@@ -97,7 +91,7 @@ export const LeaderboardApp = ({
         onShare: () => void shareThis(shared),
       };
     if (me.isPending) return { kind: 'loading' };
-    if (!mine) return { kind: 'signedOut' };
+    if (!mine) return { kind: 'signedOut', ...signIn };
     return {
       kind: 'player',
       player: mine,
@@ -105,7 +99,7 @@ export const LeaderboardApp = ({
       bestRuns: mine.bestRuns,
       share,
       onShare: () => void shareThis(mine),
-      onSignOut: () => signOut.mutate(),
+      signOut,
     };
   })();
 

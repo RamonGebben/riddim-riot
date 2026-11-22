@@ -159,7 +159,11 @@ export interface World {
   recoil: Recoil;
 }
 
-const INVULNERABLE_SECONDS = 0.6;
+/**
+ * After a hit the player can't be hit again for this long: enemies move on
+ * the beat, so it's two or three steps to get clear of a crowd.
+ */
+export const INVULNERABLE_BEATS = 2;
 /** How close to the pad's centre counts as standing in the circle. */
 export const PAD_RADIUS = 48;
 export const PLAYER_MAX_HP = 5;
@@ -807,7 +811,7 @@ export const stepWorld = (
       hearts: looted.hearts.filter(heart => !healed.includes(heart)),
       pendingShots: world.pendingShots.filter(shot => shot.time > now),
       invulnerableUntil: playerHit
-        ? now + INVULNERABLE_SECONDS
+        ? now + INVULNERABLE_BEATS * beatSeconds
         : world.invulnerableUntil,
       dash,
       recoil: kicked.recoil,

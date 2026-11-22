@@ -16,7 +16,7 @@ export const Header = styled.header`
   }
 
   /* The call to action is a link here: centre it like the button. */
-  & a {
+  & > a {
     display: inline-flex;
     align-items: center;
     text-decoration: none;

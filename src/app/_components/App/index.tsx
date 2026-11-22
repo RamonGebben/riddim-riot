@@ -30,7 +30,7 @@ import {
 } from '~/templates/GameScreen';
 import { LevelCard } from '~/templates/LevelCard';
 import { useTRPC } from '~/providers/TrpcProvider';
-import { StartScreen } from '~/templates/StartScreen';
+import { StartScreen, type StartAccount } from '~/templates/StartScreen';
 import { readBest, saveBest } from '~/utils/bestScore';
 import { getLatencyHint } from '~/utils/getLatencyHint';
 import { getSeed } from '~/utils/getSeed';
@@ -38,6 +38,7 @@ import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
 import type { PendingRun } from '~/utils/pendingRun';
 import { RunBoard } from '../RunBoard';
 import { SavePendingRun } from '../SavePendingRun';
+import { useAccount } from '../useAccount';
 import { useKeptLoadout, type KeptStatus } from '../useKeptLoadout';
 
 type SessionStatus = 'idle' | 'starting' | 'playing';
@@ -88,7 +89,7 @@ type Audition = NonNullable<LoadoutMenuProps['preview']>;
 /** Under the loadout menu: where the loadout is kept, and the bag's fate. */
 const KEPT_NOTES = {
   guest:
-    'Your loadout is kept on this device. Sign in after a run to take it to any device.',
+    'Your loadout is kept on this device. Sign in to take it to any device.',
   saving: 'Saving your loadout to your account…',
   saved: 'Your loadout is kept on your account.',
   failed:
@@ -117,6 +118,7 @@ export const App = () => {
   const runCount = useRef(0);
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
   const kept = useKeptLoadout();
+  const { me, signIn, signOut } = useAccount();
   /** A fresh run on `seed`, opening with the kept loadout if there is one. */
   const freshRun = (seed: number) => newRun(seed, kept.recipes ?? undefined);
   // A level-1 run hasn't started yet (later levels are a run under way,
@@ -553,6 +555,12 @@ export const App = () => {
     );
   }
 
+  const account = ((): StartAccount => {
+    if (me.isPending) return { kind: 'loading' };
+    if (me.data) return { kind: 'signedIn', name: me.data.name, ...signOut };
+    return { kind: 'signedOut', ...signIn };
+  })();
+
   if (status === 'starting' && between) {
     return (
       <LevelCard level={run.level} levels={RUN_LEVELS} musicalKey={level.key} />
@@ -575,6 +583,7 @@ export const App = () => {
         step={startStep}
         error={startError}
         highScoresHref={HIGH_SCORES_HREF}
+        account={account}
         onStart={() => play(ready)}
       />
     </>

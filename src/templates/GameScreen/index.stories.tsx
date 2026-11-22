@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, waitFor } from 'storybook/test';
+import { expect, fn } from 'storybook/test';
 import { RunStanding } from '~/organisms/RunStanding';
 import { GameScreen, type MenuWeapon, type SongPart } from '.';
 
@@ -516,16 +516,12 @@ export const DiscardingWeakerLoot: Story = {
     },
   },
   play: async ({ args, canvas, userEvent }) => {
-    // Upgrades are marked on the card itself, no pick needed (once new
-    // loot has risen in: the staggered reveal outlasts waitFor's default
-    // second on a slow runner).
-    await waitFor(
-      () =>
-        expect(
-          canvas.getByRole('button', { name: /stronger than slot 2$/ }),
-        ).toBeVisible(),
-      { timeout: 3000 },
-    );
+    // Upgrades are marked on the card itself, no pick needed. Asked of the
+    // card, not its looks: new loot rises in from transparent, and a busy
+    // runner can stall that animation well past any wait.
+    await expect(
+      canvas.getByRole('button', { name: /stronger than slot 2$/ }),
+    ).toBeInTheDocument();
     await userEvent.click(
       canvas.getByRole('button', { name: 'Discard weaker (1)' }),
     );

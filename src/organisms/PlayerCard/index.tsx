@@ -2,6 +2,12 @@ import { Button } from '~/atoms/Button';
 import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { SHARE_ICON } from '~/game/icons';
+import {
+  EnterForm,
+  signOutLabel,
+  type SignInState,
+  type SignOutState,
+} from '~/organisms/EnterForm';
 import type { ShareState } from '~/organisms/RunStanding';
 import { ordinal } from '~/utils/ordinal';
 import { Actions } from './components/Actions';
@@ -27,7 +33,7 @@ export interface PlayerPlace {
 
 export type PlayerCardProps =
   | { kind: 'loading' }
-  | { kind: 'signedOut' }
+  | ({ kind: 'signedOut' } & SignInState)
   | {
       kind: 'player';
       player: PlayerPlace;
@@ -36,7 +42,7 @@ export type PlayerCardProps =
       bestRuns?: Array<BestRun>;
       share: ShareState;
       onShare: () => void;
-      onSignOut?: () => void;
+      signOut?: SignOutState;
     };
 
 const SHARE_LABELS = {
@@ -60,12 +66,19 @@ export const PlayerCard = (props: PlayerCardProps) => {
       <Card aria-labelledby="place-heading">
         <h2 id="place-heading">Your place</h2>
         <p>
-          Every run's points add up. Finish a run, save it with a name, and
-          you're on the board.
+          Every run's points add up. Sign in, or pick a name and a password, and
+          every run you finish goes on the board.
         </p>
+        <EnterForm
+          submitLabel="Sign in"
+          submittingLabel="Signing in…"
+          isSubmitting={props.isEntering}
+          error={props.error}
+          onSubmit={props.onEnter}
+        />
       </Card>
     );
-  const { player, isMe, bestRuns = [], share, onShare, onSignOut } = props;
+  const { player, isMe, bestRuns = [], share, onShare, signOut } = props;
   return (
     <Card aria-labelledby="place-heading">
       <h2 id="place-heading">{isMe ? 'Your place' : 'Shared place'}</h2>
@@ -97,9 +110,13 @@ export const PlayerCard = (props: PlayerCardProps) => {
                 : SHARE_LABELS[share]}
             </Button>
           )}
-          {onSignOut && (
-            <Button $variant="quiet" onClick={onSignOut}>
-              Sign out
+          {signOut && (
+            <Button
+              $variant="quiet"
+              onClick={signOut.onSignOut}
+              disabled={signOut.isSigningOut}
+            >
+              {signOutLabel(signOut)}
             </Button>
           )}
         </Actions>

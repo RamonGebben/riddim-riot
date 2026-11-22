@@ -5,7 +5,9 @@ export const TextInput = styled.input.attrs<{ type?: string }>(({ type }) => ({
 }))<{
   $invalid?: boolean;
 }>`
+  box-sizing: border-box;
   inline-size: 100%;
+  min-inline-size: 0;
   min-block-size: ${({ theme }) => theme.minTarget()};
   padding: 0 ${({ theme }) => theme.spacing('xs')};
   border: ${({ theme }) => theme.borderWidth('s')} solid

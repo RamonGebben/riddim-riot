@@ -2,6 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn } from 'storybook/test';
 import { LeaderboardScreen } from '.';
 
+const SIGNED_OUT = {
+  kind: 'signedOut',
+  isEntering: false,
+  error: null,
+  onEnter: fn(),
+} as const;
+
 const NAMES = [
   'WOBBLEKING',
   'RIDDIMRAT',
@@ -51,7 +58,7 @@ const meta = {
       ],
       share: 'idle',
       onShare: fn(),
-      onSignOut: fn(),
+      signOut: { isSigningOut: false, signOutFailed: false, onSignOut: fn() },
     },
   },
 } satisfies Meta<typeof LeaderboardScreen>;
@@ -69,7 +76,7 @@ export const SignedIn: Story = {
 };
 
 export const SignedOut: Story = {
-  args: { highlight: null, card: { kind: 'signedOut' } },
+  args: { highlight: null, card: SIGNED_OUT },
 };
 
 export const Loading: Story = {
@@ -77,5 +84,5 @@ export const Loading: Story = {
 };
 
 export const Empty: Story = {
-  args: { rows: [], ranked: 0, highlight: null, card: { kind: 'signedOut' } },
+  args: { rows: [], ranked: 0, highlight: null, card: SIGNED_OUT },
 };

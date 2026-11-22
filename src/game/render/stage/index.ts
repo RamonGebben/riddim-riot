@@ -89,7 +89,8 @@ export const createStage = async (
       app.ticker.add(ticker => update(ticker.deltaMS / 1000));
     },
     render: drawn => {
-      const frame = flashingReduced() ? calmFrame(drawn) : drawn;
+      const calm = flashingReduced();
+      const frame = calm ? calmFrame(drawn) : drawn;
       const { zoom, size } = view();
       const offset = add(
         scale(worldOffset(frame.camera, size), zoom),
@@ -105,7 +106,12 @@ export const createStage = async (
         player: frame.world.player,
       });
       enemies.update(frame.world.enemies, frame.now);
-      player.update({ ...frame, player: frame.world.player });
+      player.update({
+        ...frame,
+        player: frame.world.player,
+        invulnerableUntil: frame.world.invulnerableUntil,
+        calm,
+      });
       fx.update({
         ...frame,
         projectiles: frame.world.projectiles,

@@ -1,9 +1,7 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { RunStanding, type Standing } from '~/organisms/RunStanding';
-import { useTRPC } from '~/providers/TrpcProvider';
 import { ordinal } from '~/utils/ordinal';
 import {
   dropPendingRun,
@@ -12,6 +10,7 @@ import {
 } from '~/utils/pendingRun';
 import { placePath, sharePlace, type ShareResult } from '~/utils/sharePlace';
 import { boardError, isRefusal } from '../boardErrors';
+import { useAccount } from '../useAccount';
 import { useSaveRun } from '../useSaveRun';
 
 export interface RunBoardProps {
@@ -26,21 +25,11 @@ const BOARD_HREF = '/leaderboard';
  * signed in, or after a name and password when you're not.
  */
 export const RunBoard = ({ run }: RunBoardProps) => {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const me = useQuery(trpc.account.me.queryOptions());
+  const { me, signIn } = useAccount();
   const [skipped, setSkipped] = useState(false);
   const [share, setShare] = useState<ShareResult>('idle');
 
   const submit = useSaveRun(run);
-  const enter = useMutation(
-    trpc.account.enter.mutationOptions({
-      onSuccess: () => {
-        if (run) submit.mutate(run);
-        void queryClient.invalidateQueries(trpc.account.me.queryFilter());
-      },
-    }),
-  );
 
   // Held on the device until it's saved or skipped, so a lost connection
   // or a closed tab doesn't lose it.
@@ -105,9 +94,10 @@ export const RunBoard = ({ run }: RunBoardProps) => {
     return {
       kind: 'signedOut',
       score: run.score,
-      isSubmitting: enter.isPending,
-      error: enter.error ? boardError(enter.error) : null,
-      onEnter: credentials => enter.mutate(credentials),
+      // Signed in, useSaveRun sends the run by itself.
+      isSubmitting: signIn.isEntering,
+      error: signIn.error,
+      onEnter: signIn.onEnter,
       onSkip: skip,
     };
   })();
