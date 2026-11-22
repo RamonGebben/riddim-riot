@@ -1,5 +1,6 @@
 import type { Vec } from '../../vec';
 import { isMoveKey, moveVector } from '../moveVector';
+import { isTyping } from '../typing';
 
 export interface Controls {
   /** The left stick: WASD or the arrows. */
@@ -21,6 +22,7 @@ export const attachControls = (element: HTMLElement): Controls => {
 
   let dash = false;
   const onKeyDown = (event: KeyboardEvent) => {
+    if (isTyping(event)) return;
     if (event.code === 'Space') {
       // Not a page scroll, nor a click on the focused slot button.
       event.preventDefault();
