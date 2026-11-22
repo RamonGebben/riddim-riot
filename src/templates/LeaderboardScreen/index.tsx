@@ -7,8 +7,10 @@ import { Backdrop } from './components/Backdrop';
 import { BoardPanel } from './components/BoardPanel';
 import { Columns } from './components/Columns';
 import { Header } from './components/Header';
+import { HomeLink } from './components/HomeLink';
 import { Page } from './components/Page';
 import { Shade } from './components/Shade';
+import { Titles } from './components/Titles';
 
 export interface LeaderboardScreenProps {
   rows: Array<BoardRow>;
@@ -19,6 +21,7 @@ export interface LeaderboardScreenProps {
   /** The name to light up: yours, or the shared one. */
   highlight: string | null;
   card: PlayerCardProps;
+  /** The start page: home, and where a run starts. */
   playHref: string;
   /** Where the live level is drawn behind the page. */
   backdropRef?: Ref<HTMLDivElement>;
@@ -42,7 +45,10 @@ export const LeaderboardScreen = ({
       <Shade aria-hidden />
       <Page>
         <Header>
-          <h1>High scores</h1>
+          <Titles>
+            <HomeLink href={playHref}>← Bass Weapons</HomeLink>
+            <h1>High scores</h1>
+          </Titles>
           <Button as="a" href={playHref}>
             Drop in
           </Button>
