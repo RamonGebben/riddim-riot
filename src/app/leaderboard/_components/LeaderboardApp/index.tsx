@@ -42,7 +42,7 @@ export const LeaderboardApp = ({
     ...trpc.board.top.queryOptions(),
     initialData: initialBoard ?? undefined,
   });
-  const { me, enter, signOut } = useAccount();
+  const { me, signIn, signOut } = useAccount();
   const [share, setShare] = useState<ShareResult>('idle');
   const backdrop = useRef<HTMLDivElement>(null);
 
@@ -91,13 +91,7 @@ export const LeaderboardApp = ({
         onShare: () => void shareThis(shared),
       };
     if (me.isPending) return { kind: 'loading' };
-    if (!mine)
-      return {
-        kind: 'signedOut',
-        isEntering: enter.isPending,
-        error: enter.error ? boardError(enter.error) : null,
-        onEnter: credentials => enter.mutate(credentials),
-      };
+    if (!mine) return { kind: 'signedOut', ...signIn };
     return {
       kind: 'player',
       player: mine,
@@ -105,7 +99,7 @@ export const LeaderboardApp = ({
       bestRuns: mine.bestRuns,
       share,
       onShare: () => void shareThis(mine),
-      onSignOut: () => signOut.mutate(),
+      signOut,
     };
   })();
 

@@ -25,7 +25,7 @@ const BOARD_HREF = '/leaderboard';
  * signed in, or after a name and password when you're not.
  */
 export const RunBoard = ({ run }: RunBoardProps) => {
-  const { me, enter } = useAccount();
+  const { me, signIn } = useAccount();
   const [skipped, setSkipped] = useState(false);
   const [share, setShare] = useState<ShareResult>('idle');
 
@@ -94,10 +94,10 @@ export const RunBoard = ({ run }: RunBoardProps) => {
     return {
       kind: 'signedOut',
       score: run.score,
-      isSubmitting: enter.isPending,
-      error: enter.error ? boardError(enter.error) : null,
-      onEnter: credentials =>
-        enter.mutate(credentials, { onSuccess: () => submit.mutate(run) }),
+      // Signed in, useSaveRun sends the run by itself.
+      isSubmitting: signIn.isEntering,
+      error: signIn.error,
+      onEnter: signIn.onEnter,
       onSkip: skip,
     };
   })();

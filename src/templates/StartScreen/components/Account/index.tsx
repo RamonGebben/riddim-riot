@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { TextLink } from '~/atoms/TextLink';
-import { EnterForm } from '~/organisms/EnterForm';
+import {
+  EnterForm,
+  signOutLabel,
+  type SignInState,
+  type SignOutState,
+} from '~/organisms/EnterForm';
 import { SignIn } from '../SignIn';
 
 export type StartAccount =
   | { kind: 'loading' }
-  | {
-      kind: 'signedOut';
-      isEntering: boolean;
-      /** Why the last try failed, from the server. */
-      error: string | null;
-      onEnter: (credentials: { name: string; password: string }) => void;
-    }
-  | { kind: 'signedIn'; name: string; onSignOut: () => void };
+  | ({ kind: 'signedOut' } & SignInState)
+  | ({ kind: 'signedIn'; name: string } & SignOutState);
 
 /**
  * Who's playing. Signed out, a link opens the sign-in form (it goes once
@@ -25,8 +24,13 @@ export const Account = ({ account }: { account: StartAccount }) => {
     return (
       <p>
         Playing as <strong>{account.name}</strong> ·{' '}
-        <TextLink as="button" type="button" onClick={account.onSignOut}>
-          Sign out
+        <TextLink
+          as="button"
+          type="button"
+          onClick={account.onSignOut}
+          disabled={account.isSigningOut}
+        >
+          {signOutLabel(account)}
         </TextLink>
       </p>
     );

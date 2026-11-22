@@ -58,7 +58,7 @@ const meta = {
       ],
       share: 'idle',
       onShare: fn(),
-      onSignOut: fn(),
+      signOut: { isSigningOut: false, signOutFailed: false, onSignOut: fn() },
     },
   },
 } satisfies Meta<typeof LeaderboardScreen>;

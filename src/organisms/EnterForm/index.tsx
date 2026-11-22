@@ -27,6 +27,27 @@ export interface EnterFormProps {
   skipLabel?: string;
 }
 
+/** Signing in, as a screen showing this form gets it. */
+export interface SignInState {
+  isEntering: boolean;
+  /** Why the last try failed, from the server. */
+  error: string | null;
+  onEnter: (credentials: { name: string; password: string }) => void;
+}
+
+/** Signing out, as a screen offering it gets it. */
+export interface SignOutState {
+  isSigningOut: boolean;
+  /** The last try didn't go through (offline, say); they're still in. */
+  signOutFailed: boolean;
+  onSignOut: () => void;
+}
+
+export const signOutLabel = ({ isSigningOut, signOutFailed }: SignOutState) => {
+  if (isSigningOut) return 'Signing out…';
+  return signOutFailed ? "Couldn't sign out, try again" : 'Sign out';
+};
+
 /**
  * One form for a new name and a returning one: a free name is claimed
  * with the password, a taken one signs in with it.

@@ -36,7 +36,6 @@ import { getLatencyHint } from '~/utils/getLatencyHint';
 import { getSeed } from '~/utils/getSeed';
 import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
 import type { PendingRun } from '~/utils/pendingRun';
-import { boardError } from '../boardErrors';
 import { RunBoard } from '../RunBoard';
 import { SavePendingRun } from '../SavePendingRun';
 import { useAccount } from '../useAccount';
@@ -119,7 +118,7 @@ export const App = () => {
   const runCount = useRef(0);
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
   const kept = useKeptLoadout();
-  const { me, enter, signOut } = useAccount();
+  const { me, signIn, signOut } = useAccount();
   /** A fresh run on `seed`, opening with the kept loadout if there is one. */
   const freshRun = (seed: number) => newRun(seed, kept.recipes ?? undefined);
   // A level-1 run hasn't started yet (later levels are a run under way,
@@ -558,18 +557,8 @@ export const App = () => {
 
   const account = ((): StartAccount => {
     if (me.isPending) return { kind: 'loading' };
-    if (me.data)
-      return {
-        kind: 'signedIn',
-        name: me.data.name,
-        onSignOut: () => signOut.mutate(),
-      };
-    return {
-      kind: 'signedOut',
-      isEntering: enter.isPending,
-      error: enter.error ? boardError(enter.error) : null,
-      onEnter: credentials => enter.mutate(credentials),
-    };
+    if (me.data) return { kind: 'signedIn', name: me.data.name, ...signOut };
+    return { kind: 'signedOut', ...signIn };
   })();
 
   if (status === 'starting' && between) {

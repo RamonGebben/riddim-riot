@@ -43,7 +43,7 @@ export const Yours: Story = {
     ],
     share: 'idle',
     onShare: fn(),
-    onSignOut: fn(),
+    signOut: { isSigningOut: false, signOutFailed: false, onSignOut: fn() },
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('2ND')).toBeVisible();
@@ -70,6 +70,6 @@ export const NoPointsYet: Story = {
     isMe: true,
     share: 'idle',
     onShare: fn(),
-    onSignOut: fn(),
+    signOut: { isSigningOut: false, signOutFailed: false, onSignOut: fn() },
   },
 };

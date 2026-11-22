@@ -154,12 +154,37 @@ export const SignInBeforeARun: Story = {
 };
 
 export const SignedIn: Story = {
-  args: { account: { kind: 'signedIn', name: 'RIDDIMRAT', onSignOut: fn() } },
+  args: {
+    account: {
+      kind: 'signedIn',
+      name: 'RIDDIMRAT',
+      isSigningOut: false,
+      signOutFailed: false,
+      onSignOut: fn(),
+    },
+  },
   play: async ({ args, canvas, userEvent }) => {
     await expect(canvas.getByText('RIDDIMRAT')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Sign out' }));
     await expect(
       args.account.kind === 'signedIn' && args.account.onSignOut,
     ).toHaveBeenCalled();
+  },
+};
+
+export const SignOutFailed: Story = {
+  args: {
+    account: {
+      kind: 'signedIn',
+      name: 'RIDDIMRAT',
+      isSigningOut: false,
+      signOutFailed: true,
+      onSignOut: fn(),
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole('button', { name: "Couldn't sign out, try again" }),
+    ).toBeEnabled();
   },
 };

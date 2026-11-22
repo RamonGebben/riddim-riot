@@ -2,7 +2,12 @@ import { Button } from '~/atoms/Button';
 import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { SHARE_ICON } from '~/game/icons';
-import { EnterForm } from '~/organisms/EnterForm';
+import {
+  EnterForm,
+  signOutLabel,
+  type SignInState,
+  type SignOutState,
+} from '~/organisms/EnterForm';
 import type { ShareState } from '~/organisms/RunStanding';
 import { ordinal } from '~/utils/ordinal';
 import { Actions } from './components/Actions';
@@ -28,13 +33,7 @@ export interface PlayerPlace {
 
 export type PlayerCardProps =
   | { kind: 'loading' }
-  | {
-      kind: 'signedOut';
-      isEntering: boolean;
-      /** Why the last try failed, from the server. */
-      error: string | null;
-      onEnter: (credentials: { name: string; password: string }) => void;
-    }
+  | ({ kind: 'signedOut' } & SignInState)
   | {
       kind: 'player';
       player: PlayerPlace;
@@ -43,7 +42,7 @@ export type PlayerCardProps =
       bestRuns?: Array<BestRun>;
       share: ShareState;
       onShare: () => void;
-      onSignOut?: () => void;
+      signOut?: SignOutState;
     };
 
 const SHARE_LABELS = {
@@ -79,7 +78,7 @@ export const PlayerCard = (props: PlayerCardProps) => {
         />
       </Card>
     );
-  const { player, isMe, bestRuns = [], share, onShare, onSignOut } = props;
+  const { player, isMe, bestRuns = [], share, onShare, signOut } = props;
   return (
     <Card aria-labelledby="place-heading">
       <h2 id="place-heading">{isMe ? 'Your place' : 'Shared place'}</h2>
@@ -111,9 +110,13 @@ export const PlayerCard = (props: PlayerCardProps) => {
                 : SHARE_LABELS[share]}
             </Button>
           )}
-          {onSignOut && (
-            <Button $variant="quiet" onClick={onSignOut}>
-              Sign out
+          {signOut && (
+            <Button
+              $variant="quiet"
+              onClick={signOut.onSignOut}
+              disabled={signOut.isSigningOut}
+            >
+              {signOutLabel(signOut)}
             </Button>
           )}
         </Actions>

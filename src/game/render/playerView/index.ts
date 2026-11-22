@@ -21,7 +21,7 @@ const SQUASH = 0.18;
 const RECOIL = 5;
 /** How far down a blink fades the player. */
 const BLINK_ALPHA = 0.35;
-/** Blinks a bar: one an eighth note, on the music's grid. */
+/** Blinks a bar: one an eighth note long, counted from the hit. */
 const BLINKS_PER_BAR = 8;
 
 /** The player's opacity: full, or blinking while hits can't land. */

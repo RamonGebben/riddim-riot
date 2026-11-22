@@ -46,7 +46,9 @@ export const LeaderboardScreen = ({
       <Page>
         <Header>
           <Titles>
-            <HomeLink href={playHref}>← Bass Weapons</HomeLink>
+            <HomeLink href={playHref}>
+              <span aria-hidden>← </span>Bass Weapons
+            </HomeLink>
             <h1>High scores</h1>
           </Titles>
           <Button as="a" href={playHref}>
