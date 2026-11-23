@@ -96,7 +96,19 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   ).toBeVisible();
 
   await menu.getByRole('button', { name: /^Slot 1:/ }).click();
-  await menu.getByRole('button', { name: 'Move to slot 3' }).click();
+  // The pick smooth-scrolls the comparison into view, and a click while it
+  // slides can miss: wait for the button to settle first.
+  const move = menu.getByRole('button', { name: 'Move to slot 3' });
+  let lastY: number | undefined;
+  await expect
+    .poll(async () => {
+      const y = (await move.boundingBox())?.y;
+      const settled = y !== undefined && y === lastY;
+      lastY = y;
+      return settled;
+    })
+    .toBe(true);
+  await move.click();
   await expect(
     menu.getByRole('button', { name: `Slot 3: ${firstName}` }),
   ).toBeVisible();
