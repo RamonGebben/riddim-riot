@@ -157,7 +157,12 @@ the pause and end screens, to share.
 
 `startGame({ run })` plays one level. It opens quiet: only the pad bed
 plays (no drums) and weapons fire on its pulse, until the player steps
-into the circle. When the player takes the exit, the HUD
+into the circle. On a first play, a card walks through the controls
+while the circle waits (`GameScreen`'s `Tutorial`): nothing to press, each
+step ticks off when the player does what it says (moving, a shot, a dash,
+a switch, the loadout opened, a pause) and the next comes up, ending on
+"Now step into the circle to start your run". Once the circle starts a run
+it's saved as seen (`utils/tutorialSeen`) and never shows again. When the player takes the exit, the HUD
 goes to `cleared`, and **Next level** calls `play(game.nextRun())`, which
 stops this game and starts the next. Death offers **Try again** (same run
 seed, level 1) or **New run** (fresh seed). React only re-renders on HUD
@@ -501,8 +506,8 @@ its engine, beat, blast and FX, fading in as the player nears.
 ### Rendering
 
 Pixi v8 on WebGL: a static level view with the circle (breathing and
-rippling while it waits, filling over the charge, dim during the song,
-open as the exit), pooled pickup sprites (weapons and hearts) and enemy
+rippling while it waits, ringed by a slowly turning START, filling over the
+charge, dim during the song, open as the exit and ringed by EXIT), pooled pickup sprites (weapons and hearts) and enemy
 sprites (hopper diamonds, charger wedges with a dash tell, the big boss, and
 a spawn marker before each appears), a
 per-frame fx layer (projectiles, kill bursts), and one fullscreen filter

@@ -72,6 +72,7 @@ const meta = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 3,
       bagSize: 24,
     },
@@ -153,6 +154,7 @@ export const RunEnded: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -254,6 +256,7 @@ export const LevelCleared: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -655,6 +658,7 @@ export const AtTheCircle: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -664,6 +668,19 @@ export const AtTheCircle: Story = {
       'Step into the circle to start',
     );
     await expect(canvas.getByText(/mouse aim and fire/)).toBeVisible();
+  },
+};
+
+export const ControlsAtTheCircle: Story = {
+  args: { ...AtTheCircle.args, tutorial: true },
+  play: async ({ canvas }) => {
+    const card = canvas.getByRole('region', { name: 'Move' });
+    await expect(card).toHaveTextContent('1/7');
+    await expect(card).toHaveTextContent(/WASD/);
+    // Nothing to press: clicks go through to the game behind it.
+    await expect(card).toHaveStyle({ pointerEvents: 'none' });
+    // The walkthrough ends on the circle's prompt, so it stands in for it.
+    await expect(canvas.queryByRole('status')).not.toBeInTheDocument();
   },
 };
 
@@ -706,6 +723,7 @@ export const BonusHeartsAndBoss: Story = {
       boss: 0.4,
       dashCooldown: 0.86,
       dashKey: 12,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -742,6 +760,7 @@ export const RunWon: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -775,6 +794,7 @@ export const ExitOpen: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },

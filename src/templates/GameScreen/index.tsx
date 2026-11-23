@@ -23,6 +23,7 @@ import { RotateNotice } from './components/RotateNotice';
 import { Score } from './components/Score';
 import { SongTrack } from './components/SongTrack';
 import { Surface } from './components/Surface';
+import { Tutorial } from './components/Tutorial';
 import type { LevelPhase, SongPart } from './types';
 
 export type { LevelPhase, SongPart, WeaponFace } from './types';
@@ -63,6 +64,8 @@ export interface RunProps {
   dashCooldown: number | null;
   /** Changes with every dash. */
   dashKey: number;
+  /** On the move: the walkthrough's first step. */
+  moving: boolean;
 }
 
 export interface GameScreenProps {
@@ -84,6 +87,8 @@ export interface GameScreenProps {
   menu?: LoadoutMenuProps | null;
   /** The browser is holding the sound back, so the game waits for it. */
   soundBlocked: boolean;
+  /** Walk the player through the controls while the circle waits: a first run. */
+  tutorial?: boolean;
   /** The element the game attaches its input and canvas to. */
   surfaceRef?: Ref<HTMLElement>;
   onStop: () => void;
@@ -170,6 +175,7 @@ export const GameScreen = ({
   paused,
   menu = null,
   soundBlocked,
+  tutorial = false,
   surfaceRef,
   onStop,
   onPause,
@@ -196,8 +202,11 @@ export const GameScreen = ({
     onClick: () =>
       void onCopySeed().then(copied => setCopy(copied ? 'copied' : 'failed')),
   };
-  const prompt = CIRCLE_PROMPTS[run.phase];
   const playing = run.status === 'playing' && !paused && !menu;
+  const walkthrough =
+    tutorial && run.status === 'playing' && run.phase === 'waiting';
+  // The walkthrough ends on the circle's prompt, so it stands in for it.
+  const prompt = walkthrough ? null : CIRCLE_PROMPTS[run.phase];
   const won = run.status === 'cleared' && run.level >= run.levels;
   const weapons = `${run.bag} ${run.bag === 1 ? 'weapon' : 'weapons'}`;
   /** The end of a run: keep the best loot before the next run empties the bag. */
@@ -246,7 +255,7 @@ export const GameScreen = ({
     <>
       <LockPage />
       <Surface ref={surfaceRef} aria-label="Play area">
-        {run.phase === 'waiting' && (
+        {run.phase === 'waiting' && !walkthrough && (
           <Hint>
             <PointerOnly $pointer="mouse">
               WASD move · mouse aim and fire · Space dash · 1-3, Q/E or wheel
@@ -260,6 +269,19 @@ export const GameScreen = ({
         )}
       </Surface>
       {prompt && playing && <Prompt>{prompt}</Prompt>}
+      {walkthrough && (
+        <Tutorial
+          signals={{
+            moving: run.moving,
+            dashKey: run.dashKey,
+            active: loadout.active,
+            ammo: loadout.slots[loadout.active]?.ammo ?? 0,
+            menuOpen: Boolean(menu),
+            paused,
+          }}
+          hidden={!playing}
+        />
+      )}
       <Loadout
         {...loadout}
         paused={!playing}

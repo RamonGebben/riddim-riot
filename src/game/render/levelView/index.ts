@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import { isWall, TILE_SIZE, type Level } from '../../level';
 import type { Palette } from '../../palette';
 import type { Vec } from '../../vec';
@@ -17,10 +17,48 @@ export interface LevelView {
 }
 
 const RING = PAD_RADIUS + 10;
+/** The word round the circle sits just outside its ring. */
+const LABEL_RADIUS = RING + 32;
+/** Radians a second: slow enough to read as it turns. */
+const LABEL_SPIN = 0.3;
+
+/**
+ * A word repeated round the circle, letters set on the arc with their tops
+ * outward, so whichever side the player comes from it says what the
+ * circle does.
+ */
+const createRingLabel = (word: string, repeats: number, color: number) => {
+  const letters = Array.from({ length: repeats }, () => `${word} · `)
+    .join('')
+    .split('');
+  const label = new Container();
+  letters.forEach((letter, i) => {
+    const angle = -Math.PI / 2 + (i / letters.length) * Math.PI * 2;
+    const text = new Text({
+      text: letter,
+      resolution: 2,
+      style: {
+        fontFamily: 'ui-monospace, Menlo, monospace',
+        fontSize: 26,
+        fontWeight: '800',
+        fill: color,
+      },
+    });
+    text.anchor.set(0.5);
+    text.position.set(
+      Math.cos(angle) * LABEL_RADIUS,
+      Math.sin(angle) * LABEL_RADIUS,
+    );
+    text.rotation = angle + Math.PI / 2;
+    label.addChild(text);
+  });
+  return label;
+};
 
 /**
  * The tilemap, drawn once: floor with a faint grid, walls with a bright edge
- * wherever they meet floor, and the circle at the centre.
+ * wherever they meet floor, and the circle at the centre, ringed by START
+ * while it waits and EXIT once it opens.
  */
 export const createLevelView = (level: Level, palette: Palette): LevelView => {
   const { map } = level;
@@ -68,13 +106,25 @@ export const createLevelView = (level: Level, palette: Palette): LevelView => {
   ground.stroke({ width: 3, color: palette.accent, alpha: 0.55 });
 
   const circle = new Graphics();
+  const start = createRingLabel('START', 3, palette.player);
+  const exit = createRingLabel('EXIT', 4, palette.accent);
+  [start, exit].forEach(label => label.position.set(level.pad.x, level.pad.y));
 
   const view = new Container();
-  view.addChild(ground, circle);
+  view.addChild(ground, circle, start, exit);
 
   return {
     view,
-    update: state => drawCircle(circle, palette, level.pad, state),
+    update: state => {
+      drawCircle(circle, palette, level.pad, state);
+      const { phase } = state.survival;
+      start.visible = phase === 'waiting';
+      exit.visible = phase === 'clear';
+      [start, exit].forEach(label => {
+        label.rotation = state.now * LABEL_SPIN;
+        label.alpha = 0.75 + state.beat * 0.25;
+      });
+    },
   };
 };
 

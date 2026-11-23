@@ -30,7 +30,16 @@ describe('hudOf', () => {
       bagSize: BAG_SIZE,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
     });
+  });
+
+  it('tells walking from easing to a stop', () => {
+    const world = createWorld(generateLevel(1));
+    const at = (x: number) =>
+      hudOf({ ...world, player: { ...world.player, velocity: { x, y: 0 } } });
+    expect(at(420).moving).toBe(true);
+    expect(at(20).moving).toBe(false);
   });
 
   it('names the song part and counts it down, beat by beat', () => {

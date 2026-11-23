@@ -35,6 +35,7 @@ import { readBest, saveBest } from '~/utils/bestScore';
 import { getLatencyHint } from '~/utils/getLatencyHint';
 import { getSeed } from '~/utils/getSeed';
 import { goLandscape, TOUCH_SCREEN } from '~/utils/landscape';
+import { readTutorialSeen, saveTutorialSeen } from '~/utils/tutorialSeen';
 import type { PendingRun } from '~/utils/pendingRun';
 import { RunBoard } from '../RunBoard';
 import { SavePendingRun } from '../SavePendingRun';
@@ -164,6 +165,7 @@ export const App = () => {
   const [startError, setStartError] = useState<string | null>(null);
   /** The best score before this run, so the end can say if it beat it. */
   const [best, setBest] = useState(() => readBest());
+  const [tutorialSeen, setTutorialSeen] = useState(() => readTutorialSeen());
   /** Starting the next level of a run, not a fresh one: show its card. */
   const [between, setBetween] = useState(false);
   // Bumped on every (re)start, so the stage re-attaches to the new game.
@@ -234,6 +236,15 @@ export const App = () => {
   }, [status, session]);
 
   const fighting = status === 'playing' && hud?.status === 'playing';
+
+  // The walkthrough is for a first play only: once the circle has started
+  // a run, it's done with, however far through it the player got.
+  const started = hud !== null && hud.phase !== 'waiting';
+  useEffect(() => {
+    if (!started || tutorialSeen) return;
+    saveTutorialSeen();
+    setTutorialSeen(true);
+  }, [started, tutorialSeen]);
   const won =
     status === 'playing' &&
     hud?.status === 'cleared' &&
@@ -542,6 +553,7 @@ export const App = () => {
         onPause={pause}
         onResume={resume}
         soundBlocked={soundBlocked}
+        tutorial={!tutorialSeen && run.level === 1}
         onRetrySound={() => game.current?.retrySound()}
         onRetry={() => play(freshRun(run.seed))}
         onNewRun={() => play(freshRun(randomSeed()))}

@@ -44,6 +44,15 @@ export const SaysWhatIsWrong: Story = {
   },
 };
 
+export const StopsAtTheLimit: Story = {
+  play: async ({ canvas, userEvent }) => {
+    const name = canvas.getByLabelText(/Name/);
+    await userEvent.type(name, 'wobblekingdom!');
+    // The box holds what the board takes: no typing past it to a refusal.
+    await expect(name).toHaveValue('wobblekingdo');
+  },
+};
+
 export const OffensiveName: Story = {
   play: async ({ args, canvas, userEvent }) => {
     await userEvent.type(canvas.getByLabelText(/Name/), 'sh1t head');
