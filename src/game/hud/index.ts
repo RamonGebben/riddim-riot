@@ -135,7 +135,11 @@ export const hudOf = (
         ? world.dash.readyAt - (world.dash.until - DASH.seconds)
         : null,
     dashKey: world.dash.readyAt,
-    moving: length(world.player.velocity) > MOVING_SPEED,
+    // Only the circle's walkthrough reads it: off the fight, so walking
+    // and stopping there doesn't re-render the HUD.
+    moving:
+      world.survival.phase === 'waiting' &&
+      length(world.player.velocity) > MOVING_SPEED,
   };
 };
 

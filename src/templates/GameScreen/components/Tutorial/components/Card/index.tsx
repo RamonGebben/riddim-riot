@@ -33,6 +33,11 @@ export const Card = styled.section<{ $done: boolean }>`
   transition: outline-color 0.15s;
   pointer-events: none;
 
+  /* The grid display would otherwise override the hidden attribute. */
+  &[hidden] {
+    display: none;
+  }
+
   & h2 {
     margin: 0;
     font-family: ${({ theme }) => theme.fontFamily('heading')};

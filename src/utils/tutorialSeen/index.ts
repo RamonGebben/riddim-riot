@@ -11,7 +11,7 @@ const local = (): Store | null => {
   }
 };
 
-/** Has this device been walked through the controls (or skipped them)? */
+/** Has this device started a run from the circle, walkthrough and all? */
 export const readTutorialSeen = (store: Store | null = local()): boolean => {
   try {
     return store?.getItem(KEY) === 'true';

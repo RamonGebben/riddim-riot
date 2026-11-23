@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PointerOnly } from '../PointerOnly';
 import { Body } from './components/Body';
 import { Card } from './components/Card';
@@ -56,8 +56,12 @@ export const TUTORIAL_STEPS: Array<Step> = [
         and a tap right on it hits harder.
       </>
     ),
+    // Not a swap in the menu or a switch, which change the rounds shown too.
     done: (now, before) =>
-      now.active === before.active && now.ammo < before.ammo,
+      !now.menuOpen &&
+      !before.menuOpen &&
+      now.active === before.active &&
+      now.ammo < before.ammo,
   },
   {
     heading: 'Dash',
@@ -151,6 +155,7 @@ export const Tutorial = ({ signals, hidden = false }: TutorialProps) => {
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const before = useRef(signals);
+  const headingId = useId();
 
   useEffect(() => {
     const previous = before.current;
@@ -172,13 +177,13 @@ export const Tutorial = ({ signals, hidden = false }: TutorialProps) => {
   const { heading, mouse, touch } = TUTORIAL_STEPS[step];
   return (
     <Card
-      aria-labelledby="tutorial-heading"
+      aria-labelledby={headingId}
       aria-live="polite"
       hidden={hidden}
       $done={done}
     >
       <Header>
-        <h2 id="tutorial-heading">{heading}</h2>
+        <h2 id={headingId}>{heading}</h2>
         <Steps $done={done}>
           {done ? (
             <span role="img" aria-label="Done">
