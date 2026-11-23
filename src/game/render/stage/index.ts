@@ -109,6 +109,7 @@ export const createStage = async (
       enemies.update(frame.world.enemies, frame.now, {
         fleeingUntil: frame.world.powered.pellet,
         beatSeconds: frame.barSeconds / 4,
+        calm,
       });
       player.update({
         ...frame,

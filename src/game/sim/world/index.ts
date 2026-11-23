@@ -94,6 +94,8 @@ export interface PendingShot {
   spec: ProjectileSpec;
   /** Radians off the aim. */
   angle: number;
+  /** A chord's side shot: it takes the aimed shot's kick and adds no heat. */
+  side?: boolean;
 }
 
 /** How a level plays: its waves and how hard they hit. */
@@ -753,21 +755,23 @@ export const stepWorld = (
   const kicked = due
     .filter(shot => !isBeam(shot))
     .toSorted((a, b) => a.time - b.time)
-    .reduce<{ recoil: Recoil; fired: Array<Projectile> }>(
+    .reduce<{ recoil: Recoil; kick: number; fired: Array<Projectile> }>(
       (acc, shot) => {
-        const kick = kickRecoil(acc.recoil, {
-          time: shot.time,
-          seed: world.level.seed,
-        });
+        // A chord's side shots fly with the shot they flank (sorted after
+        // it), so a chord heats the gun no more than the one shot would.
+        const kick = shot.side
+          ? { recoil: acc.recoil, angle: acc.kick }
+          : kickRecoil(acc.recoil, { time: shot.time, seed: world.level.seed });
         return {
           recoil: kick.recoil,
+          kick: kick.angle,
           fired: [
             ...acc.fired,
             fireProjectile(player, { ...shot, angle: shot.angle + kick.angle }),
           ],
         };
       },
-      { recoil: world.recoil, fired: [] },
+      { recoil: world.recoil, kick: 0, fired: [] },
     );
   const { fired } = kicked;
   const firedBeams = due

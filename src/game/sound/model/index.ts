@@ -236,7 +236,6 @@ export interface BlastPatch {
   noiseLevel: number;
 }
 
-/** Points landing: a pluck that climbs the scale as the combo grows. */
 /** The chord powerup: the third and fifth rung over every shot. */
 export interface ChordPatch {
   level: number;
@@ -246,6 +245,7 @@ export interface ChordPatch {
   brightnessHz: number;
 }
 
+/** Points landing: a pluck that climbs the scale as the combo grows. */
 export interface ScorePatch {
   level: number;
   waveform: 'sine' | 'triangle' | 'square' | 'sawtooth';

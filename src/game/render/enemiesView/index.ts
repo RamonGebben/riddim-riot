@@ -17,8 +17,11 @@ export interface EnemiesView {
   update: (
     enemies: Array<Enemy>,
     now: number,
-    /** A pellet running until `fleeingUntil` turns them all (bar the boss). */
-    pellet: { fleeingUntil: number; beatSeconds: number },
+    /**
+     * A pellet running until `fleeingUntil` turns them all (bar the boss);
+     * `calm` (reduced flashing) holds them blue instead of blinking.
+     */
+    pellet: { fleeingUntil: number; beatSeconds: number; calm: boolean },
   ) => void;
 }
 
@@ -141,13 +144,13 @@ export const createEnemiesView = (palette: Palette): EnemiesView => {
 
   return {
     view,
-    update: (enemies, now, { fleeingUntil, beatSeconds }) => {
+    update: (enemies, now, { fleeingUntil, beatSeconds, calm }) => {
       const fleeing = now < fleeingUntil;
       // The last beats blink on the 1/8: they're about to turn back.
       const warning = fleeingUntil - now < PELLET_WARNING_BEATS * beatSeconds;
       const eighth = Math.floor((now / beatSeconds) * 2) % 2 === 0;
       // Blue while they run, flashing back on the 1/8 at the end.
-      const scaredNow = fleeing && !(warning && eighth);
+      const scaredNow = fleeing && (calm || !(warning && eighth));
       const alive = new Set(enemies.map(enemy => enemy.id));
       [...sprites.entries()]
         .filter(([id]) => !alive.has(id))

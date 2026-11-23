@@ -101,6 +101,6 @@ export const attractPowerups = (
 /** A chord's shot: the one aimed, and one either side of it. */
 export const chordShots = (shot: PendingShot): Array<PendingShot> => [
   shot,
-  { ...shot, angle: shot.angle - CHORD_SPREAD },
-  { ...shot, angle: shot.angle + CHORD_SPREAD },
+  { ...shot, angle: shot.angle - CHORD_SPREAD, side: true },
+  { ...shot, angle: shot.angle + CHORD_SPREAD, side: true },
 ];

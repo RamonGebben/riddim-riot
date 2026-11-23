@@ -723,4 +723,16 @@ describe('powerups', () => {
       queueShot(powered(createWorld(level), 'chord'), shot(100)).pendingShots,
     ).toHaveLength(1);
   });
+
+  it('chord: the side shots add no heat', () => {
+    const fire = (world: World) =>
+      stepWorld(queueShot(world, shot(1)), {
+        input: still,
+        dt: 1 / 60,
+        now: 1,
+      }).world;
+    const chorded = fire(powered(createWorld(level), 'chord'));
+    expect(chorded.projectiles).toHaveLength(3);
+    expect(chorded.recoil).toEqual(fire(createWorld(level)).recoil);
+  });
 });
