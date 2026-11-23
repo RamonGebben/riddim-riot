@@ -1,3 +1,4 @@
+import type { PowerupKind } from '../sim/powerup';
 import type { FxPart, OscillatorPart } from '../weapons';
 
 /**
@@ -96,3 +97,42 @@ export const SHARE_ICON: Icon = [
   { d: 'M7 8 L12 3 L17 8' },
   { d: 'M5 12 V19 A2 2 0 0 0 7 21 H17 A2 2 0 0 0 19 19 V12' },
 ];
+
+/** A big dot with a small one trailing it: the pellet that turns the chase. */
+const pellet: Icon = [
+  { d: 'M14 6 A6 6 0 1 1 13.99 6 Z', fill: true },
+  { d: 'M5 10 A2 2 0 1 1 4.99 10 Z', fill: true },
+];
+
+/** Two notes, the second twice as long: half-time. */
+const halfTime: Icon = [
+  { d: 'M6 18 A2.5 2 0 1 1 5.99 18 Z', fill: true },
+  { d: 'M8.5 18 V5' },
+  { d: 'M17 18 A2.5 2 0 1 1 16.99 18 Z' },
+  { d: 'M19.5 18 V5' },
+];
+
+/** Three stacked notes: a chord. */
+const chord: Icon = [
+  { d: 'M9 6 H19' },
+  { d: 'M9 12 H19' },
+  { d: 'M9 18 H19' },
+  { d: 'M4 4.5 L6 6 L4 7.5' },
+  { d: 'M4 10.5 L6 12 L4 13.5' },
+  { d: 'M4 16.5 L6 18 L4 19.5' },
+];
+
+export const POWERUP_ICONS = { pellet, halfTime, chord } satisfies Record<
+  PowerupKind,
+  Icon
+>;
+
+/**
+ * Each powerup's own colour, on the floor and in the HUD alike, whatever
+ * the level's palette.
+ */
+export const POWERUP_COLORS = {
+  pellet: 0xffd23f,
+  halfTime: 0x3fd8ff,
+  chord: 0xd36bff,
+} satisfies Record<PowerupKind, number>;

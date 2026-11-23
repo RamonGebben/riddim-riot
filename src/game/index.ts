@@ -10,6 +10,7 @@ import {
   createReloadSound,
   createPreviewer,
   createScoreSound,
+  createChordSound,
   createWeaponVoice,
   heardTime,
   startAudio,
@@ -325,6 +326,7 @@ export const startGame = async ({
     key,
     beatSeconds,
   });
+  const chord = createChordSound({ output: musicBus.direct, key });
 
   const arm = async (recipe: WeaponRecipe): Promise<Armed> => {
     const weapon = weaponFrom(recipe, key);
@@ -516,6 +518,11 @@ export const startGame = async ({
           dropHit: arrangement.drop,
           heal: time => score.play(time, MAX_MULTIPLIER),
           volley: blast.play,
+          chord: time => {
+            const bar = lastTick ? chordBar(lastTick.bar) : 0;
+            chord.play(time, chordAt(progression, bar).degree);
+          },
+          halfTime: drums.halfTime,
           startDrums: tick => {
             songStartBar = tick.bar;
             // The slam's own tick has already gone by the drums: play it.
@@ -671,6 +678,7 @@ export const startGame = async ({
         impact,
         blast,
         score,
+        chord,
         arrangement,
         backing,
         musicBus,

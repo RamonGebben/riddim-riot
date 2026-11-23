@@ -103,9 +103,13 @@ export const createStage = async (
         ...frame,
         pickups: frame.world.pickups,
         hearts: frame.world.hearts,
+        powerups: frame.world.powerups,
         player: frame.world.player,
       });
-      enemies.update(frame.world.enemies, frame.now);
+      enemies.update(frame.world.enemies, frame.now, {
+        fleeingUntil: frame.world.powered.pellet,
+        beatSeconds: frame.barSeconds / 4,
+      });
       player.update({
         ...frame,
         player: frame.world.player,

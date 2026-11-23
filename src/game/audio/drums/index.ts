@@ -2,12 +2,22 @@ import type { DrumsPatch } from '../../sound';
 import type { Tick } from '../../clock';
 import type { Output } from '../graph';
 import { createDrumKit } from './kit';
-import { generateDrumBar, hitsAt, type DrumVoice } from './pattern';
+import {
+  generateDrumBar,
+  halfSpeedStep,
+  hitsAt,
+  type DrumVoice,
+} from './pattern';
 
 export type { DrumBar, DrumVoice } from './pattern';
 
 export interface Drums {
   onTick: (tick: Tick) => void;
+  /**
+   * Play at half speed over bars `from` up to `to` (a half-time powerup),
+   * or as written again with null.
+   */
+  halfTime: (bars: { from: number; to: number } | null) => void;
   dispose: () => void;
 }
 
@@ -33,15 +43,24 @@ export const createDrums = ({
   onHit?: (hit: DrumHit) => void;
 }): Drums => {
   const kit = createDrumKit(output, kickHz, patch);
+  let half: { from: number; to: number } | null = null;
 
   return {
-    onTick: tick =>
-      hitsAt(generateDrumBar(seed, tick.bar), tick.stepInBar).forEach(
+    onTick: tick => {
+      const slowed =
+        half !== null && tick.bar >= half.from && tick.bar < half.to;
+      const at = slowed && half ? halfSpeedStep(tick, half.from) : tick;
+      if (!at) return;
+      hitsAt(generateDrumBar(seed, at.bar), at.stepInBar).forEach(
         ({ voice, velocity }) => {
           kit.play(voice, tick.time, velocity);
           onHit?.({ voice, time: tick.time, velocity });
         },
-      ),
+      );
+    },
+    halfTime: bars => {
+      half = bars;
+    },
     dispose: kit.dispose,
   };
 };

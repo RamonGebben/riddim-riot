@@ -12,6 +12,13 @@ import {
 import { createRng } from '../../rng';
 import type { Enemy } from '../enemy';
 import { BAG_SIZE, BONUS_HEARTS } from '../loot';
+import { POINTS_PER_KILL } from '../combo';
+import {
+  CHORD_SPREAD,
+  EATEN_POINTS,
+  NOT_POWERED,
+  type PowerupKind,
+} from '../powerup';
 import {
   createWorld,
   DEFAULT_RULES,
@@ -623,5 +630,97 @@ describe('stepWorld', () => {
       }).playerHit;
     expect(hitAt(1.9)).toBeNull();
     expect(hitAt(2)).not.toBeNull();
+  });
+});
+
+describe('powerups', () => {
+  const t = tileOf(start);
+  /** Running until audio time 100. */
+  const powered = (world: World, kind: PowerupKind): World => ({
+    ...world,
+    powered: { ...NOT_POWERED, [kind]: 100 },
+  });
+
+  it('start when walked over, for their bars', () => {
+    const world: World = {
+      ...createWorld(level),
+      powerups: [{ id: 1, position: start, kind: 'chord' }],
+    };
+    const result = stepWorld(world, {
+      input: still,
+      dt: 1 / 60,
+      now: 3,
+      beatSeconds: 0.5,
+    });
+    expect(result.world.powerups).toEqual([]);
+    expect(result.powered.map(({ kind }) => kind)).toEqual(['chord']);
+    // Four bars of four half-second beats.
+    expect(result.world.powered.chord).toBe(3 + 8);
+  });
+
+  it('pellet: enemies run from the player', () => {
+    const hopper = enemyAt(1, tileCenter({ x: t.x + 3, y: t.y }));
+    const world = powered(withEnemies(createWorld(level), [hopper]), 'pellet');
+    const [enemy] = onBeat(world, { time: 1, beat: 0 }).enemies;
+    expect(walk(enemy.to)).toBe(walk(hopper.to) + 1);
+  });
+
+  it('pellet: walking into an enemy eats it for double points', () => {
+    const near = { x: start.x + 10, y: start.y };
+    const world = withEnemies(createWorld(level), [enemyAt(1, near)]);
+    const hurt = stepWorld(world, { input: still, dt: 1 / 60, now: 1 });
+    expect(hurt.world.hp).toBe(PLAYER_MAX_HP - 1);
+    expect(hurt.world.score).toBe(0);
+
+    const ate = stepWorld(powered(world, 'pellet'), {
+      input: still,
+      dt: 1 / 60,
+      now: 1,
+    });
+    expect(ate.world.hp).toBe(PLAYER_MAX_HP);
+    expect(ate.kills).toEqual([near]);
+    expect(ate.world.enemies).toEqual([]);
+    expect(ate.world.score).toBe(POINTS_PER_KILL * EATEN_POINTS);
+  });
+
+  it('half-time: enemies hold still on the off beats', () => {
+    const hopper = enemyAt(1, tileCenter({ x: t.x + 3, y: t.y }));
+    const world = powered(
+      withEnemies(createWorld(level), [hopper]),
+      'halfTime',
+    );
+    expect(onBeat(world, { time: 1, beat: 1 }).enemies[0]).toBe(hopper);
+    const [stepped] = onBeat(world, { time: 1, beat: 2 }).enemies;
+    expect(walk(stepped.to)).toBe(walk(hopper.to) - 1);
+  });
+
+  it('half-time: chargers line up only every other bar', () => {
+    const charger: Enemy = {
+      ...enemyAt(1, tileCenter({ x: t.x + 6, y: t.y })),
+      kind: 'charger',
+    };
+    const world = powered(
+      withEnemies(createWorld(level), [charger]),
+      'halfTime',
+    );
+    expect(onBeat(world, { time: 1, beat: 2, bar: 1 }).enemies[0].aim).toBe(
+      null,
+    );
+    expect(
+      onBeat(world, { time: 1, beat: 2, bar: 2 }).enemies[0].aim,
+    ).not.toBeNull();
+  });
+
+  it('chord: a shot fires three ways', () => {
+    const queued = queueShot(powered(createWorld(level), 'chord'), shot(2));
+    expect(queued.pendingShots.map(({ angle }) => angle)).toEqual([
+      0,
+      -CHORD_SPREAD,
+      CHORD_SPREAD,
+    ]);
+    // Not once it's run out.
+    expect(
+      queueShot(powered(createWorld(level), 'chord'), shot(100)).pendingShots,
+    ).toHaveLength(1);
   });
 });

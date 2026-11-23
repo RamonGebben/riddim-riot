@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { TILE_SIZE } from '../../level';
 import type { Palette } from '../../palette';
+import { PELLET_WARNING_BEATS } from '../../sim/powerup';
 import {
   BOSS_RADIUS,
   DASH_TILES,
@@ -13,15 +14,25 @@ import {
 
 export interface EnemiesView {
   view: Container;
-  update: (enemies: Array<Enemy>, now: number) => void;
+  update: (
+    enemies: Array<Enemy>,
+    now: number,
+    /** A pellet running until `fleeingUntil` turns them all (bar the boss). */
+    pellet: { fleeingUntil: number; beatSeconds: number },
+  ) => void;
 }
+
+/** Enemies running from a pellet turn this colour. */
+const FLEEING_COLOR = 0x3a6bff;
 
 /** How long a fresh spawn takes to grow in. */
 const SPAWN_SECONDS = 0.25;
 
 interface Sprite {
   root: Container;
-  body: Graphics;
+  body: Container;
+  /** Its body in the fleeing colour, over it while a pellet runs. */
+  scared: Graphics | null;
   /** A charger's dash line while it's lined up. */
   tell: Graphics | null;
   /** Where it's about to appear: pulses until it spawns. */
@@ -83,7 +94,7 @@ const drawTell = (palette: Palette) =>
 
 const createSprite = (kind: EnemyKind, palette: Palette): Sprite => {
   const root = new Container();
-  const body =
+  const shape =
     kind === 'charger'
       ? drawCharger(palette)
       : kind === 'boss'
@@ -91,10 +102,22 @@ const createSprite = (kind: EnemyKind, palette: Palette): Sprite => {
         : drawHopper(palette);
   const tell = kind === 'charger' ? drawTell(palette) : null;
   const marker = drawMarker(palette);
+  // The boss doesn't run.
+  const fleeing = { ...palette, accent: FLEEING_COLOR };
+  const scared =
+    kind === 'boss'
+      ? null
+      : kind === 'charger'
+        ? drawCharger(fleeing)
+        : drawHopper(fleeing);
+  // Graphics can't hold children: the two shapes share a container.
+  const body = new Container();
+  body.addChild(shape);
+  if (scared) body.addChild(scared);
   if (tell) root.addChild(tell);
   root.addChild(marker, body);
   if (kind !== 'charger') body.rotation = Math.PI / 4;
-  return { root, body, tell, marker };
+  return { root, body, scared, tell, marker };
 };
 
 /**
@@ -118,7 +141,13 @@ export const createEnemiesView = (palette: Palette): EnemiesView => {
 
   return {
     view,
-    update: (enemies, now) => {
+    update: (enemies, now, { fleeingUntil, beatSeconds }) => {
+      const fleeing = now < fleeingUntil;
+      // The last beats blink on the 1/8: they're about to turn back.
+      const warning = fleeingUntil - now < PELLET_WARNING_BEATS * beatSeconds;
+      const eighth = Math.floor((now / beatSeconds) * 2) % 2 === 0;
+      // Blue while they run, flashing back on the 1/8 at the end.
+      const scaredNow = fleeing && !(warning && eighth);
       const alive = new Set(enemies.map(enemy => enemy.id));
       [...sprites.entries()]
         .filter(([id]) => !alive.has(id))
@@ -128,7 +157,8 @@ export const createEnemiesView = (palette: Palette): EnemiesView => {
         });
 
       enemies.forEach(enemy => {
-        const { root, body, tell, marker } = spriteFor(enemy);
+        const { root, body, scared, tell, marker } = spriteFor(enemy);
+        if (scared) scared.visible = scaredNow;
         const grown = Math.min(
           Math.max((now - enemy.spawnAt) / SPAWN_SECONDS, 0),
           1,
@@ -171,7 +201,7 @@ export const createEnemiesView = (palette: Palette): EnemiesView => {
           body.rotation = angle;
           tell.rotation = angle;
         }
-        tell.visible = enemy.aim !== null;
+        tell.visible = enemy.aim !== null && !fleeing;
         tell.alpha = 0.35 + 0.35 * Math.abs(Math.sin(now * 18));
       });
     },

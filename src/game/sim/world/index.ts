@@ -4,6 +4,7 @@ import {
   isWall,
   TILE_SIZE,
   stepDownhill,
+  stepUphill,
   tileCenter,
   tileOf,
   type Level,
@@ -63,6 +64,19 @@ import {
   type Heart,
   type Pickup,
 } from '../loot';
+import {
+  attractPowerups,
+  chordShots,
+  EATEN_POINTS,
+  isPowered,
+  NOT_POWERED,
+  powerUp,
+  powerupFor,
+  powerupsInReach,
+  type Powered,
+  type Powerup,
+  type PowerupKind,
+} from '../powerup';
 import {
   advanceSurvival,
   INITIAL_SURVIVAL,
@@ -143,6 +157,10 @@ export interface World {
   /** Weapons picked up this run, oldest first, up to `BAG_SIZE`. */
   bag: Array<WeaponRecipe>;
   hearts: Array<Heart>;
+  /** Powerups on the floor. */
+  powerups: Array<Powerup>;
+  /** Until when each powerup runs (see `sim/powerup`). */
+  powered: Powered;
   projectiles: Array<Projectile>;
   /** The boss's orbs in flight. */
   hostiles: Array<Hostile>;
@@ -227,6 +245,8 @@ export const createWorld = (
   pickups: [],
   bag,
   hearts: [],
+  powerups: [],
+  powered: NOT_POWERED,
   projectiles: [],
   hostiles: [],
   beams: [],
@@ -238,9 +258,15 @@ export const createWorld = (
   recoil: NO_RECOIL,
 });
 
+/** A shot on its way; a chord running when it sounds fires it three ways. */
 export const queueShot = (world: World, shot: PendingShot): World => ({
   ...world,
-  pendingShots: [...world.pendingShots, shot],
+  pendingShots: [
+    ...world.pendingShots,
+    ...(isPowered(world.powered, 'chord', shot.time)
+      ? chordShots(shot)
+      : [shot]),
+  ],
 });
 
 const tileKey = ({ x, y }: TilePos) => `${x},${y}`;
@@ -255,7 +281,20 @@ const CHARGE_RANGE = 8;
 const chargerBeat = (
   world: World,
   enemy: Enemy,
-  { time, beat, distance }: { time: number; beat: number; distance: number },
+  {
+    time,
+    beat,
+    bar,
+    distance,
+    halfTime,
+  }: {
+    time: number;
+    beat: number;
+    bar: number;
+    distance: number;
+    /** Half-time: lining up every other bar, walking every other beat. */
+    halfTime: boolean;
+  },
 ): Enemy | null => {
   if (time < enemy.spawnAt) return enemy;
   if (beat === 0 && enemy.aim) {
@@ -263,12 +302,14 @@ const chargerBeat = (
     const landing = moveCircle(world.level.map, enemy.to, dash, ENEMY_RADIUS);
     return { ...planHop(enemy, landing, time, DASH_SECONDS), aim: null };
   }
-  if (beat === 2 && distance >= 0 && distance <= CHARGE_RANGE) {
+  const linesUp = !halfTime || bar % 2 === 0;
+  if (beat === 2 && linesUp && distance >= 0 && distance <= CHARGE_RANGE) {
     const aim = normalize(subtract(world.player.position, enemy.to));
     return { ...enemy, aim };
   }
   // Closes in on beat 2 - and on beat 4 too while it's still far off.
-  const walks = beat === 1 || (beat === 3 && distance > CHARGE_RANGE);
+  const walks =
+    !halfTime && (beat === 1 || (beat === 3 && distance > CHARGE_RANGE));
   return walks && !enemy.aim ? null : enemy;
 };
 
@@ -277,6 +318,8 @@ const chargerBeat = (
  * flow field towards the player, never onto a tile another enemy holds -
  * the nearest move first and free their tile as they go, so a line of them
  * flows through a doorway. Chargers line up and dash (see `chargerBeat`).
+ * A pellet turns them all (the boss aside) to run from the player instead,
+ * and half-time holds them still on the off beats.
  */
 export const onBeat = (
   world: World,
@@ -296,24 +339,35 @@ export const onBeat = (
   const move = boss
     ? bossMove(bossPhase(boss.hp, world.rules.bossHp), { bar, beat })
     : null;
+  const fleeing = isPowered(world.powered, 'pellet', time);
+  const halfTime = isPowered(world.powered, 'halfTime', time);
   const special = new Map(
     world.enemies.flatMap(enemy => {
       // The boss lumbers, stepping only when its phase says so.
       if (enemy.kind === 'boss') {
         return move?.steps ? [] : [[enemy.id, enemy] as const];
       }
-      if (enemy.kind !== 'charger') return [];
+      // Half-time: everything else stands still on the off beats.
+      if (halfTime && beat % 2 === 1) return [[enemy.id, enemy] as const];
+      // Running scared, a charger drops its dash and runs like the rest.
+      if (enemy.kind !== 'charger' || fleeing) return [];
       const acted = chargerBeat(world, enemy, {
         time,
         beat,
+        bar,
         distance: distance(enemy),
+        halfTime,
       });
       return acted ? [[enemy.id, acted] as const] : [];
     }),
   );
+  const step = fleeing ? stepUphill : stepDownhill;
+  // Closing in, the nearest go first; running, the furthest clear the way.
+  const order = fleeing ? -1 : 1;
   const nearestFirst = world.enemies
     .filter(enemy => !special.has(enemy.id))
-    .sort((a, b) => distance(a) - distance(b));
+    .sort((a, b) => order * (distance(a) - distance(b)));
+  const hopSeconds = halfTime ? HOP_SECONDS * 2 : HOP_SECONDS;
 
   const { hops } = nearestFirst.reduce<{
     hops: Map<number, Enemy>;
@@ -321,9 +375,7 @@ export const onBeat = (
   }>(
     (acc, enemy) => {
       const here = tileOf(enemy.to);
-      const next = stepDownhill(map, field, here, pos =>
-        acc.taken.has(tileKey(pos)),
-      );
+      const next = step(map, field, here, pos => acc.taken.has(tileKey(pos)));
       if (!next) return acc;
       const taken = new Set(acc.taken);
       taken.delete(tileKey(here));
@@ -335,7 +387,7 @@ export const onBeat = (
             enemy,
             tileCenter(next),
             time,
-            enemy.kind === 'boss' ? HOP_SECONDS * 2 : HOP_SECONDS,
+            enemy.kind === 'boss' ? HOP_SECONDS * 2 : hopSeconds,
           ),
         ),
         taken,
@@ -350,7 +402,9 @@ export const onBeat = (
   const moved = {
     ...world,
     enemies: world.enemies.map(enemy => {
-      const next = special.get(enemy.id) ?? hops.get(enemy.id) ?? enemy;
+      const acted = special.get(enemy.id) ?? hops.get(enemy.id) ?? enemy;
+      // Running scared drops a lined-up dash for good.
+      const next = fleeing && acted.aim ? { ...acted, aim: null } : acted;
       return enemy === boss && move?.windup
         ? { ...next, windupUntil: time + beatSeconds }
         : next;
@@ -448,6 +502,16 @@ const placeHeart = (world: World, position: Vec): World => ({
   nextId: world.nextId + 1,
 });
 
+const placePowerup = (
+  world: World,
+  kind: PowerupKind,
+  position: Vec,
+): World => ({
+  ...world,
+  powerups: [...world.powerups, { id: world.nextId, position, kind }],
+  nextId: world.nextId + 1,
+});
+
 /** Hearts scattered a little around where the boss fell. */
 const HEART_SCATTER = 36;
 
@@ -477,6 +541,9 @@ const dropLoot = (world: World, enemy: Enemy, position: Vec): World => {
   const drop = dropOnKill(seed, enemy.id);
   if (drop === 'weapon') {
     return placePickup(world, lootRecipe(seed, world.nextId), position);
+  }
+  if (drop === 'powerup') {
+    return placePowerup(world, powerupFor(seed, enemy.id), position);
   }
   return drop === 'heart' ? placeHeart(world, position) : world;
 };
@@ -611,6 +678,8 @@ export interface FrameResult {
   healed: Array<Vec>;
   /** Weapons that went into the bag this frame. */
   collected: Array<Vec>;
+  /** Powerups picked up this frame. */
+  powered: Array<Powerup>;
   /** Where an enemy or an orb hit the player, if one did this frame. */
   playerHit: Vec | null;
 }
@@ -646,6 +715,7 @@ export const stepWorld = (
       playerHit: null,
       healed: [],
       collected: [],
+      powered: [],
     };
   }
 
@@ -728,6 +798,15 @@ export const stepWorld = (
   const contacts = dashing
     ? { enemies: hits.enemies, touched: [] }
     : resolveContacts(player.position, hits.enemies, now);
+  // On a pellet, whatever runs gets eaten; the boss still hurts.
+  const eating = isPowered(world.powered, 'pellet', now);
+  const eaten = eating
+    ? contacts.touched.filter(({ enemy }) => enemy.kind !== 'boss')
+    : [];
+  const harmful = eating
+    ? contacts.touched.filter(({ enemy }) => enemy.kind === 'boss')
+    : contacts.touched;
+  const killed = [...hits.killed, ...eaten];
   const flyingOrbs = world.hostiles.filter(
     hostile =>
       hostile.expiresAt > now &&
@@ -740,7 +819,7 @@ export const stepWorld = (
   });
   const canBeHit = now >= world.invulnerableUntil && !dashing;
   const touched =
-    contacts.touched[0]?.position ??
+    harmful[0]?.position ??
     (struck[0] ? hostilePosition(struck[0], now) : null);
   const playerHit = canBeHit ? touched : null;
   const hurt = playerHit ? world.hp - 1 : world.hp;
@@ -762,23 +841,37 @@ export const stepWorld = (
     hasRoom: room > 0,
   });
   const collected = pickupsInReach(pickups, player.position).slice(0, room);
+  const powerups = attractPowerups(world.powerups, {
+    player: player.position,
+    dt,
+  });
+  const powered = powerupsInReach(powerups, player.position);
+  const barSeconds = beatSeconds * 4;
   const standingIn = onPad(world, player.position);
   const onExit = isExitOpen(world) && standingIn;
   const status = hp <= 0 ? 'dead' : onExit ? 'cleared' : 'playing';
   // Every kill this frame lands on the same beat, each extending the chain.
-  const scored = hits.killed.reduce(
-    acc => {
+  const scored = killed.reduce(
+    (acc, kill) => {
       const next = registerKill(acc.combo, beat);
-      return { combo: next.combo, score: acc.score + next.points };
+      const points = eaten.includes(kill)
+        ? next.points * EATEN_POINTS
+        : next.points;
+      return { combo: next.combo, score: acc.score + points };
     },
     { combo: world.combo, score: world.score },
   );
-  const looted = hits.killed.reduce(
+  const looted = killed.reduce(
     (acc, kill) => dropLoot(acc, kill.enemy, kill.position),
     {
       ...world,
       hearts,
       pickups: pickups.filter(pickup => !collected.includes(pickup)),
+      powerups: powerups.filter(powerup => !powered.includes(powerup)),
+      powered: powered.reduce(
+        (acc, { kind }) => powerUp(acc, kind, { now, barSeconds }),
+        world.powered,
+      ),
       // The same bag when nothing went in, so the HUD sees no change.
       bag:
         collected.length > 0
@@ -787,7 +880,7 @@ export const stepWorld = (
     },
   );
   // A dead boss's orbs fizzle with it.
-  const bossDown = hits.killed.some(kill => kill.enemy.kind === 'boss');
+  const bossDown = killed.some(kill => kill.enemy.kind === 'boss');
 
   return {
     world: {
@@ -795,7 +888,7 @@ export const stepWorld = (
       survival: standingIn ? stepIn(world.survival, now) : world.survival,
       status,
       hp,
-      kills: world.kills + hits.killed.length,
+      kills: world.kills + killed.length,
       // The step stops once a level ends, so the bonus lands once.
       score: scored.score + (status === 'cleared' ? LEVEL_CLEAR_BONUS : 0),
       combo: scored.combo,
@@ -816,10 +909,11 @@ export const stepWorld = (
       dash,
       recoil: kicked.recoil,
     },
-    kills: hits.killed.map(kill => kill.position),
+    kills: killed.map(kill => kill.position),
     blasts,
     playerHit,
     healed: healed.map(heart => heart.position),
     collected: collected.map(pickup => pickup.position),
+    powered,
   };
 };

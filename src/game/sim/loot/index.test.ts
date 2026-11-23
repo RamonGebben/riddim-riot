@@ -11,7 +11,7 @@ import {
 } from '.';
 
 describe('dropOnKill', () => {
-  it('is reproducible, and drops weapons and hearts now and then', () => {
+  it('is reproducible, and drops weapons, hearts and powerups now and then', () => {
     expect(dropOnKill(42, 7)).toBe(dropOnKill(42, 7));
     const drops = Array.from({ length: 4000 }, (_, id) => dropOnKill(42, id));
     const rate = (kind: string) =>
@@ -20,6 +20,8 @@ describe('dropOnKill', () => {
     expect(rate('weapon')).toBeLessThan(0.13);
     expect(rate('heart')).toBeGreaterThan(0.05);
     expect(rate('heart')).toBeLessThan(0.1);
+    expect(rate('powerup')).toBeGreaterThan(0.02);
+    expect(rate('powerup')).toBeLessThan(0.05);
   });
 });
 

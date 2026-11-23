@@ -272,6 +272,18 @@ pure function of the clock and lands exactly on the beat.
   a heart. The boss always drops a good weapon (Vandal with an FX, pinned
   through `WeaponRecipe`) and two hearts. Rolls are seeded per level.
   Weapons go into the bag, not the hand (see [Loadout and bag](#loadout-and-bag)).
+- **Powerups** (`sim/powerup`): a kill that drops neither has a 4% chance
+  of a powerup, seeded per enemy, that drifts in like loot and runs for 4
+  bars from the pickup (`World.powered` holds when each ends; another pickup
+  restarts it). **Pellet**: enemies (bar the boss) walk the flow field
+  uphill (`stepUphill`), drop any lined-up dash, turn blue and blink back
+  over the last beat, and walking into one eats it for double points; the
+  track plays as a drop while it runs. **Half-time**: everything but the
+  boss stands still on beats 2 and 4, with lazier hops, and chargers line
+  up only every other bar; the drums play at half speed (`halfSpeedStep`)
+  from the next bar line. **Chord**: `queueShot` fires every shot three
+  ways, and a chord voice rings the bar's chord's third and fifth over it
+  (at most every 1/8, so a beam doesn't blur it). The HUD counts each down.
 
 ### Loadout and bag
 

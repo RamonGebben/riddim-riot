@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Tilemap } from '../tilemap';
-import { distanceAt, distanceField, stepDownhill } from '.';
+import { distanceAt, distanceField, stepDownhill, stepUphill } from '.';
 
 /** `#` wall, anything else floor. */
 const mapOf = (rows: Array<string>): Tilemap => ({
@@ -41,5 +41,19 @@ describe('stepDownhill', () => {
   it('stays put at the origin, or when every way down is blocked', () => {
     expect(stepDownhill(map, field, { x: 0, y: 0 })).toBeNull();
     expect(stepDownhill(map, field, { x: 2, y: 3 }, () => true)).toBeNull();
+  });
+});
+
+describe('stepUphill', () => {
+  const field = distanceField(map, { x: 0, y: 0 });
+
+  it('steps to the neighbour furthest from the origin', () => {
+    expect(stepUphill(map, field, { x: 2, y: 2 })).toEqual({ x: 2, y: 3 });
+    expect(stepUphill(map, field, { x: 0, y: 0 })).toEqual({ x: 1, y: 0 });
+  });
+
+  it('stays put at a dead end, or when every way out is blocked', () => {
+    expect(stepUphill(map, field, { x: 0, y: 4 })).toBeNull();
+    expect(stepUphill(map, field, { x: 2, y: 2 }, () => true)).toBeNull();
   });
 });

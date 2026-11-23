@@ -30,6 +30,7 @@ import {
   type SongPart,
 } from '../sim/survival';
 import { AIM_ASSIST } from '../sim/aimAssist';
+import { isPowered, POWERUP_BARS } from '../sim/powerup';
 import { add, scale } from '../vec';
 import type { WeaponRecipe } from '../weapons';
 import {
@@ -72,6 +73,10 @@ export interface PlaySounds {
   heal: (time: number) => void;
   /** The boss fires a ring of orbs. */
   volley: (time: number) => void;
+  /** The chord powerup's third and fifth over a shot. */
+  chord: (time: number) => void;
+  /** Drums at half speed over these bars (the half-time powerup). */
+  halfTime: (bars: { from: number; to: number }) => void;
   /** The fight is on: bring the drums in from this tick. */
   startDrums: (tick: Tick) => void;
   /** Every bar line: the section the track should play, and its song part. */
@@ -173,6 +178,10 @@ export const startPlay = async ({
   let lastTick: Tick | null = null;
   let lastSection: Section = 'calm';
   let drumsIn = false;
+  /** The last shot the chord rang over, so a beam doesn't ring every 1/16. */
+  let chordAt = -Infinity;
+  /** The bars the drums play at half speed, once a half-time is picked up. */
+  let halfBars: { from: number; to: number } | null = null;
   const beatSeconds = stepSeconds * STEPS_PER_BEAT;
   const barSeconds = beatSeconds * 4;
   let hud = hudOf(world);
@@ -218,7 +227,9 @@ export const startPlay = async ({
       sounds.startDrums(tick);
     }
     const song = { bar: tick.bar, song: rules.song };
-    const section = sectionFor(survival, song);
+    // A pellet throws the track into a drop for as long as it runs.
+    const pellet = fighting && isPowered(world.powered, 'pellet', tick.time);
+    const section = pellet ? 'drop' : sectionFor(survival, song);
     const at = songPosition(survival, song);
     const newDrop = section === 'drop' && at?.bar === 0;
     if (section === 'drop' && (lastSection !== 'drop' || newDrop)) {
@@ -238,6 +249,12 @@ export const startPlay = async ({
     bus.on('tick', onTick),
     bus.on('shot', shot => {
       world = queueShot(world, shot);
+      const ringing = isPowered(world.powered, 'chord', shot.time);
+      // At most an 1/8 apart: a beam's 1/16 ticks would blur it.
+      if (ringing && shot.time - chordAt >= stepSeconds * 1.5) {
+        chordAt = shot.time;
+        sounds.chord(shot.time);
+      }
     }),
   ];
 
@@ -305,7 +322,21 @@ export const startPlay = async ({
     });
     // Kills in one frame share a slot: one note for where the combo got to.
     if (killed.length > 0) sounds.score(killed[0].time, world.combo.count);
-    const picked = [...result.healed, ...result.collected];
+    const picked = [
+      ...result.healed,
+      ...result.collected,
+      ...result.powered.map(({ position }) => position),
+    ];
+    // Half-time's drums slow from the next bar line, for its bars.
+    if (lastTick && result.powered.some(({ kind }) => kind === 'halfTime')) {
+      const next = lastTick.bar + 1;
+      const running = halfBars !== null && lastTick.bar < halfBars.to;
+      halfBars = {
+        from: running && halfBars ? halfBars.from : next,
+        to: next + POWERUP_BARS.halfTime,
+      };
+      sounds.halfTime(halfBars);
+    }
     if (picked.length > 0) {
       const time = nextSlot(audioNow());
       sounds.heal(time);

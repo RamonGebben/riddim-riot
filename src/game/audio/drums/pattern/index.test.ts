@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateDrumBar, hitsAt, isFillBar } from '.';
+import { generateDrumBar, halfSpeedStep, hitsAt, isFillBar } from '.';
 
 const bars = (seed: number, count: number) =>
   Array.from({ length: count }, (_, bar) => generateDrumBar(seed, bar));
@@ -69,5 +69,30 @@ describe('hitsAt', () => {
     expect(hitsAt(bar, 8)).toContainEqual({ voice: 'snare', velocity: 1 });
     expect(hitsAt(bar, 0)).toContainEqual({ voice: 'kick', velocity: 1 });
     hitsAt(bar, 5).forEach(hit => expect(hit.velocity).toBeGreaterThan(0));
+  });
+});
+
+describe('halfSpeedStep', () => {
+  it('stretches each pattern bar over two', () => {
+    expect(halfSpeedStep({ bar: 10, stepInBar: 0 }, 10)).toEqual({
+      bar: 10,
+      stepInBar: 0,
+    });
+    expect(halfSpeedStep({ bar: 10, stepInBar: 8 }, 10)).toEqual({
+      bar: 10,
+      stepInBar: 4,
+    });
+    expect(halfSpeedStep({ bar: 11, stepInBar: 0 }, 10)).toEqual({
+      bar: 10,
+      stepInBar: 8,
+    });
+    expect(halfSpeedStep({ bar: 12, stepInBar: 2 }, 10)).toEqual({
+      bar: 11,
+      stepInBar: 1,
+    });
+  });
+
+  it('rests on the steps in between', () => {
+    expect(halfSpeedStep({ bar: 10, stepInBar: 3 }, 10)).toBeNull();
   });
 });
