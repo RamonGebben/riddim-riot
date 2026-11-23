@@ -3,6 +3,7 @@ import { PointerOnly } from '../PointerOnly';
 import { Body } from './components/Body';
 import { Card } from './components/Card';
 import { Header } from './components/Header';
+import { PowerupLegend } from './components/PowerupLegend';
 import { Steps } from './components/Steps';
 
 /** What the player is doing, as far as the walkthrough needs to see it. */
@@ -22,9 +23,16 @@ interface Step {
   heading: string;
   mouse: ReactNode;
   touch: ReactNode;
+  /** Shown under the text, with a mouse and on a touch screen alike. */
+  extra?: ReactNode;
   /** Done once the player does it, seen against the signals before. */
   done: (now: TutorialSignals, before: TutorialSignals) => boolean;
 }
+
+// The last card stays up until the circle takes, so it has time for the
+// powerups too: there's nothing to do for those until one drops.
+const READY =
+  'Enemies now and then drop a powerup; walk over one and it runs for a few bars. Now step into the circle to start your run.';
 
 /** The controls a step at a time, closing on the circle that starts it all. */
 export const TUTORIAL_STEPS: Array<Step> = [
@@ -129,8 +137,9 @@ export const TUTORIAL_STEPS: Array<Step> = [
   },
   {
     heading: 'Ready',
-    mouse: 'Now step into the circle to start your run.',
-    touch: 'Now step into the circle to start your run.',
+    mouse: READY,
+    touch: READY,
+    extra: <PowerupLegend />,
     // Stepping in starts the run, and the walkthrough goes with the circle.
     done: () => false,
   },
@@ -174,7 +183,7 @@ export const Tutorial = ({ signals, hidden = false }: TutorialProps) => {
     return () => window.clearTimeout(timer);
   }, [done]);
 
-  const { heading, mouse, touch } = TUTORIAL_STEPS[step];
+  const { heading, mouse, touch, extra } = TUTORIAL_STEPS[step];
   return (
     <Card
       aria-labelledby={headingId}
@@ -198,6 +207,7 @@ export const Tutorial = ({ signals, hidden = false }: TutorialProps) => {
         <PointerOnly $pointer="mouse">{mouse}</PointerOnly>
         <PointerOnly $pointer="touch">{touch}</PointerOnly>
       </Body>
+      {extra}
     </Card>
   );
 };

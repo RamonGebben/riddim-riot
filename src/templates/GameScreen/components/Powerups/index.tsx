@@ -2,6 +2,7 @@ import styled from 'styled-components';
 import { Icon } from '~/atoms/Icon';
 import { POWERUP_COLORS, POWERUP_ICONS } from '~/game/icons';
 import { POWERUP_KINDS, POWERUP_NAMES, type PowerupKind } from '~/game/sim';
+import { cssColor } from '~/utils/cssColor';
 import { HudPanel } from '../HudPanel';
 import { Powerup } from './components/Powerup';
 
@@ -11,8 +12,6 @@ const List = styled(HudPanel).attrs({ as: 'ul' })`
   margin: 0;
   list-style: none;
 `;
-
-const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 
 /** The powerups running, each counting down; nothing while none are. */
 export const Powerups = (seconds: PowerupsProps) => {
@@ -26,7 +25,7 @@ export const Powerups = (seconds: PowerupsProps) => {
       {running.map(({ kind, left }) => (
         <Powerup
           key={kind}
-          $color={hex(POWERUP_COLORS[kind])}
+          $color={cssColor(POWERUP_COLORS[kind])}
           aria-label={`${POWERUP_NAMES[kind]}, ${left} s left`}
         >
           <Icon icon={POWERUP_ICONS[kind]} />
