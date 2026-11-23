@@ -64,6 +64,8 @@ export interface RunProps {
   dashCooldown: number | null;
   /** Changes with every dash. */
   dashKey: number;
+  /** On the move: the walkthrough's first step. */
+  moving: boolean;
 }
 
 export interface GameScreenProps {
@@ -85,13 +87,8 @@ export interface GameScreenProps {
   menu?: LoadoutMenuProps | null;
   /** The browser is holding the sound back, so the game waits for it. */
   soundBlocked: boolean;
-  /**
-   * Walk the player through the controls while the circle waits: the first
-   * level, until they've been through it once.
-   */
+  /** Walk the player through the controls while the circle waits: a first run. */
   tutorial?: boolean;
-  /** The walkthrough was skipped or read to the end. */
-  onTutorialDone?: () => void;
   /** The element the game attaches its input and canvas to. */
   surfaceRef?: Ref<HTMLElement>;
   onStop: () => void;
@@ -179,7 +176,6 @@ export const GameScreen = ({
   menu = null,
   soundBlocked,
   tutorial = false,
-  onTutorialDone,
   surfaceRef,
   onStop,
   onPause,
@@ -195,7 +191,6 @@ export const GameScreen = ({
   onDash,
 }: GameScreenProps) => {
   const [copy, setCopy] = useState<keyof typeof COPY_LABELS>('idle');
-  const [tutorialStep, setTutorialStep] = useState(0);
   /** The menu was opened since the run ended: its loot has been seen. */
   const [looked, setLooked] = useState(false);
   const [losing, setLosing] = useState<{
@@ -276,9 +271,14 @@ export const GameScreen = ({
       {prompt && playing && <Prompt>{prompt}</Prompt>}
       {walkthrough && (
         <Tutorial
-          step={tutorialStep}
-          onStep={setTutorialStep}
-          onDone={() => onTutorialDone?.()}
+          signals={{
+            moving: run.moving,
+            dashKey: run.dashKey,
+            active: loadout.active,
+            ammo: loadout.slots[loadout.active]?.ammo ?? 0,
+            menuOpen: Boolean(menu),
+            paused,
+          }}
           hidden={!playing}
         />
       )}

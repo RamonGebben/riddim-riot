@@ -15,6 +15,7 @@ import {
 } from '../sim/survival';
 import { BAG_SIZE } from '../sim/loot';
 import { DASH } from '../sim/player';
+import { length } from '../vec';
 import type { WeaponRecipe } from '../weapons';
 
 /** What the screen around the stage shows; React renders it, not the loop. */
@@ -53,7 +54,12 @@ export interface HudView {
    */
   dashCooldown: number | null;
   dashKey: number;
+  /** The player is on the move, for the controls' walkthrough to see. */
+  moving: boolean;
 }
+
+/** Faster than this (px/s) is walking, not easing to a stop. */
+const MOVING_SPEED = 60;
 
 /** Before the stage is up: a fresh level. */
 export const initialHud = ({
@@ -80,6 +86,7 @@ export const initialHud = ({
   bagSize: BAG_SIZE,
   dashCooldown: null,
   dashKey: 0,
+  moving: false,
   level,
   hp,
   kills,
@@ -128,6 +135,7 @@ export const hudOf = (
         ? world.dash.readyAt - (world.dash.until - DASH.seconds)
         : null,
     dashKey: world.dash.readyAt,
+    moving: length(world.player.velocity) > MOVING_SPEED,
   };
 };
 

@@ -6,8 +6,10 @@ const SHORT = '(max-height: 500px)';
 /**
  * Where the circle's prompt sits, growing upward: above the weapons with a
  * mouse, down at the bottom edge between the thumbs on a touch screen.
+ * Nothing on it to press, so clicks and touches go through to the game.
+ * A step just done glows in the primary colour.
  */
-export const Card = styled.section`
+export const Card = styled.section<{ $done: boolean }>`
   position: fixed;
   inset-block-end: calc(
     ${({ theme }) => theme.spacing('l')} * 2.5 +
@@ -26,6 +28,10 @@ export const Card = styled.section`
   border-radius: ${({ theme }) => theme.borderRadius('base')};
   background: ${({ theme }) => theme.color('background')};
   box-shadow: ${({ theme }) => theme.boxShadow('modal')};
+  outline: ${({ theme }) => theme.borderWidth('base')} solid
+    ${({ $done, theme }) => ($done ? theme.color('primary') : 'transparent')};
+  transition: outline-color 0.15s;
+  pointer-events: none;
 
   & h2 {
     margin: 0;

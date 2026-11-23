@@ -72,6 +72,7 @@ const meta = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 3,
       bagSize: 24,
     },
@@ -153,6 +154,7 @@ export const RunEnded: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -254,6 +256,7 @@ export const LevelCleared: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -655,6 +658,7 @@ export const AtTheCircle: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -667,60 +671,16 @@ export const AtTheCircle: Story = {
   },
 };
 
-export const WalkedThroughTheControls: Story = {
-  args: {
-    ...AtTheCircle.args,
-    tutorial: true,
-    onTutorialDone: fn(),
-  },
-  play: async ({ args, canvas, userEvent }) => {
+export const ControlsAtTheCircle: Story = {
+  args: { ...AtTheCircle.args, tutorial: true },
+  play: async ({ canvas }) => {
     const card = canvas.getByRole('region', { name: 'Move' });
     await expect(card).toHaveTextContent('1/7');
     await expect(card).toHaveTextContent(/WASD/);
+    // Nothing to press: clicks go through to the game behind it.
+    await expect(card).toHaveStyle({ pointerEvents: 'none' });
     // The walkthrough ends on the circle's prompt, so it stands in for it.
     await expect(canvas.queryByRole('status')).not.toBeInTheDocument();
-    const next = canvas.getByRole('button', { name: 'Next' });
-    await userEvent.click(next);
-    await userEvent.click(next);
-    await expect(
-      canvas.getByRole('region', { name: 'Dash' }),
-    ).toHaveTextContent(/Space/);
-    await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
-    await expect(
-      canvas.getByRole('region', { name: 'Aim and fire' }),
-    ).toBeVisible();
-    await userEvent.click(canvas.getByRole('button', { name: 'Next' }));
-    await userEvent.click(canvas.getByRole('button', { name: 'Next' }));
-    await expect(
-      canvas.getByRole('region', { name: 'Switch weapons' }),
-    ).toBeVisible();
-    await userEvent.click(canvas.getByRole('button', { name: 'Next' }));
-    await expect(
-      canvas.getByRole('region', { name: 'Loot and your bag' }),
-    ).toHaveTextContent(/Tab or B opens your loadout/);
-    await userEvent.click(canvas.getByRole('button', { name: 'Next' }));
-    await userEvent.click(canvas.getByRole('button', { name: 'Next' }));
-    const ready = canvas.getByRole('region', { name: 'Ready' });
-    await expect(ready).toHaveTextContent(
-      'Now step into the circle to start your run.',
-    );
-    await expect(
-      canvas.queryByRole('button', { name: 'Skip' }),
-    ).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole('button', { name: 'Got it' }));
-    await expect(args.onTutorialDone).toHaveBeenCalled();
-  },
-};
-
-export const SkippedTheControls: Story = {
-  args: {
-    ...AtTheCircle.args,
-    tutorial: true,
-    onTutorialDone: fn(),
-  },
-  play: async ({ args, canvas, userEvent }) => {
-    await userEvent.click(canvas.getByRole('button', { name: 'Skip' }));
-    await expect(args.onTutorialDone).toHaveBeenCalled();
   },
 };
 
@@ -763,6 +723,7 @@ export const BonusHeartsAndBoss: Story = {
       boss: 0.4,
       dashCooldown: 0.86,
       dashKey: 12,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -799,6 +760,7 @@ export const RunWon: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },
@@ -832,6 +794,7 @@ export const ExitOpen: Story = {
       boss: null,
       dashCooldown: null,
       dashKey: 0,
+      moving: false,
       bag: 0,
       bagSize: 24,
     },

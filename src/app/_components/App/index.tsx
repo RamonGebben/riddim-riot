@@ -236,6 +236,15 @@ export const App = () => {
   }, [status, session]);
 
   const fighting = status === 'playing' && hud?.status === 'playing';
+
+  // The walkthrough is for a first play only: once the circle has started
+  // a run, it's done with, however far through it the player got.
+  const started = hud !== null && hud.phase !== 'waiting';
+  useEffect(() => {
+    if (!started || tutorialSeen) return;
+    saveTutorialSeen();
+    setTutorialSeen(true);
+  }, [started, tutorialSeen]);
   const won =
     status === 'playing' &&
     hud?.status === 'cleared' &&
@@ -545,10 +554,6 @@ export const App = () => {
         onResume={resume}
         soundBlocked={soundBlocked}
         tutorial={!tutorialSeen && run.level === 1}
-        onTutorialDone={() => {
-          saveTutorialSeen();
-          setTutorialSeen(true);
-        }}
         onRetrySound={() => game.current?.retrySound()}
         onRetry={() => play(freshRun(run.seed))}
         onNewRun={() => play(freshRun(randomSeed()))}

@@ -19,8 +19,6 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
   const playArea = page.getByRole('main', { name: 'Play area' });
   await expect(playArea).toBeVisible();
   await expect(playArea.locator('canvas')).toBeVisible();
-  // Out of the way of the stage: the controls' walkthrough sits over it.
-  await page.getByRole('button', { name: 'Skip' }).click();
 
   await page.keyboard.down('KeyD');
   await page.waitForTimeout(300);

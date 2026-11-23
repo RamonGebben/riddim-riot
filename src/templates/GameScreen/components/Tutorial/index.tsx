@@ -1,16 +1,29 @@
-import type { ReactNode } from 'react';
-import { Button } from '~/atoms/Button';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PointerOnly } from '../PointerOnly';
-import { Actions } from './components/Actions';
 import { Body } from './components/Body';
 import { Card } from './components/Card';
 import { Header } from './components/Header';
 import { Steps } from './components/Steps';
 
+/** What the player is doing, as far as the walkthrough needs to see it. */
+export interface TutorialSignals {
+  moving: boolean;
+  /** Changes with every dash. */
+  dashKey: number;
+  /** The weapon in hand. */
+  active: number;
+  /** Its rounds left: a drop is a shot. */
+  ammo: number;
+  menuOpen: boolean;
+  paused: boolean;
+}
+
 interface Step {
   heading: string;
   mouse: ReactNode;
   touch: ReactNode;
+  /** Done once the player does it, seen against the signals before. */
+  done: (now: TutorialSignals, before: TutorialSignals) => boolean;
 }
 
 /** The controls a step at a time, closing on the circle that starts it all. */
@@ -27,6 +40,7 @@ export const TUTORIAL_STEPS: Array<Step> = [
         Your <kbd>left thumb</kbd> aims; push it further to move.
       </>
     ),
+    done: now => now.moving,
   },
   {
     heading: 'Aim and fire',
@@ -42,37 +56,40 @@ export const TUTORIAL_STEPS: Array<Step> = [
         and a tap right on it hits harder.
       </>
     ),
+    done: (now, before) =>
+      now.active === before.active && now.ammo < before.ammo,
   },
   {
     heading: 'Dash',
     mouse: (
       <>
-        <kbd>Space</kbd> dashes the way you&apos;re moving, to get out of
-        trouble. It&apos;s back two beats later.
+        <kbd>Space</kbd> dashes the way you&apos;re moving, straight through
+        enemies. It&apos;s back two beats later.
       </>
     ),
     touch: (
       <>
         The round <kbd>Dash</kbd> button, bottom right, dashes the way
-        you&apos;re moving. It&apos;s back two beats later.
+        you&apos;re moving, straight through enemies.
       </>
     ),
+    done: (now, before) => now.dashKey !== before.dashKey,
   },
   {
     heading: 'Switch weapons',
     mouse: (
       <>
         <kbd>1</kbd>–<kbd>3</kbd>, <kbd>Q</kbd>/<kbd>E</kbd> or the wheel switch
-        between your three weapons. Each fires to its own rhythm and reloads
-        when it runs dry.
+        between your three weapons. Each fires to its own rhythm.
       </>
     ),
     touch: (
       <>
         Hold a weapon on the <kbd>right edge</kbd> to switch to it and fire it.
-        Each fires to its own rhythm and reloads when it runs dry.
+        Each fires to its own rhythm.
       </>
     ),
+    done: (now, before) => now.active !== before.active,
   },
   {
     heading: 'Loot and your bag',
@@ -88,6 +105,7 @@ export const TUTORIAL_STEPS: Array<Step> = [
         button, top right, opens your loadout to swap them in; the game waits.
       </>
     ),
+    done: now => now.menuOpen,
   },
   {
     heading: 'Health and pause',
@@ -103,68 +121,78 @@ export const TUTORIAL_STEPS: Array<Step> = [
         <kbd>pause</kbd> button sits top right.
       </>
     ),
+    done: now => now.paused,
   },
   {
     heading: 'Ready',
     mouse: 'Now step into the circle to start your run.',
     touch: 'Now step into the circle to start your run.',
+    // Stepping in starts the run, and the walkthrough goes with the circle.
+    done: () => false,
   },
 ];
 
+/** Long enough to see the tick before the next step comes up. */
+const DONE_MS = 700;
+
 export interface TutorialProps {
-  /** Which step is showing, from 0. */
-  step: number;
-  onStep: (step: number) => void;
-  /** Skipped, or read to the end: don't show it again. */
-  onDone: () => void;
-  /** Kept mounted under a pause or the menu, so the step isn't lost. */
+  signals: TutorialSignals;
+  /** Kept mounted under a pause or the menu, so it sees them happen. */
   hidden?: boolean;
 }
 
 /**
- * The controls, a step at a time, on the first level until the player has
- * been through them once. The game runs behind it, so each control can be
- * tried as it's read, and stepping into the circle starts the run anyway.
+ * The controls, a step at a time, on a first run while the circle waits.
+ * Nothing to press: each step ticks off when the player does what it says
+ * and the next comes up. The game runs behind it, and stepping into the
+ * circle starts the run whatever step it's on.
  */
-export const Tutorial = ({
-  step,
-  onStep,
-  onDone,
-  hidden = false,
-}: TutorialProps) => {
+export const Tutorial = ({ signals, hidden = false }: TutorialProps) => {
+  const [step, setStep] = useState(0);
+  const [done, setDone] = useState(false);
+  const before = useRef(signals);
+
+  useEffect(() => {
+    const previous = before.current;
+    before.current = signals;
+    if (done || !TUTORIAL_STEPS[step].done(signals, previous)) return;
+    setDone(true);
+  }, [signals, step, done]);
+
+  // A UI beat, not a musical one: the tick shows, then the next step.
+  useEffect(() => {
+    if (!done) return;
+    const timer = window.setTimeout(() => {
+      setStep(current => current + 1);
+      setDone(false);
+    }, DONE_MS);
+    return () => window.clearTimeout(timer);
+  }, [done]);
+
   const { heading, mouse, touch } = TUTORIAL_STEPS[step];
-  const last = step === TUTORIAL_STEPS.length - 1;
   return (
-    <Card aria-labelledby="tutorial-heading" hidden={hidden}>
+    <Card
+      aria-labelledby="tutorial-heading"
+      aria-live="polite"
+      hidden={hidden}
+      $done={done}
+    >
       <Header>
         <h2 id="tutorial-heading">{heading}</h2>
-        <Steps>
-          {step + 1}/{TUTORIAL_STEPS.length}
+        <Steps $done={done}>
+          {done ? (
+            <span role="img" aria-label="Done">
+              ✓
+            </span>
+          ) : (
+            `${step + 1}/${TUTORIAL_STEPS.length}`
+          )}
         </Steps>
       </Header>
       <Body>
         <PointerOnly $pointer="mouse">{mouse}</PointerOnly>
         <PointerOnly $pointer="touch">{touch}</PointerOnly>
       </Body>
-      <Actions>
-        {!last && (
-          <Button type="button" $variant="secondary" onClick={onDone}>
-            Skip
-          </Button>
-        )}
-        {step > 0 && (
-          <Button
-            type="button"
-            $variant="secondary"
-            onClick={() => onStep(step - 1)}
-          >
-            Back
-          </Button>
-        )}
-        <Button type="button" onClick={last ? onDone : () => onStep(step + 1)}>
-          {last ? 'Got it' : 'Next'}
-        </Button>
-      </Actions>
     </Card>
   );
 };
