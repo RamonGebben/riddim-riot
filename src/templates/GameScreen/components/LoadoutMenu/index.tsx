@@ -351,9 +351,10 @@ export const LoadoutMenu = ({
       from: back ? rack.slots.indexOf(back) + 1 : null,
       message: `${said.join('; ')}.`,
     });
-    // Where it went must be in view: the filter gives way if it'd hide it.
+    // Where it went must be in view: the filter gives way if it'd hide it,
+    // for this visit only - the saved filter is the player's own choice.
     if (back && engine !== 'all' && weapons.get(back)?.oscillator !== engine)
-      narrow('all');
+      setEngine('all');
     setRack(swapped);
     setPicked(null);
   };
@@ -492,7 +493,8 @@ export const LoadoutMenu = ({
       ? slot
       : null;
   };
-  const weaker = weakerInBag(rack, weapons);
+  // Only what's in view: a filter mustn't hide what it throws away.
+  const weaker = filterBag(weakerInBag(rack, weapons), weapons, engine);
   const full = kept >= bagSize;
 
   /** One line for a screen reader, on the pick or a swap, never on aim. */
@@ -599,7 +601,10 @@ export const LoadoutMenu = ({
           $target={pickedIn === 'slots' && aim === id}
           $discarded={thrown}
           $reveal={revealed.current.has(id) ? undefined : reveals.get(id)}
-          onAnimationEnd={() => revealed.current.add(id)}
+          onAnimationEnd={event => {
+            // Its own reveal, not a playhead sweeping inside it.
+            if (event.target === event.currentTarget) revealed.current.add(id);
+          }}
           aria-pressed={picked === id}
           aria-label={[
             weapon.name,

@@ -44,17 +44,26 @@ export const useFlight = (root: RefObject<HTMLElement | null>) => {
     const sheet = root.current;
     const layer = sheet?.parentElement;
     if (!sheet || !layer || flights.length === 0) return;
-    flights.forEach(({ id, from, ghost }) => {
-      const card = cardOf(sheet, id);
-      if (!card) return;
-      card.scrollIntoView({ block: 'nearest' });
-      if (card.closest('[data-group="slots"]')) {
+    const landing = flights.flatMap(flight => {
+      const card = cardOf(sheet, flight.id);
+      return card ? [{ ...flight, card }] : [];
+    });
+    // Scrolled into view before any is measured, so no flight aims at
+    // where a card was before the next one's scroll moved it.
+    landing.forEach(({ card }) => card.scrollIntoView({ block: 'nearest' }));
+    landing.forEach(({ card, from, ghost }) => {
+      // The latch is off with flashing reduced: it would never end.
+      if (card.closest('[data-group="slots"]') && !calm()) {
+        // A second swap into the slot plays it again.
+        delete card.dataset.landed;
+        void card.offsetWidth;
         card.dataset.landed = '';
-        card.addEventListener(
-          'animationend',
-          () => delete card.dataset.landed,
-          { once: true },
-        );
+        const settle = (event: AnimationEvent) => {
+          if (event.target !== card) return;
+          delete card.dataset.landed;
+          card.removeEventListener('animationend', settle);
+        };
+        card.addEventListener('animationend', settle);
       }
       if (calm()) {
         card.animate([{ opacity: 0 }, { opacity: 1 }], {
@@ -67,6 +76,7 @@ export const useFlight = (root: RefObject<HTMLElement | null>) => {
       ghost.setAttribute('aria-hidden', 'true');
       ghost.setAttribute('tabindex', '-1');
       ghost.removeAttribute('data-card');
+      ghost.removeAttribute('data-landed');
       ghost.removeAttribute('data-weapon');
       ghost.dataset.ghost = '';
       Object.assign(ghost.style, {
