@@ -103,13 +103,15 @@ export const renderMenuLoop = (
       length,
       sampleRate: source.sampleRate,
     });
-    // Levelled to the design's loudness: a calm bar rendered from a pad
-    // alone measured -41 dB RMS, and played as it was it couldn't be heard.
+    // Brought down to the design's loudness, never up: the bar comes off
+    // the same bus as the game's, so as rendered it's as loud as the track
+    // was. Levelling a calm bar (a pad alone, -41 dB RMS) up to it opened
+    // the menu ~17 dB over the ambience the player had been hearing.
     const kept = source.getChannelData(0).subarray(start, start + length);
     const power =
       kept.reduce((sum, sample) => sum + sample * sample, 0) / kept.length;
     const rmsDb = 10 * Math.log10(Math.max(power, 1e-12));
-    const gain = 10 ** ((design.menu.level - rmsDb) / 20);
+    const gain = 10 ** (Math.min(design.menu.level - rmsDb, 0) / 20);
     Array.from({ length: source.numberOfChannels }, (_, channel) => {
       const from = source.getChannelData(channel);
       const to = loop.getChannelData(channel);

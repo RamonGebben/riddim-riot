@@ -594,10 +594,10 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
     fields: [
       num(
         ['menu', 'level'],
-        'Loop loudness',
+        'Loop ceiling',
         [-50, -6, 0.5],
         'dB',
-        'RMS before the low-pass; previews sit at the weapon target over it',
+        'RMS before the low-pass; quieter bars play as loud as the track was',
       ),
       num(['menu', 'hz'], 'Loop filter', [100, 20000, 10], 'Hz'),
       num(['menu', 'resonance'], 'Loop resonance', [0.1, 12, 0.1]),

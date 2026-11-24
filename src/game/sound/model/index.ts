@@ -354,8 +354,8 @@ export interface BackingPatch {
  */
 export interface MenuPatch {
   /**
-   * How loud the loop is, in dB RMS before its low-pass: it's levelled to
-   * this whatever the section, so a calm bar is as audible as a drop.
+   * The loudest the loop gets, in dB RMS before its low-pass: a louder bar
+   * is brought down to it, a quieter one plays as loud as the track was.
    */
   level: number;
   /** The low-pass over the loop, and its resonance. */
