@@ -24,6 +24,7 @@ import {
 import { createRng, deriveSeed } from '../rng';
 import type { Level } from '../level';
 import {
+  CHARGE_BARS,
   sectionFor,
   songPosition,
   type Section,
@@ -65,8 +66,10 @@ export interface PlaySounds {
   duck: (time: number) => void;
   /** The run is over: muffle the music for good. */
   dead: (time: number) => void;
-  /** The circle's charge: a riser over `seconds` into the slam. */
-  charge: (time: number, seconds: number) => void;
+  /** The circle filling from `from`: a riser over `seconds`, held once full. */
+  charge: (time: number, fill: { from: number; seconds: number }) => void;
+  /** The circle let go of, or slammed: the riser stops (see `Arrangement`). */
+  uncharge: (time: number, seconds: number) => void;
   /** A drop's crash and boom, for a drop that follows another. */
   dropHit: (time: number) => void;
   /** A heart picked up, or a weapon into the bag. */
@@ -178,6 +181,8 @@ export const startPlay = async ({
   let lastTick: Tick | null = null;
   let lastSection: Section = 'calm';
   let drumsIn = false;
+  /** The circle's riser is climbing, or held full. */
+  let rising = false;
   /** The last shot the chord rang over, so a beam doesn't ring every 1/16. */
   let chordAt = -Infinity;
   /** The bars the drums play at half speed, once a half-time is picked up. */
@@ -211,10 +216,10 @@ export const startPlay = async ({
     });
     if (world.status !== 'playing') return;
     const { survival } = world;
-    if (before.chargeAt === null && survival.chargeAt !== null) {
-      sounds.charge(tick.time, barSeconds);
-    }
     if (before.phase === 'charging' && survival.phase === 'song') {
+      // Held full until now; the song's first bar takes the filter.
+      sounds.uncharge(tick.time, 0);
+      rising = false;
       bursts = [
         ...bursts,
         { position: level.pad, time: tick.time, radius: SLAM_RADIUS },
@@ -283,6 +288,7 @@ export const startPlay = async ({
     const dash = controls.takeDash() || dashPressed;
     dashPressed = false;
     const dashedAt = world.dash.until;
+    const before = world;
     const result = stepWorld(world, {
       input: {
         move,
@@ -296,6 +302,19 @@ export const startPlay = async ({
       beatSeconds,
     });
     world = result.world;
+    // The riser follows the circle: up while it fills, cut once it drains.
+    const { charge: from } = before.survival;
+    const { charge } = world.survival;
+    if (charge > from && !rising) {
+      rising = true;
+      sounds.charge(audioNow(), {
+        from,
+        seconds: (1 - from) * CHARGE_BARS * barSeconds,
+      });
+    } else if (charge < from && rising) {
+      rising = false;
+      sounds.uncharge(audioNow(), from * CHARGE_BARS * barSeconds);
+    }
     camera = clampCamera(
       followCamera(camera, world.player.position, dt),
       size,
@@ -350,6 +369,10 @@ export const startPlay = async ({
     if (ended) trigger.release();
     // Dead or out the exit, the music closes down behind the screen.
     if (ended) sounds.dead(audioNow());
+    if (ended && rising) {
+      rising = false;
+      sounds.uncharge(audioNow(), 0);
+    }
     if (world.dash.until !== dashedAt) {
       bursts = [...bursts, { position: world.player.position, time: now }];
     }

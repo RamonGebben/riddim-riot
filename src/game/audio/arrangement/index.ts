@@ -19,10 +19,16 @@ export interface Arrangement {
   drop: (time: number) => void;
   riser: (time: number) => void;
   /**
-   * The circle charging: a riser over `seconds` with the track's filter
-   * riding open under it, into the slam's drop.
+   * The circle filling from `from` (0-1): a riser climbing the rest of the
+   * way over `seconds` with the track's filter riding open under it, held
+   * once full until `uncharge`.
    */
-  charge: (time: number, seconds: number) => void;
+  charge: (time: number, fill: { from: number; seconds: number }) => void;
+  /**
+   * The circle let go of: the riser cuts out, and the track's filter
+   * settles back over `seconds` - or snaps, at the slam.
+   */
+  uncharge: (time: number, seconds: number) => void;
   dispose: () => void;
 }
 
@@ -210,9 +216,24 @@ export const createArrangement = ({
     },
     drop,
     riser: time => startRiser(time),
-    charge: (time, seconds) => {
-      startRiser(time, seconds);
+    charge: (time, { from, seconds }) => {
+      // Picked up part-filled: the sweep starts where the fill is.
+      const hz = patch.riserFrom * (patch.riserTo / patch.riserFrom) ** from;
+      riser.envelope.attack = Math.max(seconds, 0.05);
+      riserFilter.frequency.cancelScheduledValues(time);
+      riserFilter.frequency.setValueAtTime(hz, time);
+      if (seconds > 0) {
+        riserFilter.frequency.exponentialRampToValueAtTime(
+          patch.riserTo,
+          time + seconds,
+        );
+      }
+      riser.envelope.triggerAttack(time);
       musicBus.open(OPENNESS.build, time, seconds);
+    },
+    uncharge: (time, seconds) => {
+      riser.envelope.triggerRelease(time);
+      if (seconds > 0) musicBus.open(OPENNESS.calm, time, seconds);
     },
     dispose: graph.dispose,
   };

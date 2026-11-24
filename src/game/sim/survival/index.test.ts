@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceSurvival,
+  chargeCircle,
+  exitTaken,
   INITIAL_SURVIVAL,
   partAt,
   sectionFor,
   songFor,
   songFrom,
-  stepIn,
   waveSize,
   type Survival,
 } from '.';
@@ -74,14 +75,21 @@ describe('advanceSurvival', () => {
     });
   });
 
-  it('charges from the first bar line after stepping in, then starts the song', () => {
-    const stepped = stepIn(INITIAL_SURVIVAL, 9.5);
-    expect(stepped).toMatchObject({ phase: 'charging', steppedAt: 9.5 });
-    const charging = at(stepped, 5).survival;
-    expect(charging).toMatchObject({ chargeBar: 5, chargeAt: 10 });
-    const slam = at(charging, 6);
+  it('holds a circle that is still filling', () => {
+    const filling = {
+      ...INITIAL_SURVIVAL,
+      phase: 'charging' as const,
+      charge: 0.9,
+    };
+    expect(at(filling, 5).survival).toBe(filling);
+  });
+
+  it('slams a full circle on the next bar line, which starts the song', () => {
+    const full = { ...INITIAL_SURVIVAL, phase: 'charging' as const, charge: 1 };
+    const slam = at(full, 6);
     expect(slam.survival).toMatchObject({
       phase: 'song',
+      charge: 0,
       startBar: 6,
       sent: 1,
     });
@@ -130,10 +138,55 @@ describe('advanceSurvival', () => {
     );
     expect(at(outro, START.outro + 1, { alive: 0 }).spawn).toBeNull();
   });
+});
 
-  it('only steps in while waiting', () => {
+describe('chargeCircle', () => {
+  const BAR = 2;
+  const frame = (survival: Survival, inside: boolean, dt = 0.5) =>
+    chargeCircle(survival, { inside, dt, barSeconds: BAR });
+
+  it('fills while the player stands in, over a bar', () => {
+    const half = frame(frame(INITIAL_SURVIVAL, true), true);
+    expect(half).toMatchObject({ phase: 'charging', charge: 0.5 });
+    expect(frame(half, true, BAR)).toMatchObject({
+      phase: 'charging',
+      charge: 1,
+    });
+  });
+
+  it('drains once the player steps out, back to waiting', () => {
+    const half = frame(INITIAL_SURVIVAL, true, 1);
+    const draining = frame(half, false);
+    expect(draining).toMatchObject({ phase: 'waiting', charge: 0.25 });
+    expect(frame(draining, false, BAR)).toMatchObject({ charge: 0 });
+  });
+
+  it('picks the fill up where it drained to', () => {
+    const back = frame(frame(frame(INITIAL_SURVIVAL, true, 1), false), true);
+    expect(back).toMatchObject({ phase: 'charging', charge: 0.5 });
+  });
+
+  it('keeps a full start full: it is committed to the slam', () => {
+    const full = frame(INITIAL_SURVIVAL, true, BAR);
+    expect(frame(full, false)).toBe(full);
+  });
+
+  it('leaves an empty circle nobody is in alone', () => {
+    expect(frame(INITIAL_SURVIVAL, false)).toBe(INITIAL_SURVIVAL);
+  });
+
+  it('leaves the circle alone during the fight', () => {
     const playing = songFrom(0);
-    expect(stepIn(playing, 3)).toBe(playing);
+    expect(frame(playing, true)).toBe(playing);
+  });
+
+  it('fills the open exit the same way, until it is taken', () => {
+    const open = { ...songFrom(0), phase: 'clear' as const };
+    const half = frame(open, true, 1);
+    expect(half).toMatchObject({ phase: 'clear', charge: 0.5 });
+    expect(exitTaken(half)).toBe(false);
+    expect(frame(half, false)).toMatchObject({ phase: 'clear', charge: 0.25 });
+    expect(exitTaken(frame(half, true, 1))).toBe(true);
   });
 });
 

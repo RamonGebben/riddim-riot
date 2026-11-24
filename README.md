@@ -14,11 +14,11 @@ pnpm dev            # http://localhost:3000
 
 Press **Drop in** or Enter (browsers only start audio from a press), then play. **Reduce flashing** beside it turns off the screen shake and flashes; it follows your system's reduced-motion setting until you change it. A finished run offers **Copy seed link** to share or replay its seed.
 
-Each level is an arena and a song. Step into the circle in the middle: it
-charges for a bar and slams the music in. Then survive the song (intro,
+Each level is an arena and a song. Stand in the circle in the middle: it
+fills over a bar (step out and it drains) and slams the music in. Then survive the song (intro,
 breakdown, build-up, three drops with a bridge, outro), with waves pacing
 it. The last drop brings a boss that always drops a good weapon. Once it's
-down and the outro plays, the circle opens: step in for the next level
+down and the outro plays, the circle opens: stand in it until it fills for the next level
 (new arena, key and palette). Health, score and weapons carry over, hearts
 dropped by enemies heal you, and five hits end the run.
 

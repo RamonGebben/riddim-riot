@@ -32,7 +32,7 @@ interface Step {
 // The last card stays up until the circle takes, so it has time for the
 // powerups too: there's nothing to do for those until one drops.
 const READY =
-  'Enemies now and then drop a powerup; walk over one and it runs for a few bars. Now step into the circle to start your run.';
+  'Enemies now and then drop a powerup; walk over one and it runs for a few bars. Now stand in the circle until it fills to start your run.';
 
 /** The controls a step at a time, closing on the circle that starts it all. */
 export const TUTORIAL_STEPS: Array<Step> = [
