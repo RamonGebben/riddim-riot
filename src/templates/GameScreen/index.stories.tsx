@@ -560,6 +560,38 @@ export const DiscardingLoot: Story = {
   },
 };
 
+export const DiscardingFromTheBag: Story = {
+  args: { menu: menu() },
+  play: async ({ args, canvas, userEvent }) => {
+    // The bin beside a card marks it without picking it.
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Discard Lumen Beam 1/8' }),
+    );
+    await expect(canvas.getByText('Bag 2/24')).toBeVisible();
+    await expect(
+      canvas.getByRole('button', {
+        name: 'Lumen Beam 1/8, marked to discard',
+        pressed: false,
+      }),
+    ).toBeVisible();
+    // Marked, the bin turns into the way back.
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Keep Lumen Beam 1/8' }),
+    );
+    await expect(canvas.getByText('Bag 3/24')).toBeVisible();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Discard Lumen Beam 1/8' }),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Back to the fight · discard 1' }),
+    );
+    await expect(args.menu?.onDone).toHaveBeenCalledWith({
+      slots: ['s0', 's1', 's2'],
+      bag: ['b1', 'b2'],
+    });
+  },
+};
+
 export const DiscardingWeakerLoot: Story = {
   args: {
     menu: {

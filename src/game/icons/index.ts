@@ -82,6 +82,21 @@ export const STOP_ICON: Icon = [
   { d: 'M6.5 6.5 H17.5 V17.5 H6.5 Z', fill: true },
 ];
 
+/** A bin with a lid: throw a weapon out of the bag. */
+export const BIN_ICON: Icon = [
+  { d: 'M4 6.5 H20' },
+  { d: 'M9.5 6.5 V4 H14.5 V6.5' },
+  { d: 'M6 6.5 L7 20 H17 L18 6.5' },
+  { d: 'M10 10.5 V16' },
+  { d: 'M14 10.5 V16' },
+];
+
+/** An arrow turning back: keep a weapon marked to throw out. */
+export const KEEP_ICON: Icon = [
+  { d: 'M9 5 L4 10 L9 15' },
+  { d: 'M4 10 H14 A6 6 0 0 1 14 22 H10' },
+];
+
 /** A bag with a handle: the loadout menu and the loot in it. */
 export const BAG_ICON: Icon = [
   { d: 'M4 9 H20 L18.5 21 H5.5 Z' },

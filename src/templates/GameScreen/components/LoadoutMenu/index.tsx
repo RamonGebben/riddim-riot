@@ -9,9 +9,11 @@ import {
 import { Button } from '~/atoms/Button';
 import { Icon } from '~/atoms/Icon';
 import {
+  BIN_ICON,
   BLAST_ICON,
   CLIMB_ICON,
   FX_ICONS,
+  KEEP_ICON,
   PLAY_ICON,
   STOP_ICON,
   WEAPON_ICONS,
@@ -25,6 +27,7 @@ import {
 import { readBagFilter, saveBagFilter } from '~/utils/bagFilter';
 import { PointerOnly } from '../PointerOnly';
 import { Announce } from './components/Announce';
+import { BinButton } from './components/BinButton';
 import { Caption } from './components/Caption';
 import { Card } from './components/Card';
 import { ChipLabel } from './components/ChipLabel';
@@ -631,6 +634,14 @@ export const LoadoutMenu = ({
           )}
           {fresh && <Fresh aria-hidden />}
         </Card>
+        <BinButton
+          type="button"
+          $marked={thrown}
+          aria-label={`${thrown ? 'Keep' : 'Discard'} ${weapon.name}`}
+          onClick={() => setRack(toggleDiscard(rack, id))}
+        >
+          <Icon icon={thrown ? KEEP_ICON : BIN_ICON} />
+        </BinButton>
       </li>
     );
   };
