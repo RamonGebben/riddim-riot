@@ -1,8 +1,20 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { BLAST_ICON, FX_ICONS, HEART_ICON, WEAPON_ICONS } from '../../icons';
+import {
+  BLAST_ICON,
+  FX_ICONS,
+  HEART_ICON,
+  POWERUP_COLORS,
+  POWERUP_ICONS,
+  WEAPON_ICONS,
+} from '../../icons';
 import type { Key } from '../../music';
 import type { Palette } from '../../palette';
 import type { Heart, Pickup } from '../../sim/loot';
+import {
+  POWERUP_NAMES,
+  type Powerup,
+  type PowerupKind,
+} from '../../sim/powerup';
 import { length, subtract, type Vec } from '../../vec';
 import { FX, OSCILLATORS, weaponFrom, type Weapon } from '../../weapons';
 import { drawIcon } from '../icon';
@@ -12,6 +24,7 @@ export interface PickupsView {
   update: (state: {
     pickups: Array<Pickup>;
     hearts: Array<Heart>;
+    powerups: Array<Powerup>;
     player: { position: Vec };
     beat: number;
     now: number;
@@ -122,6 +135,37 @@ const drawHeart = () => {
   return root;
 };
 
+/** A powerup: a glowing coin in its colour, its name always under it. */
+const drawPowerup = (kind: PowerupKind, palette: Palette) => {
+  const root = new Container();
+  const coin = new Container();
+  const color = POWERUP_COLORS[kind];
+  coin.addChild(
+    new Graphics()
+      .circle(0, 0, SIZE * 2)
+      .fill({ color, alpha: 0.2 })
+      .circle(0, 0, SIZE * 1.2)
+      .fill(palette.void)
+      .stroke({ width: 3, color }),
+    drawIcon(POWERUP_ICONS[kind], { size: SIZE * 1.4, color }),
+  );
+  const text = new Text({
+    text: POWERUP_NAMES[kind].toUpperCase(),
+    resolution: 2,
+    style: {
+      fontFamily: 'ui-monospace, Menlo, monospace',
+      fontSize: 11,
+      fontWeight: '700',
+      fill: color,
+      letterSpacing: 1,
+    },
+  });
+  text.anchor.set(0.5, 0);
+  text.position.set(0, SIZE * 1.6);
+  root.addChild(coin, text);
+  return { root, coin };
+};
+
 /**
  * Weapons on the ground float and bob with the beat, their labels fading
  * in as the player nears; hearts beat with it.
@@ -130,6 +174,7 @@ export const createPickupsView = (palette: Palette, key: Key): PickupsView => {
   const view = new Container();
   const weapons = new Map<number, WeaponSprite>();
   const hearts = new Map<number, Container>();
+  const powerups = new Map<number, ReturnType<typeof drawPowerup>>();
   // Labels sit above every drop, so a cluster stays readable.
   const labels = new Container();
   const items = new Container();
@@ -166,9 +211,34 @@ export const createPickupsView = (palette: Palette, key: Key): PickupsView => {
     return sprite;
   };
 
+  const powerupFor = (powerup: Powerup) => {
+    const existing = powerups.get(powerup.id);
+    if (existing) return existing;
+    const sprite = drawPowerup(powerup.kind, palette);
+    powerups.set(powerup.id, sprite);
+    items.addChild(sprite.root);
+    return sprite;
+  };
+
   return {
     view,
-    update: ({ pickups, hearts: lying, player, beat, now }) => {
+    update: ({
+      pickups,
+      hearts: lying,
+      powerups: floor,
+      player,
+      beat,
+      now,
+    }) => {
+      prune(powerups, new Set(floor.map(({ id }) => id)), sprite =>
+        sprite.root.destroy({ children: true }),
+      );
+      floor.forEach(powerup => {
+        const { root, coin } = powerupFor(powerup);
+        root.position.set(powerup.position.x, powerup.position.y);
+        coin.y = Math.sin(now * 4 + powerup.id) * 3;
+        coin.scale.set(1 + beat * 0.25);
+      });
       prune(weapons, new Set(pickups.map(({ id }) => id)), sprite => {
         sprite.label.destroy({ children: true });
         sprite.root.destroy({ children: true });

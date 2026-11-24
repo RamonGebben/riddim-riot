@@ -236,6 +236,15 @@ export interface BlastPatch {
   noiseLevel: number;
 }
 
+/** The chord powerup: the third and fifth rung over every shot. */
+export interface ChordPatch {
+  level: number;
+  waveform: 'sine' | 'triangle' | 'square' | 'sawtooth';
+  octave: number;
+  decay: number;
+  brightnessHz: number;
+}
+
 /** Points landing: a pluck that climbs the scale as the combo grows. */
 export interface ScorePatch {
   level: number;
@@ -377,6 +386,7 @@ export interface SoundDesign {
   backing: BackingPatch;
   mix: MixPatch;
   score: ScorePatch;
+  chord: ChordPatch;
   menu: MenuPatch;
 }
 
@@ -622,6 +632,13 @@ export const BASE_DESIGN: SoundDesign = {
     echoBeats: 0.75,
     echoFeedback: 0.3,
     echoWet: 0.25,
+  },
+  chord: {
+    level: -18,
+    waveform: 'sawtooth',
+    octave: 3,
+    decay: 0.14,
+    brightnessHz: 2400,
   },
   menu: {
     level: -24,

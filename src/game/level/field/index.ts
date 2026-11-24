@@ -67,3 +67,21 @@ export const stepDownhill = (
     .sort((a, b) => distanceAt(map, field, a) - distanceAt(map, field, b));
   return closer[0] ?? null;
 };
+
+/**
+ * The way out: the neighbour furthest from the origin, for enemies running
+ * from the player. Null when nothing is further, or every way is blocked.
+ */
+export const stepUphill = (
+  map: Tilemap,
+  field: DistanceField,
+  from: TilePos,
+  blocked: (pos: TilePos) => boolean = () => false,
+): TilePos | null => {
+  const here = distanceAt(map, field, from);
+  if (here < 0) return null;
+  const further = NEIGHBOURS.map(offset => add(from, offset))
+    .filter(pos => distanceAt(map, field, pos) > here && !blocked(pos))
+    .sort((a, b) => distanceAt(map, field, b) - distanceAt(map, field, a));
+  return further[0] ?? null;
+};

@@ -31,7 +31,21 @@ describe('hudOf', () => {
       dashCooldown: null,
       dashKey: 0,
       moving: false,
+      pellet: null,
+      halfTime: null,
+      chord: null,
     });
+  });
+
+  it('counts a running powerup down in whole seconds', () => {
+    const world = createWorld(generateLevel(1));
+    const powered = {
+      ...world,
+      powered: { ...world.powered, chord: 10 },
+    };
+    expect(hudOf(powered, 0, 0.5, 2.2).chord).toBe(8);
+    expect(hudOf(powered, 0, 0.5, 10).chord).toBeNull();
+    expect(hudOf(powered, 0, 0.5, 2.2).pellet).toBeNull();
   });
 
   it('tells walking from easing to a stop', () => {

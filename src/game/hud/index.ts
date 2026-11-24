@@ -15,6 +15,7 @@ import {
 } from '../sim/survival';
 import { BAG_SIZE } from '../sim/loot';
 import { DASH } from '../sim/player';
+import type { PowerupKind } from '../sim/powerup';
 import { length } from '../vec';
 import type { WeaponRecipe } from '../weapons';
 
@@ -56,6 +57,10 @@ export interface HudView {
   dashKey: number;
   /** The player is on the move, for the controls' walkthrough to see. */
   moving: boolean;
+  /** Seconds left on each powerup while it runs, null when it's off. */
+  pellet: number | null;
+  halfTime: number | null;
+  chord: number | null;
 }
 
 /** Faster than this (px/s) is walking, not easing to a stop. */
@@ -87,6 +92,9 @@ export const initialHud = ({
   dashCooldown: null,
   dashKey: 0,
   moving: false,
+  pellet: null,
+  halfTime: null,
+  chord: null,
   level,
   hp,
   kills,
@@ -109,6 +117,9 @@ export const hudOf = (
   // Counted in beats so it ticks down steadily, not a bar at a time.
   const beatsLeft = at ? (at.bars - at.bar) * 4 - (beat % 4) : null;
   const boss = world.enemies.find(enemy => enemy.kind === 'boss');
+  // Whole seconds, so the HUD re-renders once a second, not every frame.
+  const left = (kind: PowerupKind) =>
+    now < world.powered[kind] ? Math.ceil(world.powered[kind] - now) : null;
   return {
     status: world.status,
     level: world.rules.level,
@@ -140,6 +151,9 @@ export const hudOf = (
     moving:
       world.survival.phase === 'waiting' &&
       length(world.player.velocity) > MOVING_SPEED,
+    pellet: left('pellet'),
+    halfTime: left('halfTime'),
+    chord: left('chord'),
   };
 };
 

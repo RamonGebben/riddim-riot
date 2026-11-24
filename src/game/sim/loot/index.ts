@@ -19,6 +19,8 @@ export interface Heart {
 const WEAPON_DROP_CHANCE = 0.1;
 /** Chance a kill that drops no weapon drops a heart instead. */
 const HEART_DROP_CHANCE = 0.08;
+/** Chance a kill that drops neither drops a powerup (see `sim/powerup`). */
+const POWERUP_DROP_CHANCE = 0.04;
 /** The boss always drops a good weapon and this many hearts. */
 export const BOSS_HEARTS = 2;
 /** How close a heart or a weapon has to come to be picked up. */
@@ -40,13 +42,14 @@ const LOOT_STREAM = 30;
  */
 export const BAG_SIZE = 24;
 
-export type Drop = 'weapon' | 'heart' | null;
+export type Drop = 'weapon' | 'heart' | 'powerup' | null;
 
 /** Seeded per enemy, so a level's drops are the same every time. */
 export const dropOnKill = (levelSeed: number, enemyId: number): Drop => {
   const rng = createRng(deriveSeed(levelSeed, LOOT_STREAM, enemyId));
   if (rng.chance(WEAPON_DROP_CHANCE)) return 'weapon';
-  return rng.chance(HEART_DROP_CHANCE) ? 'heart' : null;
+  if (rng.chance(HEART_DROP_CHANCE)) return 'heart';
+  return rng.chance(POWERUP_DROP_CHANCE) ? 'powerup' : null;
 };
 
 export const lootRecipe = (

@@ -102,3 +102,20 @@ export const hitsAt = (
     voice,
     velocity: drumBar[voice][stepInBar],
   })).filter(hit => hit.velocity > 0);
+
+/**
+ * Where bar `bar`, step `stepInBar` lands in the pattern when the drums
+ * play at half speed from bar `from`: each pattern bar stretched over two,
+ * one pattern step every other 1/16. Null on the steps in between.
+ */
+export const halfSpeedStep = (
+  { bar, stepInBar }: { bar: number; stepInBar: number },
+  from: number,
+): { bar: number; stepInBar: number } | null => {
+  if (stepInBar % 2 === 1) return null;
+  const into = bar - from;
+  return {
+    bar: from + Math.floor(into / 2),
+    stepInBar: (into % 2) * (STEPS_PER_BAR / 2) + stepInBar / 2,
+  };
+};

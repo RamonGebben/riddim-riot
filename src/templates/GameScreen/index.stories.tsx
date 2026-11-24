@@ -741,6 +741,41 @@ export const BonusHeartsAndBoss: Story = {
   },
 };
 
+export const PowerupsRunning: Story = {
+  args: {
+    run: {
+      status: 'playing',
+      level: 2,
+      levels: 5,
+      hp: 4,
+      maxHp: 5,
+      kills: 40,
+      score: 9_000,
+      combo: 0,
+      phase: 'song',
+      part: 'drop1',
+      secondsLeft: 20,
+      song: SONG,
+      songBar: 36,
+      boss: null,
+      dashCooldown: null,
+      dashKey: 0,
+      moving: false,
+      bag: 2,
+      bagSize: 24,
+      pellet: 5,
+      halfTime: null,
+      chord: 2,
+    },
+  },
+  play: async ({ canvas }) => {
+    const powerups = canvas.getByRole('list', { name: 'Powerups' });
+    await expect(powerups).toBeVisible();
+    await expect(canvas.getByLabelText('Pellet, 5 s left')).toBeVisible();
+    await expect(canvas.getByLabelText('Chord, 2 s left')).toBeVisible();
+  },
+};
+
 export const RunWon: Story = {
   args: {
     run: {

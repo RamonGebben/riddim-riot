@@ -648,6 +648,24 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
     ],
   },
   {
+    id: 'chord',
+    title: 'Chord powerup',
+    description:
+      "Rings the current chord's third and fifth over every shot while the chord powerup runs.",
+    fields: [
+      num(['chord', 'level'], 'Level', [-40, 6, 0.5], 'dB'),
+      {
+        kind: 'choice',
+        path: ['chord', 'waveform'],
+        label: 'Waveform',
+        options: ['sine', 'triangle', 'square', 'sawtooth'],
+      },
+      num(['chord', 'octave'], 'Octave', [2, 6, 1]),
+      num(['chord', 'decay'], 'Decay', [0.02, 2, 0.01], 's'),
+      num(['chord', 'brightnessHz'], 'Brightness', [200, 16000, 10], 'Hz'),
+    ],
+  },
+  {
     id: 'recharge',
     title: 'Beam recharge',
     description:

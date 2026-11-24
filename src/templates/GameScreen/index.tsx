@@ -11,6 +11,7 @@ import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
 import { HudActions } from './components/HudActions';
 import { HudPanel } from './components/HudPanel';
+import { HudStack } from './components/HudStack';
 import { IconButton } from './components/IconButton';
 import { LevelBadge } from './components/LevelBadge';
 import { LoadoutMenu, type LoadoutMenuProps } from './components/LoadoutMenu';
@@ -18,6 +19,7 @@ import { Loadout, type LoadoutProps } from './components/Loadout';
 import { LockPage } from './components/LockPage';
 import { Overlay, type OverlayAction } from './components/Overlay';
 import { PointerOnly } from './components/PointerOnly';
+import { Powerups, type PowerupsProps } from './components/Powerups';
 import { Prompt } from './components/Prompt';
 import { RotateNotice } from './components/RotateNotice';
 import { Score } from './components/Score';
@@ -35,7 +37,7 @@ export type {
   WeaponStats,
 } from './components/LoadoutMenu';
 
-export interface RunProps {
+export interface RunProps extends PowerupsProps {
   status: 'playing' | 'dead' | 'cleared';
   level: number;
   /** Levels in a run; clearing the last wins it. */
@@ -297,12 +299,19 @@ export const GameScreen = ({
         />
       )}
       <Hud>
-        <HudPanel>
-          <Health hp={run.hp} maxHp={run.maxHp} />
-          <LevelBadge>
-            {run.level}/{run.levels}
-          </LevelBadge>
-        </HudPanel>
+        <HudStack>
+          <HudPanel>
+            <Health hp={run.hp} maxHp={run.maxHp} />
+            <LevelBadge>
+              {run.level}/{run.levels}
+            </LevelBadge>
+          </HudPanel>
+          <Powerups
+            pellet={run.pellet}
+            halfTime={run.halfTime}
+            chord={run.chord}
+          />
+        </HudStack>
         <SongTrack
           label={phaseLabel(run)}
           song={run.song}
