@@ -23,7 +23,10 @@ const gameState = (page: Page) =>
       ).audioContexts.at(-1)?.state,
   );
 
-test('open the bag from the pause and close back to it', async ({ page }) => {
+test('open the bag from the pause and close back to it', async ({
+  page,
+  browserName,
+}) => {
   await watchAudio(page);
   await page.goto('/?seed=42');
   await page.getByRole('button', { name: 'Drop in' }).click();
@@ -39,7 +42,7 @@ test('open the bag from the pause and close back to it', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeHidden();
 
   // Closing it goes back to the pause, the game still frozen behind it.
-  await menu.getByRole('button', { name: 'Back to the fight' }).click();
+  await menu.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(menu).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
   await expect.poll(() => gameState(page)).toBe('suspended');
@@ -49,6 +52,15 @@ test('open the bag from the pause and close back to it', async ({ page }) => {
   await expect(menu).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
+
+  // Back on the pause, focus is on Resume and Tab walks the buttons (Safari
+  // tabs to buttons only with Option held).
+  await expect(page.getByRole('button', { name: 'Resume' })).toBeFocused();
+  await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
+  await expect(menu).toBeHidden();
+  await expect(
+    page.getByRole('button', { name: 'Loadout and bag' }),
+  ).toBeFocused();
   await page.getByRole('button', { name: 'Resume' }).click();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeHidden();
   await expect.poll(() => gameState(page)).toBe('running');

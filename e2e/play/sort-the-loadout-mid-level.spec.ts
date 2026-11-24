@@ -117,7 +117,7 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   await expect(
     menu.getByRole('button', { name: `Slot 3: ${firstName}` }),
   ).toBeVisible();
-  await menu.getByRole('button', { name: 'Back to the fight' }).click();
+  await menu.getByRole('button', { name: 'Back', exact: true }).click();
 
   await expect(menu).toBeHidden();
   await expect.poll(() => stateAt(page, game)).toBe('running');

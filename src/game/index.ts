@@ -202,9 +202,9 @@ export interface Game {
   openMenu: () => void;
   /**
    * Close the menu: the loop fades and the level carries on - unless it
-   * was opened from the pause, which it goes back to (`resume: false`).
+   * was opened from the pause, which it goes back to.
    */
-  closeMenu: (options?: { resume?: boolean }) => void;
+  closeMenu: () => void;
   /**
    * Audition a weapon: a bar of its riff in the level's key, heard even
    * while the level is frozen. Call it from a press; `onStart` fires as it
@@ -455,6 +455,8 @@ export const startGame = async ({
   };
   let trackIn = false;
   let menuOpen = false;
+  /** The menu was opened over the pause: closing it goes back there. */
+  let menuOverPause = false;
   /** The riff moved onto the chord being played, as a preview plays it. */
   const chordShift = () =>
     lastTick
@@ -582,6 +584,7 @@ export const startGame = async ({
     },
     openMenu: () => {
       previewer.prime();
+      menuOverPause = paused;
       pause();
       menuOpen = true;
       if (!lastTick || hud.status !== 'playing') return;
@@ -604,12 +607,12 @@ export const startGame = async ({
         (error: unknown) => console.error(error),
       );
     },
-    closeMenu: ({ resume: carryOn = true } = {}) => {
+    closeMenu: () => {
       menuOpen = false;
       previewTurn += 1;
       previewer.stop();
       previewer.stopLoop();
-      if (carryOn) resume();
+      if (!menuOverPause) resume();
     },
     preview: async (recipe, onStart) => {
       previewer.prime();

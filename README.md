@@ -84,7 +84,7 @@ elsewhere a notice asks you to turn the phone):
 | **Bag** button (top right)                  | Loadout menu: swap in loot from the bag            |
 
 Switching tabs or turning the phone upright pauses the game too; only
-**Resume** carries on. **Loadout and bag** (or Tab/B) opens the loadout
+**Resume** carries on. **Loadout and bag** (or B) opens the loadout
 menu from the pause, and closing it goes back to the pause.
 
 ## Scripts

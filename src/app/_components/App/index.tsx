@@ -310,8 +310,9 @@ export const App = () => {
       `${TOUCH_SCREEN} and (orientation: portrait)`,
     );
     const onKeyDown = (event: KeyboardEvent) => {
-      // Paused too: the bag opens over the pause and closes back to it.
-      if (event.code === 'Tab' || event.code === 'KeyB') {
+      // Paused, only B opens the bag (it closes back to the pause): Tab
+      // moves between the pause's buttons.
+      if (event.code === 'KeyB' || (event.code === 'Tab' && !paused)) {
         event.preventDefault();
         if (!event.repeat) openMenu();
         return;
@@ -462,8 +463,7 @@ export const App = () => {
     kept.keep(chosen.recipes);
     setMenu(null);
     setPreviewing(null);
-    if (current.hud().status === 'playing')
-      current.closeMenu({ resume: !paused });
+    if (current.hud().status === 'playing') current.closeMenu();
   };
 
   /**
@@ -520,7 +520,7 @@ export const App = () => {
       note: over
         ? `${KEPT_NOTES[kept.status]} The bag empties when the next run starts.`
         : KEPT_NOTES[kept.status],
-      doneLabel: over ? 'Done' : 'Back to the fight',
+      doneLabel: over ? 'Done' : 'Back',
       isApplying: arranging,
       error: menuError,
       preview: previewing,

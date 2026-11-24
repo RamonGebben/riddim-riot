@@ -342,6 +342,7 @@ export const GameScreen = ({
       {paused && run.status === 'playing' && !menu && (
         <Overlay
           heading="Paused"
+          focusFirst
           stats={[
             { label: 'Level', value: `${run.level}/${run.levels}` },
             { label: 'Key', value: musicalKey },
