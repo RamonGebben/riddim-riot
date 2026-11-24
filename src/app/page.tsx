@@ -6,7 +6,7 @@ const SITE_URL = siteUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL);
 const GAME = {
   '@context': 'https://schema.org',
   '@type': 'VideoGame',
-  name: 'Bass Weapons',
+  name: 'Riddim Riot',
   url: `${SITE_URL}/`,
   image: `${SITE_URL}/og.png`,
   description:

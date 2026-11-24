@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-11-20T11:17:43Z",
-  "title": "Design System: Bass Weapons",
+  "title": "Design System: Riddim Riot",
   "extensions": {
     "colorMeta": {
       "strobe-blue": {
@@ -188,7 +188,7 @@
     "typographyMeta": {
       "display": {
         "displayName": "Wordmark",
-        "purpose": "The title only: 900 italic caps, violet-to-blue gradient clipped to text, glow breathing on two beats."
+        "purpose": "The title only: 900 italic caps, violet-to-blue gradient clipped to text, RIDDIM stacked over RIOT; RIOT's O is the level's circle, drawn as a ring."
       },
       "headline": {
         "displayName": "Headline",
@@ -233,16 +233,16 @@
         "purpose": "Combo text-shadow; hearts use drop-shadow(0 0 4px currentColor)."
       },
       {
-        "name": "wordmark-breath",
-        "value": "drop-shadow(0 0 18px rgb(167 139 250 / 0.55)) to drop-shadow(0 0 34px rgb(96 165 250 / 0.9))",
-        "purpose": "Title glow keyframes, two beats at 140 BPM."
+        "name": "wordmark-glow",
+        "value": "drop-shadow(0 0 18px rgb(167 139 250 / 0.55))",
+        "purpose": "Title glow, steady."
       }
     ],
     "motion": [
       {
-        "name": "breathe",
-        "value": "0.857s ease-out infinite",
-        "purpose": "Wordmark glow: two beats at 140 BPM; off when flashing is reduced."
+        "name": "ring-fill",
+        "value": "1.714s steps(4, jump-start) infinite",
+        "purpose": "Wordmark ring fills a quarter per beat over a bar at 140 BPM; full and still when flashing is reduced."
       },
       {
         "name": "bump",
@@ -402,7 +402,7 @@
   ],
   "narrative": {
     "northStar": "The Club Under Glass",
-    "overview": "The game is the dancefloor: a PixiJS arena whose shader pulses, shakes and changes palette with the music. Every React screen is a pane of smoked glass laid over that floor and lit by it. Panels are translucent floor black with a faint white hairline and a backdrop blur, so the level keeps moving through them. Even the landing page plays a live level behind its copy, with a silent demo of shots landing on the kick.\n\nThe chrome recedes and the game leads. Color and glow are not decoration. They mark state: the slot you're holding, a magazine that's loaded, a combo, dash being ready, a heart you just got back. The one deliberate performance is the wordmark: heavy italic caps in a violet-to-blue gradient whose glow breathes on two beats at 140 BPM. Density runs high in the HUD (small mono readouts, segment bars, key caps) and loose on the landing and level cards, where a single headline holds the screen.\n\nThe system rejects two neighbours. It is not generic SaaS, so no bland blue-pill-on-white app feel, even though it starts from a stock token set. And it is not cyberpunk cliché: no glitch text, scanlines or magenta/cyan hacker styling. It is dark only; light surfaces never appear.",
+    "overview": "The game is the dancefloor: a PixiJS arena whose shader pulses, shakes and changes palette with the music. Every React screen is a pane of smoked glass laid over that floor and lit by it. Panels are translucent floor black with a faint white hairline and a backdrop blur, so the level keeps moving through them. Even the landing page plays a live level behind its copy, with a silent demo of shots landing on the kick.\n\nThe chrome recedes and the game leads. Color and glow are not decoration. They mark state: the slot you're holding, a magazine that's loaded, a combo, dash being ready, a heart you just got back. The one deliberate performance is the wordmark: heavy italic caps in a violet-to-blue gradient, RIDDIM stacked over RIOT, whose O is the level's circle filling a quarter on each beat at 140 BPM. Density runs high in the HUD (small mono readouts, segment bars, key caps) and loose on the landing and level cards, where a single headline holds the screen.\n\nThe system rejects two neighbours. It is not generic SaaS, so no bland blue-pill-on-white app feel, even though it starts from a stock token set. And it is not cyberpunk cliché: no glitch text, scanlines or magenta/cyan hacker styling. It is dark only; light surfaces never appear.",
     "keyCharacteristics": [
       "Smoked glass panels (70-75% floor black, 12% white hairline, 6-8px blur) over the live game",
       "Glow means state: an active, ready or rewarded element gets a soft colored halo; resting elements get none",

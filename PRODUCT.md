@@ -18,7 +18,7 @@ first-class way to play.
 
 ## Product Purpose
 
-Bass Weapons is a top-down, twin-stick rhythm roguelite. Every weapon is a
+Riddim Riot is a top-down, twin-stick rhythm shooter. Every weapon is a
 dubstep bass synth and every shot is quantized to the beat, so the player's
 fighting writes the track. A run is five levels; each level is an arena and
 a procedurally generated song (intro, breakdown, build-up, drops, bridge,
@@ -60,7 +60,7 @@ so the visuals lock to the kick instead of approximating it.
 
 ## Brand Commitments
 
-- Name: **Bass Weapons**.
+- Name: **Riddim Riot**.
 - Pillars from the design brief: your build is the song; forgiving, always
   on-beat; never the same twice; feels like a rave.
 - Weapon names are generated from manufacturer + engine + rate + FX (e.g.

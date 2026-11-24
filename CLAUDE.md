@@ -1,8 +1,8 @@
-# Bass Weapons
+# Riddim Riot
 
 <!-- Add project-specific facts here. -->
 
-Browser twin-stick rhythm roguelite. The design is `design-brief-poc.md`; how
+Browser twin-stick rhythm shooter. The design is `design-brief-poc.md`; how
 the code fits together, what was measured and the roadmap are in
 `docs/architecture.md` - read it first when picking the work back up.
 Running and controls are in `README.md`.

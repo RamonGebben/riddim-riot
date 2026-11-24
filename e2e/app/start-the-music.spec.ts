@@ -9,7 +9,7 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
   const response = await page.goto('/?seed=42');
   expect(response?.ok()).toBe(true);
   await expect(
-    page.getByRole('heading', { name: 'Bass Weapons' }),
+    page.getByRole('heading', { name: 'Riddim Riot' }),
   ).toBeVisible();
   await expect(
     page.getByText(/^[A-G]#? (minor|phrygian) · 140 BPM halftime · 5 levels$/),

@@ -15,9 +15,9 @@ export const generateMetadata = async ({
   params,
 }: PlacePageProps): Promise<Metadata> => {
   const place = await findPlace((await params).name);
-  if (!place) return { title: 'High scores · Bass Weapons' };
+  if (!place) return { title: 'High scores · Riddim Riot' };
   const where = place.rank === null ? 'on' : `${ordinal(place.rank)} on`;
-  const title = `${place.name} is ${where} the Bass Weapons high scores`;
+  const title = `${place.name} is ${where} the Riddim Riot high scores`;
   const description = `${formatNumber(place.totalPoints)} points from ${formatNumber(place.runsCount)} runs. Every gun is a bass synth and every shot lands on the beat: play in your browser and beat it.`;
   return {
     title,
@@ -25,7 +25,7 @@ export const generateMetadata = async ({
     alternates: { canonical: placePath(place.name) },
     openGraph: {
       type: 'website',
-      siteName: 'Bass Weapons',
+      siteName: 'Riddim Riot',
       url: placePath(place.name),
       title,
       description,

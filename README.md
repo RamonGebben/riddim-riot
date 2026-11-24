@@ -1,4 +1,4 @@
-# Bass Weapons
+# Riddim Riot
 
 **Every gun is a bass synth. Every shot lands on the beat. Your build is the
 song.**
@@ -7,9 +7,9 @@ A top-down, twin-stick rhythm shooter that runs in the browser, on a desktop
 or on a phone. Every weapon is a dubstep bass synth and every shot is
 quantized to the beat, so the way you fight writes the track.
 
-**[Play it at bass-weapons.ra-ge.net](https://bass-weapons.ra-ge.net)**
+**[Play it at riddim-riot.ra-ge.net](https://riddim-riot.ra-ge.net)**
 
-![The Bass Weapons title glowing beside a dark arena, the player firing at enemies around the circle](public/og.png)
+![The Riddim Riot title glowing beside a dark arena, the player firing at enemies around the circle](public/og.png)
 
 ## The game
 

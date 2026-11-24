@@ -102,10 +102,10 @@ export const StartScreen = ({
       <Shade aria-hidden />
       <Page>
         <Hero>
-          <Title>Bass Weapons</Title>
+          <Title />
           <Lead>
-            Every gun is a bass synth and every shot lands on the beat. Your
-            build is the song. Turn your sound on.
+            A riddim rave turned riot. Every gun is a bass synth and every shot
+            lands on the beat. Turn your sound on.
           </Lead>
           <StartRow>
             {/* Not disabled while starting: the button keeps the focus. */}
