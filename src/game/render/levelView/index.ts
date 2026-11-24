@@ -130,9 +130,10 @@ export const createLevelView = (level: Level, palette: Palette): LevelView => {
 
 /**
  * Waiting, it breathes on the beat and sends ripples out to draw the eye.
- * Stepped in, it lights up; from the next bar line its ring fills over a
- * bar into the slam. During the fight it's a dim mark on the floor, and
- * once the final wave falls it opens as the exit.
+ * Stood in, it lights up and its ring fills, draining again if the player
+ * steps out; full, it shakes into the slam. During the fight it's a dim
+ * mark on the floor, and once the final wave falls it opens as the exit,
+ * which fills the same way.
  */
 const drawCircle = (
   circle: Graphics,
@@ -142,26 +143,29 @@ const drawCircle = (
 ) => {
   circle.clear();
   circle.position.set(center.x, center.y);
-  const { phase, chargeAt } = survival;
+  const { phase, charge: fill } = survival;
 
   if (phase === 'song') {
     circle.circle(0, 0, RING).stroke({ width: 3, color: palette.grid });
     return;
   }
 
-  if (phase === 'charging') {
-    const fill =
-      chargeAt === null
-        ? 0
-        : Math.min(Math.max((now - chargeAt) / barSeconds, 0), 1);
+  const open = phase === 'clear';
+  if (phase === 'charging' || fill > 0) {
     const jitter = fill * 3;
     circle
       .circle(0, 0, RING * (0.3 + 0.7 * fill))
       .fill({ color: palette.player, alpha: 0.2 + 0.4 * fill })
       .circle(0, 0, RING)
-      .stroke({ width: 4, color: palette.player, alpha: 0.5 });
+      .stroke({
+        width: 4,
+        color: open ? palette.accent : palette.player,
+        alpha: 0.5,
+      });
     if (fill > 0) {
+      // Started on the ring: an arc goes on from the path's last point.
       circle
+        .moveTo(0, -RING)
         .arc(0, 0, RING, -Math.PI / 2, -Math.PI / 2 + fill * Math.PI * 2)
         .stroke({ width: 10 + jitter, color: palette.accent, cap: 'round' });
     }
@@ -170,7 +174,6 @@ const drawCircle = (
   }
 
   // Waiting or open: breathe, with a ripple going out each bar.
-  const open = phase === 'clear';
   const ripple = (now / (barSeconds || 1)) % 1;
   circle
     .circle(0, 0, RING * (1 + ripple * 1.2))

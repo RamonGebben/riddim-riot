@@ -7,7 +7,6 @@ import { BagButton } from './components/BagButton';
 import { Combo } from './components/Combo';
 import { DashButton } from './components/DashButton';
 import { Health } from './components/Health';
-import { Hint } from './components/Hint';
 import { Hud } from './components/Hud';
 import { HudActions } from './components/HudActions';
 import { HudPanel } from './components/HudPanel';
@@ -18,7 +17,6 @@ import { LoadoutMenu, type LoadoutMenuProps } from './components/LoadoutMenu';
 import { Loadout, type LoadoutProps } from './components/Loadout';
 import { LockPage } from './components/LockPage';
 import { Overlay, type OverlayAction } from './components/Overlay';
-import { PointerOnly } from './components/PointerOnly';
 import { Powerups, type PowerupsProps } from './components/Powerups';
 import { Prompt } from './components/Prompt';
 import { RotateNotice } from './components/RotateNotice';
@@ -115,10 +113,11 @@ export interface GameScreenProps {
 }
 
 const CIRCLE_PROMPTS = {
-  waiting: 'Step into the circle to start',
+  // A first run's walkthrough ends on the way in, and it's done once.
+  waiting: null,
   charging: null,
   song: null,
-  clear: 'Step into the circle to leave',
+  clear: 'Stand in the circle until it fills to leave',
 } satisfies Record<LevelPhase, string | null>;
 
 const clock = (seconds: number) =>
@@ -205,10 +204,12 @@ export const GameScreen = ({
       void onCopySeed().then(copied => setCopy(copied ? 'copied' : 'failed')),
   };
   const playing = run.status === 'playing' && !paused && !menu;
+  // Up while the circle fills too: stepping back out mustn't start it over.
   const walkthrough =
-    tutorial && run.status === 'playing' && run.phase === 'waiting';
-  // The walkthrough ends on the circle's prompt, so it stands in for it.
-  const prompt = walkthrough ? null : CIRCLE_PROMPTS[run.phase];
+    tutorial &&
+    run.status === 'playing' &&
+    (run.phase === 'waiting' || run.phase === 'charging');
+  const prompt = CIRCLE_PROMPTS[run.phase];
   const won = run.status === 'cleared' && run.level >= run.levels;
   const weapons = `${run.bag} ${run.bag === 1 ? 'weapon' : 'weapons'}`;
   /** The end of a run: keep the best loot before the next run empties the bag. */
@@ -256,20 +257,7 @@ export const GameScreen = ({
   return (
     <>
       <LockPage />
-      <Surface ref={surfaceRef} aria-label="Play area">
-        {run.phase === 'waiting' && !walkthrough && (
-          <Hint>
-            <PointerOnly $pointer="mouse">
-              WASD move · mouse aim and fire · Space dash · 1-3, Q/E or wheel
-              switch · Tab or B loadout
-            </PointerOnly>
-            <PointerOnly $pointer="touch">
-              left: aim, push further to move · right: tap or hold to fire ·
-              hold a weapon to fire it · Dash button to dash
-            </PointerOnly>
-          </Hint>
-        )}
-      </Surface>
+      <Surface ref={surfaceRef} aria-label="Play area" />
       {prompt && playing && <Prompt>{prompt}</Prompt>}
       {walkthrough && (
         <Tutorial

@@ -9,11 +9,26 @@ const reveal = keyframes`
 `;
 
 /**
+ * A slot taking a swapped weapon latches: its edge and halo flare Strobe
+ * Blue as the weapon lands, then settle.
+ */
+const latch = (color: string) => keyframes`
+  from {
+    border-color: ${color};
+    box-shadow:
+      0 0 0 2px ${color},
+      0 0 22px color-mix(in srgb, ${color} 70%, transparent);
+  }
+`;
+
+/**
  * One weapon to pick. A slot is a track row - key, engine, beat, name and
  * inserts, then its bar of steps - and a bag weapon a small card with its
  * steps underneath. Picked, it lights Strobe Blue; a slot the pick could
  * go into shows a dashed blue edge; marked to throw away, it fades and its
- * name is struck through.
+ * name is struck through. A swap flies a lifted copy of each card
+ * (`data-ghost`) to where it lands, and the slot it lands in latches
+ * (`data-landed`): see `useFlight`.
  */
 export const Card = styled.button<{
   $picked: boolean;
@@ -82,6 +97,28 @@ export const Card = styled.button<{
 
   &:hover {
     color: ${({ theme }) => theme.color('background', 'text')};
+  }
+
+  &[data-landed] {
+    animation: ${({ theme }) => latch(theme.color('primary'))} 0.52s
+      cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+  }
+
+  /* Lifted off the sheet while it travels, whatever edge it had. */
+  &[data-ghost] {
+    border-style: solid;
+    box-shadow:
+      ${({ theme }) => theme.boxShadow('modal')},
+      0 0 14px
+        color-mix(
+          in srgb,
+          ${({ theme }) => theme.color('primary')} 55%,
+          transparent
+        );
+  }
+
+  :root[data-flashing='reduced'] &[data-landed] {
+    animation: none;
   }
 
   &:active {

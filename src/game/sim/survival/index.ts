@@ -2,11 +2,11 @@ import { MAX_ENEMIES } from '../enemy';
 
 /**
  * A level plays as one track. It waits for the player to step into the
- * circle; standing in charges it over a bar and slams on the downbeat, which
- * starts the song. Waves follow the song's parts - sparse in the intro and
+ * circle; standing in fills it over a bar (stepping out drains it again),
+ * and once full it slams on the next downbeat, which starts the song. Waves follow the song's parts - sparse in the intro and
  * breakdown, ramping through the build-up, heavy in the drops - and the
  * last drop brings the boss. Once the boss is down and the outro is playing,
- * the circle opens as the exit.
+ * the circle opens as the exit, which fills the same way to take.
  */
 export type SurvivalPhase = 'waiting' | 'charging' | 'song' | 'clear';
 
@@ -95,13 +95,17 @@ const PLANS = {
   outro: { everyBars: null, extra: 0, chargers: false },
 } satisfies Record<SongPart, PartPlan>;
 
+/** Bars of standing in it the circle takes to fill; out, it drains as fast. */
+export const CHARGE_BARS = 1;
+
 export interface Survival {
+  /** `charging`: the player is in the start circle, or it's full. */
   phase: SurvivalPhase;
-  /** Charging: when the player stepped in (the circle lights at once). */
-  steppedAt: number | null;
-  /** Charging: the bar line the fill began on, and its audio time. */
-  chargeBar: number | null;
-  chargeAt: number | null;
+  /**
+   * How full the circle is, 0-1: the start's before the slam, the exit's
+   * once open. A full start holds until the next bar line slams it.
+   */
+  charge: number;
   /** The bar the slam landed on: the song's first bar. */
   startBar: number;
   /** Waves sent since the slam. */
@@ -112,9 +116,7 @@ export interface Survival {
 
 export const INITIAL_SURVIVAL: Survival = {
   phase: 'waiting',
-  steppedAt: null,
-  chargeBar: null,
-  chargeAt: null,
+  charge: 0,
   startBar: 0,
   sent: 0,
   lastWaveBar: 0,
@@ -135,11 +137,39 @@ export interface SurvivalSpawn {
   boss: boolean;
 }
 
-/** The player stepped into the circle at `now`: it commits to the start. */
-export const stepIn = (survival: Survival, now: number): Survival =>
-  survival.phase === 'waiting'
-    ? { ...survival, phase: 'charging', steppedAt: now }
-    : survival;
+/**
+ * A frame at the circle: standing in fills it, stepping out drains it. A
+ * full start stays full - it's committed to the slam - and the fight
+ * leaves it alone.
+ */
+export const chargeCircle = (
+  survival: Survival,
+  {
+    inside,
+    dt,
+    barSeconds,
+  }: { inside: boolean; dt: number; barSeconds: number },
+): Survival => {
+  if (survival.phase === 'song') return survival;
+  if (survival.phase === 'charging' && survival.charge >= 1) return survival;
+  const step = dt / (CHARGE_BARS * barSeconds);
+  const charge = Math.min(
+    Math.max(survival.charge + (inside ? step : -step), 0),
+    1,
+  );
+  const phase =
+    survival.phase === 'clear'
+      ? 'clear'
+      : inside || charge >= 1
+        ? 'charging'
+        : 'waiting';
+  if (charge === survival.charge && phase === survival.phase) return survival;
+  return { ...survival, phase, charge };
+};
+
+/** The exit has filled: the player takes it. */
+export const exitTaken = (survival: Survival): boolean =>
+  survival.phase === 'clear' && survival.charge >= 1;
 
 /** One bar line: where the level goes next, and what to spawn. */
 export const advanceSurvival = (
@@ -161,15 +191,16 @@ export const advanceSurvival = (
   const hold = { survival, spawn: null };
 
   if (survival.phase === 'charging') {
-    if (survival.chargeBar === null) {
-      return {
-        survival: { ...survival, chargeBar: bar, chargeAt: time },
-        spawn: null,
-      };
-    }
-    if (bar <= survival.chargeBar) return hold;
+    if (survival.charge < 1) return hold;
+    // Emptied for the exit, which fills from nothing.
     return advanceSurvival(
-      { ...survival, phase: 'song', startBar: bar, lastWaveBar: bar - 1 },
+      {
+        ...survival,
+        phase: 'song',
+        charge: 0,
+        startBar: bar,
+        lastWaveBar: bar - 1,
+      },
       { bar, time, alive, bossAlive, song },
     );
   }

@@ -82,7 +82,8 @@ import {
   INITIAL_SURVIVAL,
   songFor,
   songFrom,
-  stepIn,
+  chargeCircle,
+  exitTaken,
   waveSize,
   type SongSection,
   type Survival,
@@ -851,9 +852,12 @@ export const stepWorld = (
   });
   const powered = powerupsInReach(powerups, player.position);
   const barSeconds = beatSeconds * 4;
-  const standingIn = onPad(world, player.position);
-  const onExit = isExitOpen(world) && standingIn;
-  const status = hp <= 0 ? 'dead' : onExit ? 'cleared' : 'playing';
+  const survival = chargeCircle(world.survival, {
+    inside: onPad(world, player.position),
+    dt,
+    barSeconds,
+  });
+  const status = hp <= 0 ? 'dead' : exitTaken(survival) ? 'cleared' : 'playing';
   // Every kill this frame lands on the same beat, each extending the chain.
   const scored = killed.reduce(
     (acc, kill) => {
@@ -889,7 +893,7 @@ export const stepWorld = (
   return {
     world: {
       ...looted,
-      survival: standingIn ? stepIn(world.survival, now) : world.survival,
+      survival,
       status,
       hp,
       kills: world.kills + killed.length,

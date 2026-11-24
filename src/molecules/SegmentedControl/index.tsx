@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from '~/atoms/Button';
 import { Group } from './components/Group';
 import { Legend } from './components/Legend';
@@ -5,7 +6,8 @@ import { Options } from './components/Options';
 
 export interface SegmentedControlProps<T extends string> {
   label: string;
-  options: Array<{ value: T; label: string }>;
+  /** A label can carry an icon or a count beside its words. */
+  options: Array<{ value: T; label: ReactNode }>;
   value: T;
   onChange: (value: T) => void;
 }

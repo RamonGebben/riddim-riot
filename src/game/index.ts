@@ -515,6 +515,7 @@ export const startGame = async ({
             backing.onBar({ time: at.time, bar, part: at.part });
           },
           charge: arrangement.charge,
+          uncharge: arrangement.uncharge,
           dropHit: arrangement.drop,
           heal: time => score.play(time, MAX_MULTIPLIER),
           volley: blast.play,

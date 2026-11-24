@@ -116,15 +116,18 @@ export const likelySlot = (
   return Math.max(same, 0);
 };
 
-export type BagOrder = 'newest' | 'best' | 'engine';
+export type BagOrder = 'newest' | 'best';
 
-const ENGINES: Array<WeaponFace['oscillator']> = ['wobble', 'laser', 'beam'];
-const BEATS: Array<WeaponFace['lfo']> = ['1/2', '1/4', '1/8', '1/16'];
+export type Engine = WeaponFace['oscillator'];
+
+/** Which engines the bag is narrowed to: one, or all of them. */
+export type EngineFilter = Engine | 'all';
+
+const ENGINES: Array<Engine> = ['wobble', 'laser', 'beam'];
 
 /**
- * The bag as the menu lists it: newest first, the most damage a bar first,
- * or grouped by engine then beat (newest first within each). Sorting only
- * changes the view.
+ * The bag as the menu lists it: newest first, or the most damage a bar
+ * first. Sorting only changes the view.
  */
 export const sortBag = (
   bag: Array<string>,
@@ -133,13 +136,26 @@ export const sortBag = (
 ): Array<string> => {
   const newest = bag.toReversed();
   if (order === 'newest') return newest;
-  const rank = (id: string) => {
-    const face = faces.get(id);
-    if (!face) return 0;
-    return order === 'best'
-      ? -face.stats.perBar
-      : ENGINES.indexOf(face.oscillator) * BEATS.length +
-          BEATS.indexOf(face.lfo);
-  };
+  const rank = (id: string) => -(faces.get(id)?.stats.perBar ?? 0);
   return newest.toSorted((a, b) => rank(a) - rank(b));
 };
+
+/** The bag's weapons of one engine, or all of them; the order is kept. */
+export const filterBag = (
+  bag: Array<string>,
+  faces: ReadonlyMap<string, WeaponFace>,
+  engine: EngineFilter,
+): Array<string> =>
+  engine === 'all'
+    ? bag
+    : bag.filter(id => faces.get(id)?.oscillator === engine);
+
+/** How many of each engine the bag holds, in the rack's engine order. */
+export const enginesIn = (
+  bag: Array<string>,
+  faces: ReadonlyMap<string, WeaponFace>,
+): Array<{ engine: Engine; count: number }> =>
+  ENGINES.map(engine => ({
+    engine,
+    count: filterBag(bag, faces, engine).length,
+  }));

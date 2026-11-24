@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-/** What the player can do right where they stand, above the hint. */
+/** What the player can do right where they stand. */
 export const Prompt = styled.p.attrs({ role: 'status' })`
   position: fixed;
   inset-block-end: calc(

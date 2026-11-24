@@ -239,7 +239,9 @@ export const App = () => {
 
   // The walkthrough is for a first play only: once the circle has started
   // a run, it's done with, however far through it the player got.
-  const started = hud !== null && hud.phase !== 'waiting';
+  // Stepping in and back out doesn't count: only the slam does.
+  const started =
+    hud !== null && hud.phase !== 'waiting' && hud.phase !== 'charging';
   useEffect(() => {
     if (!started || tutorialSeen) return;
     saveTutorialSeen();

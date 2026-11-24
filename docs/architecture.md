@@ -161,8 +161,10 @@ into the circle. On a first play, a card walks through the controls
 while the circle waits (`GameScreen`'s `Tutorial`): nothing to press, each
 step ticks off when the player does what it says (moving, a shot, a dash,
 a switch, the loadout opened, a pause) and the next comes up, ending on
-"Now step into the circle to start your run". Once the circle starts a run
-it's saved as seen (`utils/tutorialSeen`) and never shows again. When the player takes the exit, the HUD
+"Now stand in the circle until it fills to start your run". Once the circle starts a run
+it's saved as seen (`utils/tutorialSeen`) and never shows again; after
+that the circle waits with no text at all, no controls line nor prompt.
+When the player takes the exit, the HUD
 goes to `cleared`, and **Next level** calls `play(game.nextRun())`, which
 stops this game and starts the next. Death offers **Try again** (same run
 seed, level 1) or **New run** (fresh seed). React only re-renders on HUD
@@ -184,16 +186,19 @@ the only mutable reference:
   Each ring turns half a gap, and an orb's position is pure in time like a
   hop. The final level's boss has 1.5× health.
 - `onBar(world, { bar, time, rng, telegraphSeconds, view })`: advances the level
-  (`sim/survival`). It waits until the player steps into the circle; the
-  next bar line starts a one-bar charge (riser, filling ring) and the bar
-  after slams: shockwave, drop hit, drums in, and the song starts. The song
+  (`sim/survival`). It waits for the circle to fill: `stepWorld` charges
+  it (`chargeCircle`) while the player stands in, over a bar (riser,
+  filling ring), and drains it as fast once they step out (the riser cuts
+  out). Full, it's committed, and the next bar line slams: shockwave, drop
+  hit, drums in, and the song starts. The song
   is intro 16, breakdown 8, build-up 8, drop 1 16, drop 2 16, bridge 16,
   drop 3 32-48 (longer per level) and outro 16 bars, and each part sends
   waves at its own pace and size (sparse in the intro and breakdown, every
   2 bars through the build-up, every 4 with extra enemies in the drops,
   none in the outro; sooner once the floor is clear). Drop 3 opens with the
   boss, 8+ tiles away. Once the boss is down and the outro is playing, the
-  circle opens as the exit. Spawns land 4+ tiles from the player and,
+  circle opens as the exit, which fills the same way before it lets the
+  player out. Spawns land 4+ tiles from the player and,
   given the `view` (the camera's world rect), only where it can be seen,
   falling back to anywhere when nothing on screen is free; a marker pulses
   there for a bar first (`telegraphSeconds`), so a wave lands on the next
@@ -216,8 +221,8 @@ the only mutable reference:
   drift in while there's room to heal (`sim/loot` `attractHearts`); weapons
   drift in the same way while the run's bag has room (`attractPickups`),
   and land in `world.bag` (up to `BAG_SIZE`, 24). A full bag leaves them
-  on the floor until the player makes room. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; on the open exit
-  it's `cleared`. Either way it freezes.
+  on the floor until the player makes room. The boss hurts on contact but doesn't burst. At 0 HP the world is `dead`; once the open
+  exit fills it's `cleared`. Either way it freezes.
 
 `WaveRules` (from `rulesFor({ level, stress })`) set the song, boss HP
 (30, +12 a level) and charger share. Hoppers and chargers die to any hit
@@ -305,8 +310,15 @@ level to level and empty at the start of every run.
   on damage a bar first). Under them: hit, shots, reach and blast with the
   differences. "Equip in 1/2/3", 1-3 or a double-click place it. Arrow
   keys walk the slots or the bag, then across. Bag cards that beat their
-  likely slot get an amber chevron. "Best" sorts by damage a bar, and
-  "Discard weaker" marks every clearly weaker weapon at once. Discards are
+  likely slot get an amber chevron. "Best" sorts by damage a bar, an
+  engine filter (All, Wobble, Laser, Beam with counts, once the bag holds
+  two engines) narrows the cards and is kept for the visit
+  (`utils/bagFilter`), and "Discard weaker" marks every clearly weaker
+  weapon at once. A swap flies a lifted copy of each card to where it
+  lands (`useFlight`, FLIP on the sheet's scrim) and latches the slot; the
+  weapon sent back lands tagged "From slot n", never as new, with the
+  filter opening up if it would hide it. With flashing reduced they only
+  cross-fade. The sheet hangs from the top so picks never move it. Discards are
   only marks until Done; Esc asks once before throwing them out, and Undo
   changes puts everything back. A full bag says drops are waiting on the
   floor. New loot is grouped first and revealed once. A picked weapon's

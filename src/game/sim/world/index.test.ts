@@ -80,21 +80,22 @@ describe('createWorld', () => {
   });
 });
 
-const stepInto = (world: World, at: { x: number; y: number }, now = 1) =>
+/** A bar at the default tempo: what the circle takes to fill. */
+const BAR_SECONDS = (60 / 140) * 4;
+
+const stepInto = (world: World, at: { x: number; y: number }, dt = 1 / 60) =>
   stepWorld(
     { ...world, player: { ...world.player, position: at } },
-    { input: still, dt: 1 / 60, now },
+    { input: still, dt, now: 1 },
   ).world;
 
-/** Stepped in, charged over a bar and slammed: the fight is on at bar 2. */
-const fighting = (rules = rulesFor({ level: 1 })) => {
-  const charged = onBar(stepInto(createWorld(level, rules), level.pad), {
-    bar: 1,
-    time: 2,
+/** Stood in until the circle filled, and slammed: the fight is on at bar 2. */
+const fighting = (rules = rulesFor({ level: 1 })) =>
+  onBar(stepInto(createWorld(level, rules), level.pad, BAR_SECONDS), {
+    bar: 2,
+    time: 4,
     rng: createRng(1),
   });
-  return onBar(charged, { bar: 2, time: 4, rng: createRng(1) });
-};
 
 describe('the circle', () => {
   it('waits for the player, sending nobody', () => {
@@ -104,12 +105,13 @@ describe('the circle', () => {
     expect(idle.survival.phase).toBe('waiting');
   });
 
-  it('charges once the player steps in, and slams a bar line later', () => {
-    const stepped = stepInto(createWorld(level), level.pad, 1.2);
-    expect(stepped.survival).toMatchObject({
-      phase: 'charging',
-      steppedAt: 1.2,
-    });
+  it('charges while the player stands in, and slams once full', () => {
+    const stepped = stepInto(createWorld(level), level.pad);
+    expect(stepped.survival.phase).toBe('charging');
+    expect(stepped.survival.charge).toBeGreaterThan(0);
+    // Not full yet: the bar line passes it by.
+    const early = onBar(stepped, { bar: 1, time: 2, rng: createRng(1) });
+    expect(early.survival.phase).toBe('charging');
     const slammed = fighting();
     expect(slammed.survival).toMatchObject({ phase: 'song', startBar: 2 });
     expect(slammed.enemies).toHaveLength(2);
@@ -129,11 +131,7 @@ describe('onBar', () => {
   });
 
   it('spawns where the player can see, when it knows the view', () => {
-    const charged = onBar(stepInto(createWorld(level), level.pad), {
-      bar: 1,
-      time: 2,
-      rng: createRng(1),
-    });
+    const charged = stepInto(createWorld(level), level.pad, BAR_SECONDS);
     const view = { center: level.pad, size: { x: 1400, y: 720 } };
     const slammed = onBar(charged, {
       bar: 2,
@@ -586,8 +584,11 @@ describe('stepWorld', () => {
       survival: { ...onPad.survival, phase: 'clear' as const },
     };
     expect(isExitOpen(ready)).toBe(true);
+    // Stepping in only starts the exit filling: it takes a bar's stand.
+    const stepped = stepWorld(ready, { input: still, dt: 1 / 60, now: 1 });
+    expect(stepped.world.status).toBe('playing');
     expect(
-      stepWorld(ready, { input: still, dt: 1 / 60, now: 1 }).world.status,
+      stepWorld(ready, { input: still, dt: BAR_SECONDS, now: 1 }).world.status,
     ).toBe('cleared');
   });
 
@@ -597,7 +598,7 @@ describe('stepWorld', () => {
       enemies: [],
       score: 2_300,
       player: { ...createWorld(level).player, position: level.pad },
-      survival: { ...fighting().survival, phase: 'clear' as const },
+      survival: { ...fighting().survival, phase: 'clear' as const, charge: 1 },
     };
     const cleared = stepWorld(ready, { input: still, dt: 1 / 60, now: 1 });
     expect(cleared.world.score).toBe(2_300 + LEVEL_CLEAR_BONUS);

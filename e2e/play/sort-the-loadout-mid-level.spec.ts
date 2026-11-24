@@ -75,7 +75,12 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   const musical = { timeout: 20_000 };
   await playArea.click();
   await page.keyboard.down('KeyW');
-  await expect(page.getByText(/charging/)).toBeVisible(musical);
+  // It only fills while stood in: stop the frame it takes, not a poll late.
+  await page.waitForFunction(
+    () => /charging/i.test(document.body.innerText),
+    undefined,
+    { polling: 'raf', ...musical },
+  );
   await page.keyboard.up('KeyW');
   await expect(page.getByText(/intro \d:\d\d/)).toBeVisible(musical);
 

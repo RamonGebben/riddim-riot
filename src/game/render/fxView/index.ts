@@ -111,8 +111,15 @@ export const createFxView = (palette: Palette) => {
         // A slow shot's fuse: a ring spinning round its core.
         if (projectile.detonates) {
           const spin = now * 12;
+          const ring = radius * 1.5;
+          // An arc goes on from the path's last point: start it on the ring,
+          // or it draws a line in from the world's origin.
           view
-            .arc(position.x, position.y, radius * 1.5, spin, spin + Math.PI)
+            .moveTo(
+              position.x + Math.cos(spin) * ring,
+              position.y + Math.sin(spin) * ring,
+            )
+            .arc(position.x, position.y, ring, spin, spin + Math.PI)
             .stroke({ width: 3, color: palette.accent });
         }
       });

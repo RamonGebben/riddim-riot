@@ -82,7 +82,9 @@ export const StepsOnAsThePlayerDoesEach: Story = {
     await stepUp('Ready');
     await expect(
       canvas.getByRole('region', { name: 'Ready' }),
-    ).toHaveTextContent('Now step into the circle to start your run.');
+    ).toHaveTextContent(
+      'Now stand in the circle until it fills to start your run.',
+    );
     // The last card keeps the powerups up, each named beside its icon.
     const legend = canvas.getByRole('list', { name: 'Powerups' });
     await expect(legend).toHaveTextContent('Pellet');

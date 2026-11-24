@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn } from 'storybook/test';
+import type { BagFilter } from '~/utils/bagFilter';
 import { RunStanding } from '~/organisms/RunStanding';
 import { GameScreen, type MenuWeapon, type SongPart } from '.';
 
@@ -92,6 +93,13 @@ const meta = {
     onRetrySound: fn(),
   },
   parameters: { layout: 'fullscreen' },
+  // The bag's engine filter is kept for the visit: each story starts on all.
+  beforeEach: () => {
+    sessionStorage.setItem(
+      'bass-weapons:bag-filter',
+      'all' satisfies BagFilter,
+    );
+  },
 } satisfies Meta<typeof GameScreen>;
 
 export default meta;
@@ -438,7 +446,22 @@ export const ComparingLoot: Story = {
     );
     await expect(
       canvas.getByRole('button', { name: /^Slot 2: Vandal Laser 1\/8 Echo/ }),
+    ).toBeInTheDocument();
+    // The weapon it replaced is back in the bag, marked where it came from
+    // and never as new, and the swap is said out loud.
+    await expect(
+      canvas.getByRole('button', {
+        name: /^Lumen Laser 1\/16 Crush, back from slot 2/,
+      }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole('heading', { name: 'New · 1' }),
     ).toBeVisible();
+    await expect(
+      canvas.getByText(
+        'Vandal Laser 1/8 Echo into slot 2; Lumen Laser 1/16 Crush back to the bag.',
+      ),
+    ).toBeInTheDocument();
     await userEvent.click(
       canvas.getByRole('button', { name: 'Back to the fight' }),
     );
@@ -446,6 +469,46 @@ export const ComparingLoot: Story = {
       slots: ['s0', 'b1', 's2'],
       bag: ['b0', 's1', 'b2'],
     });
+  },
+};
+
+export const FilteringTheBag: Story = {
+  args: { menu: menu() },
+  play: async ({ canvas, userEvent }) => {
+    const bag = () =>
+      canvas
+        .getAllByRole('button')
+        .filter(button => button.hasAttribute('data-card'))
+        .filter(
+          button => !/^Slot/.test(button.getAttribute('aria-label') ?? ''),
+        );
+    await expect(bag()).toHaveLength(3);
+    await userEvent.click(canvas.getByRole('button', { name: /^Wobble 1/ }));
+    await expect(bag()).toHaveLength(1);
+    await expect(
+      canvas.getByRole('button', { name: /^Vandal Wobble 1\/2 Crush/ }),
+    ).toBeInTheDocument();
+    // A pick the filter hides is let go, so nothing unseen is held.
+    await userEvent.click(
+      canvas.getByRole('button', { name: /^Vandal Wobble 1\/2 Crush/ }),
+    );
+    await userEvent.click(canvas.getByRole('button', { name: /^Beam 1/ }));
+    await expect(
+      canvas.getByRole('region', { name: 'Compare' }),
+    ).toHaveTextContent('Pick a weapon');
+    // A swap that sends a weapon out of view brings every engine back.
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Lumen Beam 1/8' }),
+    );
+    await userEvent.keyboard('1');
+    await expect(
+      canvas.getByRole('button', { name: /^All 3/, pressed: true }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole('button', {
+        name: /^Vandal Wobble 1\/8 Echo, back from slot 1/,
+      }),
+    ).toBeInTheDocument();
   },
 };
 
@@ -597,7 +660,7 @@ export const PlacingWithNumberKeys: Story = {
     await userEvent.keyboard('1');
     await expect(
       canvas.getByRole('button', { name: /^Slot 1: Vandal Wobble 1\/2 Crush/ }),
-    ).toBeVisible();
+    ).toBeInTheDocument();
     await userEvent.click(
       canvas.getByRole('button', { name: 'Back to the fight' }),
     );
@@ -664,10 +727,9 @@ export const AtTheCircle: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('status')).toHaveTextContent(
-      'Step into the circle to start',
-    );
-    await expect(canvas.getByText(/mouse aim and fire/)).toBeVisible();
+    // The walkthrough has been seen: nothing to say before the run.
+    await expect(canvas.queryByRole('status')).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/aim and fire/)).not.toBeInTheDocument();
   },
 };
 
@@ -679,8 +741,6 @@ export const ControlsAtTheCircle: Story = {
     await expect(card).toHaveTextContent(/WASD/);
     // Nothing to press: clicks go through to the game behind it.
     await expect(card).toHaveStyle({ pointerEvents: 'none' });
-    // The walkthrough ends on the circle's prompt, so it stands in for it.
-    await expect(canvas.queryByRole('status')).not.toBeInTheDocument();
   },
 };
 
@@ -837,7 +897,7 @@ export const ExitOpen: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText(/exit open/)).toBeVisible();
     await expect(canvas.getByRole('status')).toHaveTextContent(
-      'Step into the circle to leave',
+      'Stand in the circle until it fills to leave',
     );
   },
 };

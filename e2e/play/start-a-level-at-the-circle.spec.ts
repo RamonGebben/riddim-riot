@@ -58,7 +58,7 @@ test('step into the circle to start the fight', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
   await page.keyboard.press('KeyP');
   await expect(page.getByRole('region', { name: 'Ready' })).toHaveText(
-    /Now step into the circle to start your run\./,
+    /Now stand in the circle until it fills to start your run\./,
   );
 
   // Waits are musical: up to two bar lines (~3.4 s at 140 BPM) before the
@@ -68,7 +68,12 @@ test('step into the circle to start the fight', async ({ page }) => {
   // The circle is straight ahead of the spawn: walk up until it takes.
   await playArea.click();
   await page.keyboard.down('KeyW');
-  await expect(page.getByText(/charging/)).toBeVisible(musical);
+  // It only fills while stood in: stop the frame it takes, not a poll late.
+  await page.waitForFunction(
+    () => /charging/i.test(document.body.innerText),
+    undefined,
+    { polling: 'raf', ...musical },
+  );
   await page.keyboard.up('KeyW');
 
   // A bar of charge, then the slam starts the song on its intro. Bar lines
