@@ -200,8 +200,11 @@ export interface Game {
    * a press (the loop's context starts on it).
    */
   openMenu: () => void;
-  /** Close the menu: the loop fades and the level carries on. */
-  closeMenu: () => void;
+  /**
+   * Close the menu: the loop fades and the level carries on - unless it
+   * was opened from the pause, which it goes back to (`resume: false`).
+   */
+  closeMenu: (options?: { resume?: boolean }) => void;
   /**
    * Audition a weapon: a bar of its riff in the level's key, heard even
    * while the level is frozen. Call it from a press; `onStart` fires as it
@@ -601,12 +604,12 @@ export const startGame = async ({
         (error: unknown) => console.error(error),
       );
     },
-    closeMenu: () => {
+    closeMenu: ({ resume: carryOn = true } = {}) => {
       menuOpen = false;
       previewTurn += 1;
       previewer.stop();
       previewer.stopLoop();
-      resume();
+      if (carryOn) resume();
     },
     preview: async (recipe, onStart) => {
       previewer.prime();

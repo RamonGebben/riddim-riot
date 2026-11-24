@@ -138,6 +138,10 @@ export const Paused: Story = {
     ).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Resume' }));
     await expect(args.onResume).toHaveBeenCalled();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Loadout and bag' }),
+    );
+    await expect(args.onOpenMenu).toHaveBeenCalled();
     await userEvent.click(canvas.getByRole('button', { name: 'Quit' }));
     await expect(args.onStop).toHaveBeenCalled();
   },
@@ -509,6 +513,17 @@ export const FilteringTheBag: Story = {
         name: /^Vandal Wobble 1\/8 Echo, back from slot 1/,
       }),
     ).toBeInTheDocument();
+  },
+};
+
+export const BagOverThePause: Story = {
+  args: { paused: true, menu: menu() },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('dialog', { name: 'Loadout' })).toBeVisible();
+    // The pause waits underneath, for when the bag closes.
+    await expect(
+      canvas.queryByRole('heading', { name: 'Paused' }),
+    ).not.toBeInTheDocument();
   },
 };
 

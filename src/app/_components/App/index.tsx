@@ -310,7 +310,8 @@ export const App = () => {
       `${TOUCH_SCREEN} and (orientation: portrait)`,
     );
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.code === 'Tab' || event.code === 'KeyB') && !paused) {
+      // Paused too: the bag opens over the pause and closes back to it.
+      if (event.code === 'Tab' || event.code === 'KeyB') {
         event.preventDefault();
         if (!event.repeat) openMenu();
         return;
@@ -461,7 +462,8 @@ export const App = () => {
     kept.keep(chosen.recipes);
     setMenu(null);
     setPreviewing(null);
-    if (current.hud().status === 'playing') current.closeMenu();
+    if (current.hud().status === 'playing')
+      current.closeMenu({ resume: !paused });
   };
 
   /**
