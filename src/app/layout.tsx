@@ -11,9 +11,9 @@ const SITE_URL = siteUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL);
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: 'Bass Weapons - a rhythm roguelite where every gun is a bass synth',
+  title: 'Bass Weapons - a rhythm shooter where every gun is a bass synth',
   description:
-    'A free twin-stick rhythm roguelite in your browser. Every gun is a dubstep bass synth and every shot lands on the beat, so your build writes the song.',
+    'A free twin-stick rhythm shooter in your browser. Every gun is a dubstep bass synth and every shot lands on the beat, so your build writes the song.',
   alternates: { canonical: '/' },
   icons: {
     icon: { url: '/favicon.svg', type: 'image/svg+xml' },
