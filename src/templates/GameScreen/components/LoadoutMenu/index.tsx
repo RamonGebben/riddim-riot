@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from 'react';
 import { Button } from '~/atoms/Button';
 import { Icon } from '~/atoms/Icon';
@@ -21,10 +22,12 @@ import {
   WeaponTag,
   type WeaponFace,
 } from '~/molecules/WeaponTag';
+import { readBagFilter, saveBagFilter } from '~/utils/bagFilter';
 import { PointerOnly } from '../PointerOnly';
 import { Announce } from './components/Announce';
 import { Caption } from './components/Caption';
 import { Card } from './components/Card';
+import { ChipLabel } from './components/ChipLabel';
 import { Column } from './components/Column';
 import { Columns } from './components/Columns';
 import { Compare } from './components/Compare';
@@ -49,6 +52,8 @@ import {
   changed,
   choiceOf,
   discardAll,
+  enginesIn,
+  filterBag,
   likelySlot,
   placeOf,
   rackOf,
@@ -58,8 +63,10 @@ import {
   weakerInBag,
   type BagOrder,
   type Choice,
+  type EngineFilter,
   type Rack,
 } from './rack';
+import { useFlight } from './useFlight';
 
 import { verdictOf, type Verdict, type WeaponStats } from './verdict';
 
@@ -113,11 +120,18 @@ export interface LoadoutMenuProps {
 const ORDERS: Array<{ value: BagOrder; label: string }> = [
   { value: 'newest', label: 'Newest' },
   { value: 'best', label: 'Best' },
-  { value: 'engine', label: 'Engine' },
 ];
 
 const ENGINE_NAMES = { wobble: 'Wobble', laser: 'Laser', beam: 'Beam' };
 const FX_NAMES = { distortion: 'Crush', echo: 'Echo' };
+
+/** A swap just made: the weapon sent back to the bag, and what to say. */
+interface Landing {
+  back: string | null;
+  /** The slot it came out of, from 1. */
+  from: number | null;
+  message: string;
+}
 
 /** Sorting earns its row once the bag is worth digging through. */
 const SORT_FROM = 6;
@@ -235,16 +249,25 @@ export const LoadoutMenu = ({
   /** The slot or weapon the pick is held against, by hover or focus. */
   const [aim, setAim] = useState<string | null>(null);
   const [order, setOrder] = useState<BagOrder>('newest');
+  /** Last visit's engine, unless the bag holds none of it now. */
+  const [engine, setEngine] = useState<EngineFilter>(() => {
+    const saved = readBagFilter();
+    return bag.some(weapon => weapon.oscillator === saved) ? saved : 'all';
+  });
+  const [landed, setLanded] = useState<Landing | null>(null);
   /** Esc was pressed with weapons marked: the next one throws them out. */
   const [confirming, setConfirming] = useState(false);
   const sheet = useRef<HTMLElement>(null);
   const first = useRef<HTMLButtonElement>(null);
   const compareRef = useRef<HTMLElement>(null);
+  const launch = useFlight(sheet);
   const weapons = useMemo(
     () => new Map([...slots, ...bag].map(weapon => [weapon.id, weapon])),
     [slots, bag],
   );
-  // Revealed once, on the menu's first render, never again as cards move.
+  // Revealed once, on the menu's first render, never again as cards move
+  // or a filter brings them back.
+  const revealed = useRef(new Set<string>());
   const [reveals] = useState(
     () =>
       new Map(
@@ -254,6 +277,10 @@ export const LoadoutMenu = ({
           .map((weapon, i) => [weapon.id, i]),
       ),
   );
+
+  /** Picked up since the menu last opened; never a weapon out of a slot. */
+  const isFresh = (id: string) =>
+    Boolean(weapons.get(id)?.fresh) && opened.bag.includes(id);
 
   const pickedIn = picked ? (placeOf(rack, picked)?.in ?? null) : null;
   const pickedWeapon = picked ? weapons.get(picked) : undefined;
@@ -294,6 +321,7 @@ export const LoadoutMenu = ({
    */
   const pick = (id: string) => {
     setAim(null);
+    setLanded(null);
     if (preview) onStopPreview?.();
     if (!picked || picked === id) {
       setPicked(picked === id ? null : id);
@@ -304,8 +332,39 @@ export const LoadoutMenu = ({
       setPicked(id);
       return;
     }
+    launch([picked, id]);
+    const moves = [picked, id]
+      .map(moved => ({ moved, to: placeOf(swapped, moved) }))
+      .toSorted(
+        (a, b) =>
+          (a.to?.in === 'slots' ? -1 : 1) - (b.to?.in === 'slots' ? -1 : 1),
+      );
+    const back = moves.find(({ to }) => to?.in === 'bag')?.moved ?? null;
+    const said = moves.map(({ moved, to }) => {
+      const name = weapons.get(moved)?.name ?? '';
+      return to?.in === 'slots'
+        ? `${name} into slot ${to.index + 1}`
+        : `${name} back to the bag`;
+    });
+    setLanded({
+      back,
+      from: back ? rack.slots.indexOf(back) + 1 : null,
+      message: `${said.join('; ')}.`,
+    });
+    // Where it went must be in view: the filter gives way if it'd hide it.
+    if (back && engine !== 'all' && weapons.get(back)?.oscillator !== engine)
+      narrow('all');
     setRack(swapped);
     setPicked(null);
+  };
+
+  /** Show one engine, or all; a pick the filter hides is let go. */
+  const narrow = (next: EngineFilter) => {
+    setEngine(next);
+    saveBagFilter(next);
+    const hidden =
+      next !== 'all' && weapons.get(picked ?? '')?.oscillator !== next;
+    if (pickedIn === 'bag' && hidden) setPicked(null);
   };
 
   /** The pick into slot `index`, by key, button or double-click. */
@@ -436,9 +495,10 @@ export const LoadoutMenu = ({
   const weaker = weakerInBag(rack, weapons);
   const full = kept >= bagSize;
 
-  /** One line for a screen reader, on the pick alone, never on aim. */
+  /** One line for a screen reader, on the pick or a swap, never on aim. */
   const announcement = (() => {
-    if (!pickedWeapon || !picked) return '';
+    if (!picked) return landed?.message ?? '';
+    if (!pickedWeapon) return '';
     if (pickedIn === 'slots')
       return `${pickedWeapon.name} picked, in slot ${rack.slots.indexOf(picked) + 1}.`;
     const slot = likelySlot(rack, weapons, picked);
@@ -480,7 +540,11 @@ export const LoadoutMenu = ({
   );
 
   /** A bag weapon as a card: its face over a small bar of steps. */
-  const faceOf = (weapon: MenuWeapon, upgrade: number | null = null) => (
+  const faceOf = (
+    weapon: MenuWeapon,
+    upgrade: number | null = null,
+    note?: ReactNode,
+  ) => (
     <>
       <span data-part="engine">
         <Icon icon={WEAPON_ICONS[weapon.oscillator]} />
@@ -499,6 +563,7 @@ export const LoadoutMenu = ({
         {ENGINE_NAMES[weapon.oscillator]}
         {weapon.fx && ` · ${FX_NAMES[weapon.fx]}`}
         {weapon.bossLoot && <Tag>Boss</Tag>}
+        {note}
       </span>
       {stepsFor(weapon, 'mini')}
     </>
@@ -522,20 +587,25 @@ export const LoadoutMenu = ({
     if (!weapon) return null;
     const thrown = rack.discarded.includes(id);
     const upgrade = upgradeFor(id);
+    const fresh = isFresh(id);
+    const from = landed?.back === id ? landed.from : null;
     return (
       <li key={id}>
         <Card
           data-card
+          data-weapon={id}
           type="button"
           $picked={picked === id}
           $target={pickedIn === 'slots' && aim === id}
           $discarded={thrown}
-          $reveal={reveals.get(id)}
+          $reveal={revealed.current.has(id) ? undefined : reveals.get(id)}
+          onAnimationEnd={() => revealed.current.add(id)}
           aria-pressed={picked === id}
           aria-label={[
             weapon.name,
             weapon.bossLoot && 'boss loot',
-            weapon.fresh && 'new',
+            fresh && 'new',
+            from !== null && `back from slot ${from}`,
             upgrade !== null && `stronger than slot ${upgrade + 1}`,
             thrown && 'marked to discard',
           ]
@@ -549,17 +619,49 @@ export const LoadoutMenu = ({
           onPointerEnter={() => setAim(id)}
           onFocus={() => setAim(id)}
         >
-          {faceOf(weapon, upgrade)}
-          {weapon.fresh && <Fresh aria-hidden />}
+          {faceOf(
+            weapon,
+            upgrade,
+            from !== null && <Tag $tone="trade-off">From slot {from}</Tag>,
+          )}
+          {fresh && <Fresh aria-hidden />}
         </Card>
       </li>
     );
   };
 
-  const shown = sortBag(rack.bag, weapons, order);
-  const fresh = shown.filter(id => weapons.get(id)?.fresh);
+  const counts = enginesIn(rack.bag, weapons);
+  // Worth a row once there's more than one engine to tell apart.
+  const filtering =
+    engine !== 'all' || counts.filter(({ count }) => count > 0).length > 1;
+  const engineOptions: Array<{ value: EngineFilter; label: ReactNode }> = [
+    {
+      value: 'all',
+      label: (
+        <ChipLabel>
+          All <span data-part="count">{rack.bag.length}</span>
+        </ChipLabel>
+      ),
+    },
+    ...counts
+      .filter(
+        ({ engine: shownEngine, count }) => count > 0 || shownEngine === engine,
+      )
+      .map(({ engine: shownEngine, count }) => ({
+        value: shownEngine,
+        label: (
+          <ChipLabel>
+            <Icon icon={WEAPON_ICONS[shownEngine]} />
+            {ENGINE_NAMES[shownEngine]}
+            <span data-part="count">{count}</span>
+          </ChipLabel>
+        ),
+      })),
+  ];
+  const shown = filterBag(sortBag(rack.bag, weapons, order), weapons, engine);
+  const fresh = shown.filter(isFresh);
   const grouped = order === 'newest' && fresh.length > 0;
-  const earlier = grouped ? shown.filter(id => !weapons.get(id)?.fresh) : shown;
+  const earlier = grouped ? shown.filter(id => !isFresh(id)) : shown;
 
   const side = (
     weapon: MenuWeapon,
@@ -569,7 +671,7 @@ export const LoadoutMenu = ({
     <CompareSide $muted={discarding && weapon.id === picked}>
       <Caption data-part="caption">
         {caption}
-        {weapon.fresh && weapon.id === picked && <Tag>New</Tag>}
+        {isFresh(weapon.id) && weapon.id === picked && <Tag>New</Tag>}
         {weapon.bossLoot && <Tag>Boss loot</Tag>}
       </Caption>
       <strong>{weapon.name}</strong>
@@ -739,6 +841,7 @@ export const LoadoutMenu = ({
                   setRack(rackOf(opened));
                   setPicked(null);
                   setAim(null);
+                  setLanded(null);
                   setConfirming(false);
                 }}
               >
@@ -770,6 +873,7 @@ export const LoadoutMenu = ({
                     <li key={id}>
                       <Card
                         data-card
+                        data-weapon={id}
                         ref={slot === 0 ? first : undefined}
                         type="button"
                         $keyed
@@ -826,18 +930,40 @@ export const LoadoutMenu = ({
                   </Button>
                 )}
               </SortRow>
+              {filtering && (
+                <SegmentedControl
+                  label="Engine"
+                  options={engineOptions}
+                  value={engine}
+                  onChange={narrow}
+                />
+              )}
               {full && (
                 <Empty>
                   Bag full: new drops wait on the floor until you equip or
                   discard one.
                 </Empty>
               )}
-              {shown.length === 0 && (
+              {rack.bag.length === 0 && (
                 <Empty>
                   Nothing in the bag yet. Weapons drop from kills and drift in
                   when you're near.
                 </Empty>
               )}
+              {rack.bag.length > 0 &&
+                shown.length === 0 &&
+                engine !== 'all' && (
+                  <Empty>
+                    No {ENGINE_NAMES[engine]} left in the bag.{' '}
+                    <Button
+                      type="button"
+                      $variant="quiet"
+                      onClick={() => narrow('all')}
+                    >
+                      Show all
+                    </Button>
+                  </Empty>
+                )}
               {grouped && (
                 <>
                   <Caption as="h4">New · {fresh.length}</Caption>

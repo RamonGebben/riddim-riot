@@ -4,6 +4,8 @@ import {
   changed,
   choiceOf,
   discardAll,
+  enginesIn,
+  filterBag,
   likelySlot,
   placeOf,
   rackOf,
@@ -147,11 +149,40 @@ describe('sortBag', () => {
     expect(sortBag(bag, faces, 'newest')).toEqual(['d', 'c', 'b', 'a']);
   });
 
-  it('groups by engine, then beat', () => {
-    expect(sortBag(bag, faces, 'engine')).toEqual(['d', 'b', 'c', 'a']);
-  });
-
   it('puts the most damage a bar first', () => {
     expect(sortBag(bag, faces, 'best')).toEqual(['c', 'a', 'd', 'b']);
+  });
+});
+
+describe('filterBag', () => {
+  const faces = new Map<string, WeaponFace>(
+    (
+      [
+        ['a', 'beam'],
+        ['b', 'wobble'],
+        ['c', 'laser'],
+        ['d', 'wobble'],
+      ] as const
+    ).map(([id, oscillator]) => [
+      id,
+      { name: '', oscillator, lfo: '1/8', fx: null, blasts: false },
+    ]),
+  );
+  const bag = ['a', 'b', 'c', 'd'];
+
+  it('keeps one engine, in the order it was given', () => {
+    expect(filterBag(bag, faces, 'wobble')).toEqual(['b', 'd']);
+  });
+
+  it('keeps everything for all', () => {
+    expect(filterBag(bag, faces, 'all')).toBe(bag);
+  });
+
+  it('counts each engine, empty ones included', () => {
+    expect(enginesIn(['b', 'c', 'd'], faces)).toEqual([
+      { engine: 'wobble', count: 2 },
+      { engine: 'laser', count: 1 },
+      { engine: 'beam', count: 0 },
+    ]);
   });
 });
