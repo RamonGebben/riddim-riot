@@ -255,6 +255,7 @@
     "riserFrom": 400,
     "riserTo": 9000,
     "riserLevel": -4,
+    "riserAttack": 0.05,
     "crashHz": 3000,
     "crashDecay": 1.6,
     "crashLevel": -2,

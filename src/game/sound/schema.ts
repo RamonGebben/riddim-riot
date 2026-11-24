@@ -737,6 +737,13 @@ export const DESIGN_SCHEMA: Array<FieldGroup> = [
       num(['arrangement', 'riserTo'], 'Riser to', [500, 18000, 50], 'Hz'),
       num(['arrangement', 'riserLevel'], 'Riser level', [-40, 12, 0.5], 'dB'),
       num(
+        ['arrangement', 'riserAttack'],
+        'Riser attack',
+        [0.001, 0.5, 0.001],
+        's',
+        'The shortest fade-in, when the circle is picked up nearly full',
+      ),
+      num(
         ['arrangement', 'crashHz'],
         'Crash high-pass',
         [200, 12000, 10],

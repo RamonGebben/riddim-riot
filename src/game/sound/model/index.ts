@@ -277,6 +277,8 @@ export interface ArrangementPatch {
   riserFrom: number;
   riserTo: number;
   riserLevel: number;
+  /** The shortest the riser fades in, however full the circle was. */
+  riserAttack: number;
   crashHz: number;
   crashDecay: number;
   crashLevel: number;
@@ -569,6 +571,7 @@ export const BASE_DESIGN: SoundDesign = {
     riserFrom: 400,
     riserTo: 9000,
     riserLevel: -4,
+    riserAttack: 0.05,
     crashHz: 3000,
     crashDecay: 1.6,
     crashLevel: -2,
