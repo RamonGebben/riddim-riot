@@ -638,7 +638,11 @@ export const LoadoutMenu = ({
           type="button"
           $marked={thrown}
           aria-label={`${thrown ? 'Keep' : 'Discard'} ${weapon.name}`}
-          onClick={() => setRack(toggleDiscard(rack, id))}
+          onClick={() => {
+            // A new mark asks again before Esc throws them out.
+            setConfirming(false);
+            setRack(toggleDiscard(rack, id));
+          }}
         >
           <Icon icon={thrown ? KEEP_ICON : BIN_ICON} />
         </BinButton>
