@@ -21,6 +21,7 @@ import {
 } from './audio';
 import { createBus } from './bus';
 import { createClock, type Tick } from './clock';
+import { styleFor } from './genre';
 import type { GameEvents } from './events';
 import { initialHud, type HudView } from './hud';
 import {
@@ -68,7 +69,9 @@ export {
 } from './flashing';
 
 /** Fixed for the PoC; the level seed picks it later. */
-export const BPM = 140;
+/** A level's subgenre and tempo, from its seed (see `genre`). */
+export const levelStyle = (run: RunState) =>
+  styleFor(levelSeed(run), run.level);
 const DUCK_SECONDS = 0.6;
 /** A press within this of the weapon's grid is on the beat. */
 const ON_BEAT_SECONDS = 0.05;
@@ -84,7 +87,13 @@ export type StartStep = 'audio' | 'kit' | 'weapons';
 /** What the screens show about a run's current level, before it's played. */
 export const describeLevel = (run: RunState) => {
   const { key, palette } = generateLevel(levelSeed(run));
-  return { key: keyName(key), palette: palette.name, bpm: BPM };
+  const { style, bpm } = levelStyle(run);
+  return {
+    key: keyName(key),
+    palette: palette.name,
+    bpm,
+    subgenre: style.label,
+  };
 };
 
 /** What a weapon does, as numbers to compare: bigger is better in each. */
@@ -271,7 +280,8 @@ export const startGame = async ({
   const { key } = level;
   const rootHz = (octave: number) => midiToHz(degreeToMidi(key, 0, octave));
 
-  const stepSeconds = secondsPerStep(BPM);
+  const { style, bpm } = levelStyle(run);
+  const stepSeconds = secondsPerStep(bpm);
   const beatSeconds = stepSeconds * STEPS_PER_BEAT;
   const pulses: Pulses = {
     kick: createPulse({ decay: 0.14 }),
@@ -287,6 +297,7 @@ export const startGame = async ({
   onStep('kit');
   const drums = createDrums({
     seed,
+    style: style.drums,
     output: musicBus.input,
     kickHz: rootHz(1),
     onHit: hit => {
@@ -343,7 +354,7 @@ export const startGame = async ({
 
   const arm = async (recipe: WeaponRecipe): Promise<Armed> => {
     const weapon = weaponFrom(recipe, key, run.level);
-    const volume = await measureWeaponLoudness(weapon, { bpm: BPM });
+    const volume = await measureWeaponLoudness(weapon, { bpm });
     const voice = createWeaponVoice({
       output: musicBus.weapons,
       sound: weapon.sound,
@@ -377,7 +388,7 @@ export const startGame = async ({
         },
       },
       reloadSound: projectile.kind === 'beam' ? rechargeSound : reloadSound,
-      bpm: BPM,
+      bpm,
       now,
     });
     return { recipe, weapon, slot, voice };
@@ -453,7 +464,7 @@ export const startGame = async ({
     }),
   ];
   const clock = createClock({
-    bpm: BPM,
+    bpm,
     onTick: tick => bus.emit('tick', tick),
   });
   clock.start();
@@ -482,7 +493,7 @@ export const startGame = async ({
     const known = previews.get(id);
     if (known) return known;
     const rendering = renderWeaponPreview(weaponFrom(recipe, key, run.level), {
-      bpm: BPM,
+      bpm,
       pitch: note => transposeInKey(key, note, shift),
     });
     previews.set(id, rendering);
@@ -503,7 +514,11 @@ export const startGame = async ({
       const play = startPlay({
         element,
         level,
-        rules: rulesFor({ level: run.level, stress }),
+        rules: rulesFor({
+          level: run.level,
+          stress,
+          pressure: style.pressure,
+        }),
         carry: run,
         seed,
         bus,
@@ -603,7 +618,7 @@ export const startGame = async ({
         seed,
         key,
         progression,
-        bpm: BPM,
+        bpm,
         rootHz: rootHz(1),
         bar: at.bar,
         chordBar: chordBar(at.bar),

@@ -37,3 +37,12 @@ export const PointsMultiplied: Story = {
     );
   },
 };
+
+export const Subgenre: Story = {
+  args: { level: 4, subgenre: 'Liquid', bpm: 172 },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Liquid · 172 BPM',
+    );
+  },
+};

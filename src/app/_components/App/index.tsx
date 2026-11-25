@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   attachBackdrop,
   BAG_SIZE,
-  BPM,
   describeLevel,
   describeLoadout,
   describeWeapons,
@@ -542,7 +541,7 @@ export const App = () => {
       isApplying: arranging,
       error: menuError,
       preview: previewing,
-      barSeconds: (60 / BPM) * 4,
+      barSeconds: (60 / level.bpm) * 4,
       onPreview: (id: string) => audition([id]),
       onPreviewAB: (a: string, b: string) => audition([a, b]),
       onStopPreview: () => {
@@ -629,6 +628,8 @@ export const App = () => {
         levels={RUN_LEVELS}
         musicalKey={level.key}
         multiplier={scoreMultiplier(run.level)}
+        subgenre={level.subgenre}
+        bpm={level.bpm}
       />
     );
   }
@@ -639,6 +640,7 @@ export const App = () => {
       <StartScreen
         musicalKey={level.key}
         bpm={level.bpm}
+        subgenre={level.subgenre}
         levels={RUN_LEVELS}
         best={best}
         weapons={weapons}

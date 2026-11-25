@@ -1,4 +1,5 @@
 import { STEPS_PER_BAR } from '../../../grid';
+import { DEFAULT_STYLE, type DrumStyle } from '../../../genre';
 import { createRng, deriveSeed, type Rng } from '../../../rng';
 
 export type DrumVoice = 'kick' | 'snare' | 'hat' | 'openHat';
@@ -15,10 +16,13 @@ export type DrumLane = Array<number>;
 
 export type DrumBar = Record<DrumVoice, DrumLane>;
 
-/** Halftime: the snare lands on beat 3, not on 2 and 4. */
-const SNARE_STEP = 8;
-/** Syncopated kicks that keep the halftime groove readable. */
-const GHOST_KICK_STEPS = [3, 6, 10, 11, 14];
+/** Where each feel's snares land, and the kicks always under them. */
+const FEELS = {
+  // Halftime: the snare on beat 3, not on 2 and 4.
+  halftime: { snares: [8], kicks: [0], ghostKicks: [3, 6, 10, 11, 14] },
+  // Two-step: snares on 2 and 4, the kick on 1 and the "and" of 3.
+  twostep: { snares: [4, 12], kicks: [0, 10], ghostKicks: [3, 6, 11] },
+};
 const FILL_START = 12;
 const OPEN_HAT_STEP = 14;
 const BARS_PER_PHRASE = 4;
@@ -31,36 +35,42 @@ export const isFillBar = (bar: number) =>
 
 /** How busy the bar's extras are; rolled once per bar so bars differ in feel. */
 interface BarFeel {
+  steps: (typeof FEELS)[keyof typeof FEELS];
   ghostKicks: number;
   hatShuffle: number;
+  ghostSnares: number;
   fill: boolean;
 }
 
-const rollFeel = (rng: Rng, bar: number): BarFeel => ({
-  ghostKicks: rng.pick([0.15, 0.3, 0.45]),
-  hatShuffle: rng.pick([0.1, 0.25, 0.4]),
+const rollFeel = (rng: Rng, bar: number, style: DrumStyle): BarFeel => ({
+  steps: FEELS[style.feel],
+  ghostKicks: rng.pick(style.ghostKicks),
+  hatShuffle: rng.pick(style.hatShuffle),
+  ghostSnares: style.ghostSnares,
   fill: isFillBar(bar),
 });
 
 const kickLane = (rng: Rng, feel: BarFeel) =>
   lane(step => {
-    if (step === 0) return 1;
+    if (feel.steps.kicks.includes(step) && !(feel.fill && step >= FILL_START))
+      return step === 0 ? 1 : 0.9;
     if (feel.fill && step >= FILL_START) return 0;
-    if (!GHOST_KICK_STEPS.includes(step)) return 0;
+    if (!feel.steps.ghostKicks.includes(step)) return 0;
     return rng.chance(feel.ghostKicks) ? 0.8 : 0;
   });
 
 const snareLane = (rng: Rng, feel: BarFeel) =>
   lane(step => {
-    if (step === SNARE_STEP) return 1;
+    if (feel.steps.snares.includes(step)) return 1;
     if (feel.fill && step >= FILL_START) {
       // A rising roll that lands the next bar's downbeat.
       return 0.45 + ((step - FILL_START) / (STEPS_PER_BAR - FILL_START)) * 0.5;
     }
-    if (step === SNARE_STEP - 1 || step === STEPS_PER_BAR - 1) {
-      return rng.chance(0.15) ? 0.3 : 0;
-    }
-    return 0;
+    // Quiet ghosts leading into each backbeat, and into the next bar.
+    const ghost =
+      feel.steps.snares.some(snare => step === snare - 1) ||
+      step === STEPS_PER_BAR - 1;
+    return ghost && rng.chance(feel.ghostSnares) ? 0.3 : 0;
   });
 
 const openHatLane = (rng: Rng, feel: BarFeel) =>
@@ -77,8 +87,8 @@ const hatLane = (rng: Rng, feel: BarFeel, openHat: DrumLane) =>
     return rng.chance(feel.hatShuffle) ? 0.3 : 0;
   });
 
-const generateFromRng = (rng: Rng, bar: number): DrumBar => {
-  const feel = rollFeel(rng, bar);
+const generateFromRng = (rng: Rng, bar: number, style: DrumStyle): DrumBar => {
+  const feel = rollFeel(rng, bar, style);
   const kick = kickLane(rng, feel);
   const snare = snareLane(rng, feel);
   const openHat = openHatLane(rng, feel);
@@ -86,12 +96,17 @@ const generateFromRng = (rng: Rng, bar: number): DrumBar => {
 };
 
 /**
- * One bar of halftime drums: kick on 1 and snare on 3 always, with seeded
- * ghost kicks, hat shuffle and a snare fill closing every 4-bar phrase.
- * Each bar has its own seed, so any bar can be generated on its own.
+ * One bar of drums in `style`: halftime's kick on 1 and snare on 3, or
+ * two-step's kick on 1 and the "and" of 3 under snares on 2 and 4, with
+ * seeded ghost kicks and snares, hat shuffle and a snare fill closing
+ * every 4-bar phrase. Each bar has its own seed, so any bar can be
+ * generated on its own.
  */
-export const generateDrumBar = (seed: number, bar: number): DrumBar =>
-  generateFromRng(createRng(deriveSeed(seed, bar)), bar);
+export const generateDrumBar = (
+  seed: number,
+  bar: number,
+  style: DrumStyle = DEFAULT_STYLE.style.drums,
+): DrumBar => generateFromRng(createRng(deriveSeed(seed, bar)), bar, style);
 
 /** The voices hit on a step, with their velocity. */
 export const hitsAt = (

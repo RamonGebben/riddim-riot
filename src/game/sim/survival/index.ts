@@ -242,17 +242,22 @@ export const waveSize = ({
   level,
   alive,
   extra = 0,
+  pressure = 1,
 }: {
   /** Waves sent before this one. */
   sent: number;
   level: number;
   alive: number;
   extra?: number;
+  /** The subgenre's push (see `genre`): 1 sends the wave as it is. */
+  pressure?: number;
 }): number =>
   Math.max(
     0,
     Math.min(
-      2 + Math.floor(sent / 2) + 2 * (level - 1) + extra,
+      Math.round(
+        (2 + Math.floor(sent / 2) + 2 * (level - 1) + extra) * pressure,
+      ),
       waveCap(level),
       MAX_ENEMIES - alive,
     ),

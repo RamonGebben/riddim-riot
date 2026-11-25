@@ -669,6 +669,19 @@ describe('stepWorld', () => {
     expect(hitAt(1.9)).toBeNull();
     expect(hitAt(2)).not.toBeNull();
   });
+
+  it("keeps the player's invulnerability at 140's length at a faster tempo", () => {
+    const near = { x: start.x + 10, y: start.y };
+    const hit = stepWorld(withEnemies(createWorld(level), [enemyAt(1, near)]), {
+      input: still,
+      dt: 1 / 60,
+      now: 1,
+      beatSeconds: 60 / 174,
+    });
+    expect(hit.world.invulnerableUntil).toBeCloseTo(
+      1 + INVULNERABLE_BEATS * (60 / 140),
+    );
+  });
 });
 
 describe('powerups', () => {

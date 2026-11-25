@@ -12,7 +12,9 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
     page.getByRole('heading', { name: 'Riddim Riot' }),
   ).toBeVisible();
   await expect(
-    page.getByText(/^[A-G]#? (minor|phrygian) · 140 BPM halftime · 5 levels$/),
+    page.getByText(
+      /^(Deep dubstep|Riddim) in [A-G]#? (minor|phrygian) · 1[34][0-9] BPM · 5 levels$/,
+    ),
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'Drop in' }).click();

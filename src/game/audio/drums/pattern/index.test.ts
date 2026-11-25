@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SUBGENRES } from '../../../genre';
 import { generateDrumBar, halfSpeedStep, hitsAt, isFillBar } from '.';
 
 const bars = (seed: number, count: number) =>
@@ -25,6 +26,34 @@ describe('generateDrumBar', () => {
       expect(bar.snare[8]).toBe(1);
       expect(bar.kick[8]).toBe(0);
     });
+  });
+
+  it('plays two-step for drum & bass: snare on 2 and 4, kick on 1 and the and of 3', () => {
+    const { drums } = SUBGENRES.neurofunk;
+    Array.from({ length: 64 }, (_, bar) =>
+      generateDrumBar(7, bar, drums),
+    ).forEach((bar, index) => {
+      expect(bar.kick[0]).toBe(1);
+      expect(bar.snare[4]).toBe(1);
+      expect(bar.snare[12]).toBe(1);
+      expect(bar.snare[8]).toBe(0);
+      // The fill takes the bar's end, the "and" of 3 included.
+      if (!isFillBar(index)) expect(bar.kick[10]).toBeGreaterThan(0);
+    });
+  });
+
+  it('plays a sparser style with fewer extras than a busy one', () => {
+    const extras = (style: keyof typeof SUBGENRES) =>
+      Array.from({ length: 64 }, (_, bar) =>
+        generateDrumBar(3, bar, SUBGENRES[style].drums),
+      ).reduce(
+        (sum, bar) =>
+          sum +
+          bar.kick.filter(v => v > 0 && v < 0.9).length +
+          bar.snare.filter(v => v > 0 && v < 0.45).length,
+        0,
+      );
+    expect(extras('deep')).toBeLessThan(extras('brostep'));
   });
 
   it('never lets the closed and open hat hit together', () => {

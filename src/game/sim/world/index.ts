@@ -109,6 +109,8 @@ export interface WaveRules {
   bossHp: number;
   /** Share of each wave after the first that comes as chargers. */
   chargerChance: number;
+  /** The subgenre's push: waves this much bigger (see `genre`). */
+  pressure: number;
   /** Stress test: skip the circle and top the level up to the cap every bar. */
   fill: boolean;
 }
@@ -134,11 +136,14 @@ const FINAL_BOSS_HP = 1.5;
 export const rulesFor = ({
   level,
   stress = false,
+  pressure = 1,
 }: {
   level: number;
   stress?: boolean;
+  pressure?: number;
 }): WaveRules => ({
   level,
+  pressure,
   song: songFor(level),
   bossHp: Math.round(
     (30 + 12 * (level - 1)) *
@@ -195,6 +200,15 @@ export interface World {
  * the beat, so it's two or three steps to get clear of a crowd.
  */
 export const INVULNERABLE_BEATS = 2;
+/**
+ * A beat at 140 BPM. What the player is given in beats - invulnerability,
+ * the dash's cooldown - never runs shorter than in these, so a drum & bass
+ * tempo speeds up the enemies but not the player's breathing room.
+ */
+const SLOWEST_BEAT_SECONDS = 60 / 140;
+/** A beat for the player's own timings: the tempo's, or 140's if shorter. */
+export const playerBeatSeconds = (beatSeconds: number): number =>
+  Math.max(beatSeconds, SLOWEST_BEAT_SECONDS);
 /** How close to the pad's centre counts as standing in the circle. */
 export const PAD_RADIUS = 48;
 export const PLAYER_MAX_HP = 5;
@@ -654,7 +668,13 @@ export const onBar = (
   const sent = world.survival.sent;
   const waved = wave
     ? spawn(advanced, {
-        count: waveSize({ sent, level: rules.level, alive, extra: wave.extra }),
+        count: waveSize({
+          sent,
+          level: rules.level,
+          alive,
+          extra: wave.extra,
+          pressure: rules.pressure,
+        }),
         time: spawnAt,
         rng,
         chargerChance: wave.chargers ? rules.chargerChance : 0,
@@ -744,7 +764,7 @@ export const stepWorld = (
     ? {
         direction: dashDirection(world.player, input),
         until: now + DASH.seconds,
-        readyAt: now + DASH.cooldownBeats * beatSeconds,
+        readyAt: now + DASH.cooldownBeats * playerBeatSeconds(beatSeconds),
       }
     : world.dash;
   const dashing = now < dash.until;
@@ -930,7 +950,7 @@ export const stepWorld = (
       hearts: looted.hearts.filter(heart => !healed.includes(heart)),
       pendingShots: world.pendingShots.filter(shot => shot.time > now),
       invulnerableUntil: playerHit
-        ? now + INVULNERABLE_BEATS * beatSeconds
+        ? now + INVULNERABLE_BEATS * playerBeatSeconds(beatSeconds)
         : world.invulnerableUntil,
       dash,
       recoil: kicked.recoil,

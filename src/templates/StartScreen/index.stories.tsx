@@ -7,6 +7,7 @@ const meta = {
   args: {
     musicalKey: 'F minor',
     bpm: 140,
+    subgenre: 'Riddim',
     levels: 5,
     best: 0,
     highScoresHref: '/leaderboard',

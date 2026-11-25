@@ -29,6 +29,8 @@ export interface StartScreenProps {
   /** The first level's key, e.g. "F minor". */
   musicalKey: string;
   bpm: number;
+  /** The first level's subgenre, e.g. "Riddim". */
+  subgenre: string;
   /** Levels in a run. */
   levels: number;
   /** The best score on this device; 0 hides it. */
@@ -65,6 +67,7 @@ const STEP_LABELS = {
 export const StartScreen = ({
   musicalKey,
   bpm,
+  subgenre,
   levels,
   best,
   weapons,
@@ -144,7 +147,7 @@ export const StartScreen = ({
             </Status>
           )}
           <Meta>
-            {musicalKey} · {bpm} BPM halftime · {levels} levels
+            {subgenre} in {musicalKey} · {bpm} BPM · {levels} levels
             {best > 0 && <> · best {best.toLocaleString('en')}</>}
           </Meta>
         </Hero>
