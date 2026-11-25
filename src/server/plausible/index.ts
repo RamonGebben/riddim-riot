@@ -28,6 +28,12 @@ export const MAX_KILLS_PER_SECOND = 6;
  * what bound a score; this only retires tickets nobody came back to.
  */
 export const MAX_RUN_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * The most a run can have been played, whatever the wall time: five levels
+ * take well under an hour. Bounds the kills, so a long pause can't buy
+ * room for more.
+ */
+export const MAX_PLAY_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Why a reported run can't have happened in `elapsedMs` since its ticket,
@@ -46,7 +52,8 @@ export const implausible = (
   const cleared = outcome === 'won' ? RUN_LEVELS : level - 1;
   if (elapsedMs < cleared * MIN_LEVEL_MS)
     return 'the levels were cleared too fast';
-  if (kills > Math.ceil((elapsedMs / 1000) * MAX_KILLS_PER_SECOND))
+  const playedMs = Math.min(elapsedMs, MAX_PLAY_MS);
+  if (kills > Math.ceil((playedMs / 1000) * MAX_KILLS_PER_SECOND))
     return 'too many kills for the time played';
   // Every kill scores 100 to 800 points, by the combo multiplier, and
   // every cleared level its bonus.
