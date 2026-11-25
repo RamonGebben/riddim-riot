@@ -3,8 +3,11 @@ import { clipOf, encodeWav, layClips, type Clip } from '../clip';
 
 /** Beats in the looped bar: previews start on the next one. */
 const LOOP_BEATS = 4;
-/** How long a clip gets to load before a preview gives up on it. */
-const START_WAIT_MS = 1000;
+/**
+ * How long a clip gets to load before a preview gives up on it. Only a
+ * guard against a hang: a bar's file took over a second on a busy machine.
+ */
+const START_WAIT_MS = 5000;
 /** How often the highlight checks which bar is sounding. */
 const WATCH_MS = 25;
 /** Steps a fade takes, on its timer: fine enough not to be heard. */
@@ -264,6 +267,8 @@ export const createPreviewer = ({
     } catch (error) {
       // Cut off meanwhile: nothing failed, it just isn't wanted.
       if (playing !== current) return;
+      // Failed, not ended: telling it ended would hide the error.
+      current.onEnd = () => {};
       stop();
       throw error;
     }
@@ -287,6 +292,8 @@ export const createPreviewer = ({
     } catch (error) {
       // Cut off meanwhile: nothing failed, it just isn't wanted.
       if (playing !== current) return;
+      // Failed, not ended: telling it ended would hide the error.
+      current.onEnd = () => {};
       stop();
       throw error;
     }

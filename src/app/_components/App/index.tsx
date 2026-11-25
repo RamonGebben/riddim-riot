@@ -488,9 +488,7 @@ export const App = () => {
     const failed = (error: unknown) => {
       console.error(error);
       setPreviewing(now => (now?.ids === ids ? null : now));
-      setMenuError(
-        "Couldn't play the preview: the browser held the sound back. Press it again to retry.",
-      );
+      setMenuError("Couldn't play the preview. Press it again to retry.");
     };
     const [a, b] = recipes;
     setMenuError(null);
