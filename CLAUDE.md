@@ -64,7 +64,8 @@ Running and controls are in `README.md`.
   row level security applies. Never query as the owner. Schema, policies
   and the `api.*` functions live in `db/migrations/*.sql` (`pnpm
 db:migrate`); `pnpm test:db` checks the policies against the real
-  database. Totals change only through the `runs` insert trigger, and run
+  database. The board ranks each player's best single run (`best_score`),
+  never a sum; it changes only through the `runs` insert trigger, and run
   tickets are signed inside Postgres (no app secret).
 - **The playground saves through `/api/sound-design`** (dev only, 404 in
   production), which merges, Prettier-formats and writes `design.json`.

@@ -7,7 +7,7 @@ import { publicProcedure, router } from '../../trpc';
 export const BOARD_SIZE = 50;
 
 export const boardRouter = router({
-  /** The top of the lifetime-points board, and how many are on it. */
+  /** The top of the best-run board, and how many are on it. */
   top: publicProcedure.query(() =>
     asPlayer(null, async tx => ({
       rows: await topRows(tx, BOARD_SIZE),

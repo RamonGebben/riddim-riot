@@ -9,7 +9,8 @@ import { Table } from './components/Table';
 export interface BoardRow {
   rank: number;
   name: string;
-  totalPoints: number;
+  /** The best single run: what the board ranks by. */
+  bestScore: number;
   runsCount: number;
 }
 
@@ -27,7 +28,7 @@ export interface BoardTableProps {
   loadingRows?: number;
 }
 
-/** The lifetime-points board, with gaps where ranks are skipped. */
+/** The best-run board, with gaps where ranks are skipped. */
 export const BoardTable = ({
   rows,
   highlight = null,
@@ -48,7 +49,7 @@ export const BoardTable = ({
           <th scope="col">RNK</th>
           <th scope="col">NAME</th>
           <th scope="col" data-align="end">
-            POINTS
+            BEST RUN
           </th>
           {!compact && (
             <th scope="col" data-align="end">
@@ -83,7 +84,7 @@ export const BoardTable = ({
                   >
                     <td>{ordinal(row.rank)}</td>
                     <td>{row.name}</td>
-                    <td data-align="end">{formatNumber(row.totalPoints)}</td>
+                    <td data-align="end">{formatNumber(row.bestScore)}</td>
                     {!compact && (
                       <td data-align="end" data-quiet>
                         {formatNumber(row.runsCount)}

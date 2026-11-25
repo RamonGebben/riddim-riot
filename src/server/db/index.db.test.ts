@@ -55,12 +55,28 @@ afterAll(async () => {
 });
 
 describe('row level security', () => {
-  it('lets a player add their own run, and the total follows', async () => {
+  it('lets a player add their own run, and the best run follows', async () => {
     await asPlayer(ids.a, tx => tx.insert(runs).values(run(ids.a, 500)));
     const [a] = await asPlayer(null, tx =>
       tx.select().from(players).where(eq(players.id, ids.a)),
     );
-    expect(a).toMatchObject({ totalPoints: 500, runsCount: 1, bestScore: 500 });
+    expect(a).toMatchObject({ runsCount: 1, bestScore: 500 });
+  });
+
+  it("keeps the best run: a lower one doesn't add to it or lower it", async () => {
+    const best = async () => {
+      const [a] = await asPlayer(null, tx =>
+        tx.select().from(players).where(eq(players.id, ids.a)),
+      );
+      return a;
+    };
+    await asPlayer(ids.a, tx => tx.insert(runs).values(run(ids.a, 500)));
+    const before = await best();
+    await asPlayer(ids.a, tx => tx.insert(runs).values(run(ids.a, 200)));
+    const after = await best();
+    expect(after.bestScore).toBe(before.bestScore);
+    expect(after.scoredAt).toEqual(before.scoredAt);
+    expect(after.runsCount).toBe(before.runsCount + 1);
   });
 
   it("refuses a run in someone else's name", async () => {
@@ -94,12 +110,12 @@ describe('row level security', () => {
     );
   });
 
-  it("can't write a total directly", async () => {
+  it("can't write a best score directly", async () => {
     const error = await failure(
       asPlayer(ids.a, tx =>
         tx
           .update(players)
-          .set({ totalPoints: 9_999_999 })
+          .set({ bestScore: 9_999_999 })
           .where(eq(players.id, ids.a)),
       ),
     );

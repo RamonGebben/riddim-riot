@@ -16,7 +16,6 @@ import type { WeaponRecipe } from '~/game/weapons';
 export const players = pgTable('players', {
   id: uuid('id').primaryKey(),
   name: text('name').notNull(),
-  totalPoints: bigint('total_points', { mode: 'number' }).notNull(),
   runsCount: integer('runs_count').notNull(),
   bestScore: integer('best_score').notNull(),
   scoredAt: timestamp('scored_at', { withTimezone: true }),

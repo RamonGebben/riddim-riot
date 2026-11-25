@@ -19,9 +19,9 @@ const numbered = () =>
   asPlayer(null, async tx => {
     const result = await tx.execute<{ name: string; rank: number }>(sql`
       select name, row_number() over (
-        order by total_points desc, scored_at asc, created_at asc
+        order by best_score desc, scored_at asc, created_at asc
       )::integer as rank
-      from public.players where total_points > 0
+      from public.players where best_score > 0
       order by rank
     `);
     return new Map(result.rows.map(row => [row.name, row.rank]));

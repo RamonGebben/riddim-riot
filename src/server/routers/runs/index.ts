@@ -117,8 +117,8 @@ export const runsRouter = router({
       return {
         name: me.name,
         score: input.score,
-        before: { rank: before?.rank ?? null, total: before?.totalPoints ?? 0 },
-        after: { rank: after?.rank ?? null, total: after?.totalPoints ?? 0 },
+        before: { rank: before?.rank ?? null, best: before?.bestScore ?? 0 },
+        after: { rank: after?.rank ?? null, best: after?.bestScore ?? 0 },
         rows: await rowsAround(tx, me.name),
       };
     }),

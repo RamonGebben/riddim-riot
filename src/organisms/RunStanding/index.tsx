@@ -16,7 +16,8 @@ import { Tally } from './components/Tally';
 
 export interface Place {
   rank: number | null;
-  total: number;
+  /** The player's best run: what the board ranks by. */
+  best: number;
 }
 
 export type ShareState = ShareResult;
@@ -126,11 +127,11 @@ const SavedPlace = ({
       <Tally>
         <div>
           <dt>Run</dt>
-          <dd>+{formatNumber(standing.score)}</dd>
+          <dd>{formatNumber(standing.score)}</dd>
         </div>
         <div>
-          <dt>Total</dt>
-          <dd>{formatNumber(standing.after.total)}</dd>
+          <dt>Best</dt>
+          <dd>{formatNumber(standing.after.best)}</dd>
         </div>
         <div>
           <dt>Rank</dt>
