@@ -8,9 +8,14 @@ const introSeconds = async (page: Page, rigged: Rig) => {
   await dropIn(page);
   const intro = page.getByText(/intro \d:\d\d/);
   await expect(intro).toBeVisible(musical);
-  const [, minutes, seconds] =
-    /intro (\d):(\d\d)/.exec((await intro.textContent()) ?? '') ?? [];
-  return Number(minutes) * 60 + Number(seconds);
+  // Until the clock's first tick it reads 0:00: wait for a real reading.
+  const read = async () => {
+    const [, minutes, seconds] =
+      /intro (\d):(\d\d)/.exec((await intro.textContent()) ?? '') ?? [];
+    return Number(minutes) * 60 + Number(seconds);
+  };
+  await expect.poll(read, musical).toBeGreaterThan(0);
+  return read();
 };
 
 test('the song runs at the level tempo: twice the BPM, half the time', async ({
@@ -23,7 +28,6 @@ test('the song runs at the level tempo: twice the BPM, half the time', async ({
   const fast = await introSeconds(page, { subgenre: 'neurofunk', bpm: 160 });
   // The same bars at twice the tempo: a little slack for the clock
   // having moved on before the label was read.
-  expect(fast).toBeGreaterThan(0);
   expect(slow / fast).toBeGreaterThan(1.7);
   expect(slow / fast).toBeLessThan(2.3);
   expect(errors).toEqual([]);
