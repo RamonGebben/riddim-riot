@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-/** The run added to the total, and where that puts you. */
+/** The run, your best, and where that puts you. */
 export const Tally = styled.dl`
   display: flex;
   flex-wrap: wrap;

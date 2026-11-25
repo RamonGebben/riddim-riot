@@ -3,11 +3,11 @@ import { expect } from 'storybook/test';
 import { BoardTable, type BoardRow } from '.';
 
 const TOP: Array<BoardRow> = [
-  { rank: 1, name: 'WOBBLEKING', totalPoints: 1_204_880, runsCount: 212 },
-  { rank: 2, name: 'RIDDIMRAT', totalPoints: 988_120, runsCount: 174 },
-  { rank: 3, name: 'SUBLO', totalPoints: 740_005, runsCount: 98 },
-  { rank: 4, name: 'K_HALFTIME', totalPoints: 612_300, runsCount: 121 },
-  { rank: 5, name: 'BASSFACE', totalPoints: 598_770, runsCount: 87 },
+  { rank: 1, name: 'WOBBLEKING', bestScore: 1_204_880, runsCount: 212 },
+  { rank: 2, name: 'RIDDIMRAT', bestScore: 988_120, runsCount: 174 },
+  { rank: 3, name: 'SUBLO', bestScore: 740_005, runsCount: 98 },
+  { rank: 4, name: 'K_HALFTIME', bestScore: 612_300, runsCount: 121 },
+  { rank: 5, name: 'BASSFACE', bestScore: 598_770, runsCount: 87 },
 ];
 
 const meta = {
@@ -34,9 +34,9 @@ export const AroundYou: Story = {
     highlight: 'NEWCOMER',
     rows: [
       ...TOP.slice(0, 3),
-      { rank: 36, name: 'DROPZONE', totalPoints: 48_900, runsCount: 14 },
-      { rank: 37, name: 'NEWCOMER', totalPoints: 48_210, runsCount: 12 },
-      { rank: 38, name: 'LOWEND', totalPoints: 47_100, runsCount: 30 },
+      { rank: 36, name: 'DROPZONE', bestScore: 48_900, runsCount: 14 },
+      { rank: 37, name: 'NEWCOMER', bestScore: 48_210, runsCount: 12 },
+      { rank: 38, name: 'LOWEND', bestScore: 47_100, runsCount: 30 },
     ],
   },
   play: async ({ canvas }) => {

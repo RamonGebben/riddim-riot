@@ -27,7 +27,7 @@ export interface LeaderboardScreenProps {
   backdropRef?: Ref<HTMLDivElement>;
 }
 
-/** The all-time board: every player's points from every run, added up. */
+/** The board: every player's best single run. */
 export const LeaderboardScreen = ({
   rows,
   ranked,

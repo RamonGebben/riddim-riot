@@ -3,6 +3,7 @@ import {
   MAX_MULTIPLIER,
   POINTS_PER_KILL,
   RUN_LEVELS,
+  type RunOutcome,
 } from '~/game/sim';
 
 /** A finished run as the client reports it. */
@@ -11,7 +12,7 @@ export interface RunReport {
   /** The level the run ended on, 1-based. */
   level: number;
   kills: number;
-  outcome: 'died' | 'won';
+  outcome: RunOutcome;
 }
 
 /**

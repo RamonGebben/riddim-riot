@@ -13,6 +13,21 @@ describe('implausible', () => {
     ).toBeNull();
   });
 
+  it('accepts a quit mid-level, scored like a death there', () => {
+    expect(
+      implausible(
+        { score: 22_400, level: 2, kills: 60, outcome: 'quit' },
+        6 * MINUTE,
+      ),
+    ).toBeNull();
+    expect(
+      implausible(
+        { score: 22_400, level: 2, kills: 60, outcome: 'quit' },
+        MINUTE,
+      ),
+    ).toBe('the levels were cleared too fast');
+  });
+
   it('rejects a level bonus that was never earned', () => {
     expect(
       implausible(

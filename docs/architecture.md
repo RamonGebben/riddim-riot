@@ -147,10 +147,15 @@ an optional pinned engine). Level 1 plays the run seed; later levels get
 `deriveSeed(seed, 20, level)` for a fresh layout, key and palette. Recipes
 are re-rolled in each level's key, so a loadout transposes for free.
 
-A run is `RUN_LEVELS` (5) levels. Clearing one shows its stats for a
-moment, then the next starts by itself behind a level card (no click: the
-AudioContext is already running, and only a fresh run asks to go
-fullscreen); clearing the last wins the run. The best score is kept in
+A run is `RUN_LEVELS` (5) levels. Clearing one shows its stats until the
+player moves on; nothing advances by itself. With loot in the bag the
+way on is **Sort your loot**: the loadout menu with `scrapsBag`, where
+the player picks three weapons and the button says what it costs
+("Scrap 12 weapons · start level 3"). Every level starts with an empty bag.
+Esc doesn't close that menu, since closing it scraps the bag. With an
+empty bag the stats go straight to **Start level N**. The next level starts
+behind a level card, and only a fresh run asks to go fullscreen. Clearing
+the last level wins the run. The best score is kept in
 `localStorage` (`utils/bestScore`), read before each run so its end can say
 "New best!". Seed, key and BPM no longer sit in the HUD: the seed shows on
 the pause and end screens, to share.
@@ -165,9 +170,13 @@ a switch, the loadout opened, a pause) and the next comes up, ending on
 it's saved as seen (`utils/tutorialSeen`) and never shows again; after
 that the circle waits with no text at all, no controls line nor prompt.
 When the player takes the exit, the HUD
-goes to `cleared`, and **Next level** calls `play(game.nextRun())`, which
-stops this game and starts the next. Death offers **Try again** (same run
-seed, level 1) or **New run** (fresh seed). React only re-renders on HUD
+goes to `cleared`, and starting the next level calls
+`play(game.nextRun())`, which stops this game and starts the next. Death
+offers **Try again** (same run seed, level 1) or **New run** (fresh seed).
+**Quit** ends the run where it stands: the game freezes, and the run-over
+screen ("Run ended") saves it to the board with outcome `quit`, kills in
+the level under way included. It also offers **Main menu**. A run with
+nothing to show (level 1, no points) quits straight to the start. React only re-renders on HUD
 changes, never per frame.
 
 ### Simulation (`sim/`, pure)

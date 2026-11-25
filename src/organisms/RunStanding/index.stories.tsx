@@ -3,9 +3,9 @@ import { expect, fn } from 'storybook/test';
 import { RunStanding } from '.';
 
 const ROWS = [
-  { rank: 1, name: 'WOBBLEKING', totalPoints: 1_204_880, runsCount: 212 },
-  { rank: 2, name: 'RIDDIMRAT', totalPoints: 988_120, runsCount: 174 },
-  { rank: 3, name: 'SUBLO', totalPoints: 740_005, runsCount: 98 },
+  { rank: 1, name: 'WOBBLEKING', bestScore: 1_204_880, runsCount: 212 },
+  { rank: 2, name: 'RIDDIMRAT', bestScore: 988_120, runsCount: 174 },
+  { rank: 3, name: 'SUBLO', bestScore: 740_005, runsCount: 98 },
 ];
 
 const meta = {
@@ -42,8 +42,8 @@ export const Climbed: Story = {
       kind: 'saved',
       name: 'RIDDIMRAT',
       score: 31_450,
-      before: { rank: 3, total: 956_670 },
-      after: { rank: 2, total: 988_120 },
+      before: { rank: 3, best: 956_670 },
+      after: { rank: 2, best: 988_120 },
       rows: ROWS,
       share: 'idle',
       onShare: fn(),
@@ -65,12 +65,12 @@ export const FirstTimeOn: Story = {
       kind: 'saved',
       name: 'NEWCOMER',
       score: 4_200,
-      before: { rank: null, total: 0 },
-      after: { rank: 37, total: 4_200 },
+      before: { rank: null, best: 0 },
+      after: { rank: 37, best: 4_200 },
       rows: [
         ...ROWS,
-        { rank: 36, name: 'DROPZONE', totalPoints: 4_900, runsCount: 3 },
-        { rank: 37, name: 'NEWCOMER', totalPoints: 4_200, runsCount: 1 },
+        { rank: 36, name: 'DROPZONE', bestScore: 4_900, runsCount: 3 },
+        { rank: 37, name: 'NEWCOMER', bestScore: 4_200, runsCount: 1 },
       ],
       share: 'copied',
       onShare: fn(),

@@ -18,7 +18,7 @@ export const generateMetadata = async ({
   if (!place) return { title: 'High scores · Riddim Riot' };
   const where = place.rank === null ? 'on' : `${ordinal(place.rank)} on`;
   const title = `${place.name} is ${where} the Riddim Riot high scores`;
-  const description = `${formatNumber(place.totalPoints)} points from ${formatNumber(place.runsCount)} runs. Every gun is a bass synth and every shot lands on the beat: play in your browser and beat it.`;
+  const description = `Best run ${formatNumber(place.bestScore)} points, over ${formatNumber(place.runsCount)} runs. Every gun is a bass synth and every shot lands on the beat: play in your browser and beat it.`;
   return {
     title,
     description,

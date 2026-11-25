@@ -9,7 +9,7 @@ import { findPlace } from './place';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const alt =
-  "A player's place on the Riddim Riot high scores: their rank, name and all-time points.";
+  "A player's place on the Riddim Riot high scores: their rank, name and best run.";
 
 const { colorPalette: color } = darkMode;
 /** The song track's shape: two drops brighter, the way the HUD draws it. */
@@ -101,7 +101,7 @@ const PlaceCard = async ({ params }: CardProps) => {
         </span>
         <span style={{ color: color.secondary.base, fontSize: 36 }}>
           {place
-            ? `${formatNumber(place.totalPoints)} POINTS · ${formatNumber(place.runsCount)} RUNS`
+            ? `BEST RUN ${formatNumber(place.bestScore)} · ${formatNumber(place.runsCount)} RUNS`
             : 'EVERY GUN IS A BASS SYNTH'}
         </span>
       </div>

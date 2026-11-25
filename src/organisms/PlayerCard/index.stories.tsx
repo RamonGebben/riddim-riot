@@ -5,7 +5,6 @@ import { PlayerCard } from '.';
 const PLAYER = {
   name: 'RIDDIMRAT',
   rank: 2,
-  totalPoints: 988_120,
   runsCount: 174,
   bestScore: 41_200,
 };
@@ -66,7 +65,7 @@ export const Shared: Story = {
 export const NoPointsYet: Story = {
   args: {
     kind: 'player',
-    player: { ...PLAYER, rank: null, totalPoints: 0, bestScore: 0 },
+    player: { ...PLAYER, rank: null, bestScore: 0 },
     isMe: true,
     share: 'idle',
     onShare: fn(),

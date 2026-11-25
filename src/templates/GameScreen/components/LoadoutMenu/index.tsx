@@ -97,6 +97,12 @@ export interface LoadoutMenuProps {
   /** Where the loadout is kept, and what happens to the bag. */
   note?: string;
   doneLabel: string;
+  /**
+   * Done empties the bag (the end of a level): everything not in a slot
+   * is scrapped, so Done says how much, Esc doesn't close, and there's
+   * nothing to mark for discarding.
+   */
+  scrapsBag?: boolean;
   /** New weapons are being armed: Done waits for them. */
   isApplying?: boolean;
   /** Arming failed: what to say, with the menu still open. */
@@ -231,6 +237,7 @@ export const LoadoutMenu = ({
   bagSize,
   note,
   doneLabel,
+  scrapsBag = false,
   isApplying = false,
   error = null,
   preview = null,
@@ -251,7 +258,8 @@ export const LoadoutMenu = ({
   const [picked, setPicked] = useState<string | null>(null);
   /** The slot or weapon the pick is held against, by hover or focus. */
   const [aim, setAim] = useState<string | null>(null);
-  const [order, setOrder] = useState<BagOrder>('newest');
+  // Sorting the whole bag to keep three: the best ones first.
+  const [order, setOrder] = useState<BagOrder>(scrapsBag ? 'best' : 'newest');
   /** Last visit's engine, unless the bag holds none of it now. */
   const [engine, setEngine] = useState<EngineFilter>(() => {
     const saved = readBagFilter();
@@ -311,6 +319,8 @@ export const LoadoutMenu = ({
 
   /** Esc closes, but asks once before it throws marked weapons away. */
   const escape = () => {
+    // Closing would scrap the bag: only the button, which says so, does.
+    if (scrapsBag) return;
     if (rack.discarded.length > 0 && !confirming) {
       setConfirming(true);
       return;
@@ -424,7 +434,7 @@ export const LoadoutMenu = ({
         return;
       }
       const discardKey = event.code === 'Delete' || event.code === 'Backspace';
-      if (discardKey && pickedIn === 'bag' && picked) {
+      if (discardKey && !scrapsBag && pickedIn === 'bag' && picked) {
         event.preventDefault();
         setRack(toggleDiscard(rack, picked));
         return;
@@ -497,7 +507,9 @@ export const LoadoutMenu = ({
       : null;
   };
   // Only what's in view: a filter mustn't hide what it throws away.
-  const weaker = filterBag(weakerInBag(rack, weapons), weapons, engine);
+  const weaker = scrapsBag
+    ? []
+    : filterBag(weakerInBag(rack, weapons), weapons, engine);
   const full = kept >= bagSize;
 
   /** One line for a screen reader, on the pick or a swap, never on aim. */
@@ -634,18 +646,20 @@ export const LoadoutMenu = ({
           )}
           {fresh && <Fresh aria-hidden />}
         </Card>
-        <BinButton
-          type="button"
-          $marked={thrown}
-          aria-label={`${thrown ? 'Keep' : 'Discard'} ${weapon.name}`}
-          onClick={() => {
-            // A new mark asks again before Esc throws them out.
-            setConfirming(false);
-            setRack(toggleDiscard(rack, id));
-          }}
-        >
-          <Icon icon={thrown ? KEEP_ICON : BIN_ICON} />
-        </BinButton>
+        {!scrapsBag && (
+          <BinButton
+            type="button"
+            $marked={thrown}
+            aria-label={`${thrown ? 'Keep' : 'Discard'} ${weapon.name}`}
+            onClick={() => {
+              // A new mark asks again before Esc throws them out.
+              setConfirming(false);
+              setRack(toggleDiscard(rack, id));
+            }}
+          >
+            <Icon icon={thrown ? KEEP_ICON : BIN_ICON} />
+          </BinButton>
+        )}
       </li>
     );
   };
@@ -816,7 +830,7 @@ export const LoadoutMenu = ({
             </>
           )}
           <span data-part="spacer" />
-          {pickedIn === 'bag' && (
+          {pickedIn === 'bag' && !scrapsBag && (
             <Button
               type="button"
               $variant="quiet"
@@ -875,9 +889,13 @@ export const LoadoutMenu = ({
             >
               {isApplying
                 ? 'Arming weapons…'
-                : rack.discarded.length > 0
-                  ? `${doneLabel} · discard ${rack.discarded.length}`
-                  : doneLabel}
+                : scrapsBag && rack.bag.length > 0
+                  ? `Scrap ${rack.bag.length} ${
+                      rack.bag.length === 1 ? 'weapon' : 'weapons'
+                    } · ${doneLabel.toLowerCase()}`
+                  : rack.discarded.length > 0
+                    ? `${doneLabel} · discard ${rack.discarded.length}`
+                    : doneLabel}
             </Button>
           </div>
         </Header>

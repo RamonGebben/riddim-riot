@@ -15,7 +15,9 @@ test('open the high scores from the start screen and drop back in', async ({
   ).toBeVisible();
   // Signed out, the card says how to get on the board. (CI has no
   // database, so the board itself may say it couldn't load.)
-  await expect(page.getByText(/Every run's points add up/)).toBeVisible();
+  await expect(
+    page.getByText(/Your best run is your place on the board/),
+  ).toBeVisible();
 
   await page.getByRole('link', { name: 'Drop in' }).click();
   await expect(page.getByRole('button', { name: 'Drop in' })).toBeVisible();

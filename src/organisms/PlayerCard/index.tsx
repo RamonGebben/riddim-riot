@@ -2,6 +2,7 @@ import { Button } from '~/atoms/Button';
 import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { SHARE_ICON } from '~/game/icons';
+import type { RunOutcome } from '~/game/sim';
 import {
   EnterForm,
   signOutLabel,
@@ -20,13 +21,12 @@ import { Totals } from './components/Totals';
 export interface BestRun {
   score: number;
   level: number;
-  outcome: 'died' | 'won';
+  outcome: RunOutcome;
 }
 
 export interface PlayerPlace {
   name: string;
   rank: number | null;
-  totalPoints: number;
   runsCount: number;
   bestScore: number;
 }
@@ -66,8 +66,8 @@ export const PlayerCard = (props: PlayerCardProps) => {
       <Card aria-labelledby="place-heading">
         <h2 id="place-heading">Your place</h2>
         <p>
-          Every run's points add up. Sign in, or pick a name and a password, and
-          every run you finish goes on the board.
+          Your best run is your place on the board. Sign in, or pick a name and
+          a password, and every run you finish counts.
         </p>
         <EnterForm
           submitLabel="Sign in"
@@ -88,10 +88,6 @@ export const PlayerCard = (props: PlayerCardProps) => {
           <span>{player.name}</span>
         </Rank>
         <Totals>
-          <div>
-            <dt>Points</dt>
-            <dd>{formatNumber(player.totalPoints)}</dd>
-          </div>
           <div>
             <dt>Runs</dt>
             <dd>{formatNumber(player.runsCount)}</dd>

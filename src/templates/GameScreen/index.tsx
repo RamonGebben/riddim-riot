@@ -36,7 +36,8 @@ export type {
 } from './components/LoadoutMenu';
 
 export interface RunProps extends PowerupsProps {
-  status: 'playing' | 'dead' | 'cleared';
+  /** `quit`: the player ended the run; it's scored like a death. */
+  status: 'playing' | 'dead' | 'quit' | 'cleared';
   level: number;
   /** Levels in a run; clearing the last wins it. */
   levels: number;
@@ -91,7 +92,10 @@ export interface GameScreenProps {
   tutorial?: boolean;
   /** The element the game attaches its input and canvas to. */
   surfaceRef?: Ref<HTMLElement>;
+  /** Quit: the pause's and the blocked sound's way out. */
   onStop: () => void;
+  /** Back to the start screen, from a run that was quit. */
+  onLeave: () => void;
   onPause: () => void;
   onResume: () => void;
   /** Try to start the sound again; it's a press, which browsers require. */
@@ -102,6 +106,7 @@ export interface GameScreenProps {
   onNewRun: () => void;
   /** Copy a link that plays this seed; resolves whether it worked. */
   onCopySeed: () => Promise<boolean>;
+  /** After a clear with nothing in the bag; with loot, the menu goes on. */
   onNextLevel: () => void;
   /** Open the loadout menu: the bag button, Tab or B. */
   onOpenMenu: () => void;
@@ -179,6 +184,7 @@ export const GameScreen = ({
   tutorial = false,
   surfaceRef,
   onStop,
+  onLeave,
   onPause,
   onResume,
   onRetrySound,
@@ -362,10 +368,10 @@ export const GameScreen = ({
         />
       )}
       {/* Hidden, not gone, under the menu: the board's form keeps its state. */}
-      {run.status === 'dead' && (
+      {(run.status === 'dead' || run.status === 'quit') && (
         <div hidden={Boolean(menu)}>
           <Overlay
-            heading="Run over"
+            heading={run.status === 'quit' ? 'Run ended' : 'Run over'}
             badge={isNewBest(run.score, best) ? 'New best!' : undefined}
             stats={[
               { label: 'Level', value: `${run.level}/${run.levels}` },
@@ -382,6 +388,15 @@ export const GameScreen = ({
                   onClick: guard('New run', onNewRun),
                   variant: 'secondary',
                 },
+                ...(run.status === 'quit'
+                  ? [
+                      {
+                        label: 'Main menu',
+                        onClick: guard('Main menu', onLeave),
+                        variant: 'secondary' as const,
+                      },
+                    ]
+                  : []),
               ],
             )}
           >
@@ -390,7 +405,11 @@ export const GameScreen = ({
         </div>
       )}
       <RotateNotice />
-      {run.status === 'cleared' && !won && (
+      {/*
+        Waits for a press: the sort, or with an empty bag the next level.
+        Not focused: Space dashes, and a dash out of the exit mustn't press it.
+      */}
+      {run.status === 'cleared' && !won && !menu && (
         <Overlay
           heading={`Level ${run.level} cleared`}
           stats={[
@@ -398,8 +417,22 @@ export const GameScreen = ({
             { label: 'Bonus', value: `+${formatNumber(LEVEL_CLEAR_BONUS)}` },
             points(run.score),
           ]}
-          note={`Level ${run.level + 1} of ${run.levels} is coming up`}
-          actions={[{ label: 'Next level', onClick: onNextLevel }]}
+          message={
+            run.bag > 0
+              ? [
+                  `${weapons} in your bag. Pick what to take into level ${run.level + 1}: the rest is scrapped.`,
+                ]
+              : undefined
+          }
+          note={`Level ${run.level + 1} of ${run.levels} is next`}
+          actions={[
+            run.bag > 0
+              ? { label: 'Sort your loot', onClick: onOpenMenu }
+              : {
+                  label: `Start level ${run.level + 1}`,
+                  onClick: onNextLevel,
+                },
+          ]}
         />
       )}
       {won && (

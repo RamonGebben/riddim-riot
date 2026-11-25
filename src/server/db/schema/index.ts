@@ -8,6 +8,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { RUN_OUTCOMES } from '~/game/sim';
 import type { WeaponRecipe } from '~/game/weapons';
 
 // Mirrors db/migrations, which own the tables, policies and functions.
@@ -15,7 +16,6 @@ import type { WeaponRecipe } from '~/game/weapons';
 export const players = pgTable('players', {
   id: uuid('id').primaryKey(),
   name: text('name').notNull(),
-  totalPoints: bigint('total_points', { mode: 'number' }).notNull(),
   runsCount: integer('runs_count').notNull(),
   bestScore: integer('best_score').notNull(),
   scoredAt: timestamp('scored_at', { withTimezone: true }),
@@ -30,7 +30,7 @@ export const runs = pgTable('runs', {
   kills: integer('kills').notNull(),
   seed: bigint('seed', { mode: 'number' }).notNull(),
   durationMs: integer('duration_ms').notNull(),
-  outcome: text('outcome', { enum: ['died', 'won'] }).notNull(),
+  outcome: text('outcome', { enum: RUN_OUTCOMES }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -63,7 +63,7 @@ describe('accounts', () => {
     );
     expect(entered).toEqual({ name: NAME, created: true });
     const me = await player.run(caller => caller.account.me());
-    expect(me).toMatchObject({ name: NAME, totalPoints: 0, rank: null });
+    expect(me).toMatchObject({ name: NAME, bestScore: 0, rank: null });
   });
 
   it('signs back in with the password, and refuses a wrong one', async () => {
@@ -152,7 +152,7 @@ describe('runs', () => {
     const again = await player.run(caller =>
       caller.runs.submit({ ticket, ...report }),
     );
-    expect(first.after.total).toBe(0);
+    expect(first.after.best).toBe(0);
     expect(again.after).toEqual(first.after);
     const me = await player.run(caller => caller.account.me());
     expect(me?.runsCount).toBe(1);
@@ -164,8 +164,8 @@ describe('runs', () => {
     const saved = await player.run(caller =>
       caller.runs.submit({ ...report, ticket, score: 300, kills: 2 }),
     );
-    expect(saved.before).toEqual({ rank: null, total: 0 });
-    expect(saved.after.total).toBe(300);
+    expect(saved.before).toEqual({ rank: null, best: 0 });
+    expect(saved.after.best).toBe(300);
     expect(saved.after.rank).toBeGreaterThan(0);
     expect(saved.rows.map(row => row.name)).toContain(`${NAME}R`);
   });

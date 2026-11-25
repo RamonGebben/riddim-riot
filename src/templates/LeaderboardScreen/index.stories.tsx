@@ -27,7 +27,7 @@ const NAMES = [
 const ROWS = NAMES.map((name, index) => ({
   rank: index + 1,
   name,
-  totalPoints: Math.round(1_204_880 / (1 + index * 0.35)),
+  bestScore: Math.round(1_204_880 / (1 + index * 0.35)),
   runsCount: 212 - index * 13,
 }));
 
@@ -47,9 +47,8 @@ const meta = {
       player: {
         name: 'RIDDIMRAT',
         rank: 2,
-        totalPoints: ROWS[1].totalPoints,
+        bestScore: ROWS[1].bestScore,
         runsCount: ROWS[1].runsCount,
-        bestScore: 41_200,
       },
       bestRuns: [
         { score: 41_200, level: 5, outcome: 'won' },
