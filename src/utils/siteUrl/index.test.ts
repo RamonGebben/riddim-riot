@@ -9,7 +9,7 @@ describe('siteUrl', () => {
   });
 
   it('falls back to the custom domain', () => {
-    expect(siteUrl(undefined)).toBe('https://riddim-riot.ra-ge.net');
-    expect(siteUrl('')).toBe('https://riddim-riot.ra-ge.net');
+    expect(siteUrl(undefined)).toBe('https://riddimriot.com');
+    expect(siteUrl('')).toBe('https://riddimriot.com');
   });
 });
