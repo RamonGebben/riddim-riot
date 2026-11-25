@@ -407,6 +407,17 @@ level to level and empty at the start of every run.
   hook (`app/_components/useAccount`) does it everywhere and drops the last
   account's kept loadout. Signed in, every finished run goes on the board
   by itself.
+- **Recovery codes.** Accounts hold only a name and a password, with no
+  email, so a lost password comes back through a recovery code: 16
+  Crockford base-32 characters (80 bits, `utils/recoveryCode`), stored as
+  a SHA-256 in `private.credentials.recovery_hash`. A signed-in player
+  gets one, or a replacement, from their card (`account.newRecoveryCode`).
+  It's shown once, and the start page nudges players who don't have one.
+  "Forgot your password?" on any sign-in form opens the card's reset form
+  (`/leaderboard?recover`). `account.recover` checks the name and code
+  (rate limited like sign-in), sets the new password, spends the code,
+  signs out every other session, signs this one in, and hands over a
+  fresh code.
   Recipes are checked against the parts pool by one schema
   (`loadoutSchema`) on the device, on the way in and on the way out. They're
   not proved to have been looted, so a forged loadout is possible, like a

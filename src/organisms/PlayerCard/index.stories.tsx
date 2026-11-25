@@ -11,7 +11,13 @@ const PLAYER = {
 
 const meta = {
   component: PlayerCard,
-  args: { kind: 'signedOut', isEntering: false, error: null, onEnter: fn() },
+  args: {
+    kind: 'signedOut',
+    isEntering: false,
+    error: null,
+    onEnter: fn(),
+    recover: { isRecovering: false, error: null, onRecover: fn() },
+  },
 } satisfies Meta<typeof PlayerCard>;
 
 export default meta;
@@ -25,6 +31,49 @@ export const SignedOut: Story = {
     await expect(
       args.kind === 'signedOut' && args.onEnter,
     ).toHaveBeenCalledWith({ name: 'SUBLO', password: 'correct horse' });
+  },
+};
+
+export const ForgotPassword: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Forgot your password?' }),
+    );
+    await expect(
+      canvas.getByRole('heading', { name: 'Reset your password' }),
+    ).toBeVisible();
+    // Checked before it's sent: a code is 16 letters and digits.
+    await userEvent.type(canvas.getByLabelText(/Name/), 'sublo');
+    await userEvent.type(canvas.getByLabelText(/Recovery code/), 'k7qm-2xrp');
+    await userEvent.type(canvas.getByLabelText(/New password/), 'a new one!');
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Reset password' }),
+    );
+    await expect(canvas.getByText(/16 letters and digits/)).toBeVisible();
+    const recover = args.kind === 'signedOut' ? args.recover : null;
+    await expect(recover?.onRecover).not.toHaveBeenCalled();
+    await userEvent.type(canvas.getByLabelText(/Recovery code/), '-9vda-h4tn');
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Reset password' }),
+    );
+    await expect(recover?.onRecover).toHaveBeenCalledWith({
+      name: 'SUBLO',
+      code: 'k7qm-2xrp-9vda-h4tn',
+      password: 'a new one!',
+    });
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Back to sign in' }),
+    );
+    await expect(canvas.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  },
+};
+
+export const OpenedForRecovery: Story = {
+  args: { recovering: true },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole('heading', { name: 'Reset your password' }),
+    ).toBeVisible();
   },
 };
 
@@ -70,5 +119,68 @@ export const NoPointsYet: Story = {
     share: 'idle',
     onShare: fn(),
     signOut: { isSigningOut: false, signOutFailed: false, onSignOut: fn() },
+  },
+};
+
+const recovery = {
+  hasRecovery: false,
+  freshCode: null,
+  isIssuing: false,
+  error: null,
+  onIssue: fn(),
+};
+
+export const NoRecoveryCode: Story = {
+  args: {
+    kind: 'player',
+    player: PLAYER,
+    isMe: true,
+    share: 'idle',
+    onShare: fn(),
+    recovery,
+  },
+  play: async ({ args, canvas, userEvent }) => {
+    await expect(canvas.getByText(/No recovery code yet/)).toBeVisible();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Get a recovery code' }),
+    );
+    await expect(
+      args.kind === 'player' && args.recovery?.onIssue,
+    ).toHaveBeenCalled();
+  },
+};
+
+export const FreshRecoveryCode: Story = {
+  args: {
+    kind: 'player',
+    player: PLAYER,
+    isMe: true,
+    share: 'idle',
+    onShare: fn(),
+    recovery: {
+      ...recovery,
+      hasRecovery: true,
+      freshCode: 'K7QM-2XRP-9VDA-H4TN',
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('K7QM-2XRP-9VDA-H4TN')).toBeVisible();
+    await expect(canvas.getByText(/won't be shown again/)).toBeVisible();
+  },
+};
+
+export const HasRecoveryCode: Story = {
+  args: {
+    kind: 'player',
+    player: PLAYER,
+    isMe: true,
+    share: 'idle',
+    onShare: fn(),
+    recovery: { ...recovery, hasRecovery: true },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole('button', { name: 'Get a new code' }),
+    ).toBeVisible();
   },
 };

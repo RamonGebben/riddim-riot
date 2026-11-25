@@ -122,6 +122,88 @@ describe('accounts', () => {
   });
 });
 
+describe('recovery codes', () => {
+  const name = `${NAME}C`;
+  const player = browser();
+
+  it('starts without a code, and gives one to the signed-in player', async () => {
+    await player.run(caller =>
+      caller.account.enter({ name, password: PASSWORD }),
+    );
+    expect((await player.run(caller => caller.account.me()))?.hasRecovery).toBe(
+      false,
+    );
+    const { code: first } = await player.run(caller =>
+      caller.account.newRecoveryCode(),
+    );
+    expect(first).toMatch(/^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/);
+    expect((await player.run(caller => caller.account.me()))?.hasRecovery).toBe(
+      true,
+    );
+  });
+
+  it('needs a sign-in for a code', async () => {
+    expect(
+      await code(browser().run(caller => caller.account.newRecoveryCode())),
+    ).toBe('UNAUTHORIZED');
+  });
+
+  it('replaces a lost password with the code, once, signing everyone else out', async () => {
+    const { code: kept } = await player.run(caller =>
+      caller.account.newRecoveryCode(),
+    );
+    const elsewhere = browser();
+    const recovered = await elsewhere.run(caller =>
+      caller.account.recover({
+        name,
+        code: kept.toLowerCase(),
+        password: 'a new password',
+      }),
+    );
+    expect(recovered.name).toBe(name);
+    expect(recovered.code).not.toBe(kept);
+    expect((await elsewhere.run(caller => caller.account.me()))?.name).toBe(
+      name,
+    );
+    // The old session is signed out, and the old password no longer works.
+    expect(await player.run(caller => caller.account.me())).toBeNull();
+    expect(
+      await code(
+        browser().run(caller =>
+          caller.account.enter({ name, password: PASSWORD }),
+        ),
+      ),
+    ).toBe('UNAUTHORIZED');
+    expect(
+      await browser().run(caller =>
+        caller.account.enter({ name, password: 'a new password' }),
+      ),
+    ).toEqual({ name, created: false });
+    // A spent code doesn't work twice.
+    expect(
+      await code(
+        browser().run(caller =>
+          caller.account.recover({ name, code: kept, password: 'another one' }),
+        ),
+      ),
+    ).toBe('UNAUTHORIZED');
+  });
+
+  it('refuses a wrong code, and a name without one', async () => {
+    expect(
+      await code(
+        browser().run(caller =>
+          caller.account.recover({
+            name: `${NAME}Z`,
+            code: '0000-0000-0000-0000',
+            password: 'a new password',
+          }),
+        ),
+      ),
+    ).toBe('UNAUTHORIZED');
+  });
+});
+
 describe('runs', () => {
   const player = browser();
   const report = {

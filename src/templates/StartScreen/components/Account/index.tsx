@@ -11,13 +11,25 @@ import { SignIn } from '../SignIn';
 export type StartAccount =
   | { kind: 'loading' }
   | ({ kind: 'signedOut' } & SignInState)
-  | ({ kind: 'signedIn'; name: string } & SignOutState);
+  | ({
+      kind: 'signedIn';
+      name: string;
+      /** Has a recovery code to fall back on; without one, they're asked. */
+      hasRecovery?: boolean;
+    } & SignOutState);
 
 /**
  * Who's playing. Signed out, a link opens the sign-in form (it goes once
  * they're in); signed in, their name and a way out.
  */
-export const Account = ({ account }: { account: StartAccount }) => {
+export const Account = ({
+  account,
+  highScoresHref,
+}: {
+  account: StartAccount;
+  /** The board, whose player card holds the recovery code and the reset. */
+  highScoresHref: string;
+}) => {
   const [isOpen, setOpen] = useState(false);
   if (account.kind === 'loading') return null;
   if (account.kind === 'signedIn')
@@ -32,6 +44,12 @@ export const Account = ({ account }: { account: StartAccount }) => {
         >
           {signOutLabel(account)}
         </TextLink>
+        {account.hasRecovery === false && (
+          <>
+            {' · '}
+            <TextLink href={highScoresHref}>Get a recovery code</TextLink>
+          </>
+        )}
       </p>
     );
   if (!isOpen)
@@ -54,6 +72,7 @@ export const Account = ({ account }: { account: StartAccount }) => {
         onSubmit={account.onEnter}
         onSkip={() => setOpen(false)}
         skipLabel="Cancel"
+        forgot={{ href: `${highScoresHref}?recover` }}
       />
     </SignIn>
   );

@@ -42,7 +42,13 @@ export const LeaderboardApp = ({
     ...trpc.board.top.queryOptions(),
     initialData: initialBoard ?? undefined,
   });
-  const { me, signIn, signOut } = useAccount();
+  const { me, signIn, signOut, recover, recovery } = useAccount();
+  // Linked from a sign-in elsewhere ("Forgot your password?"). Read once
+  // mounted: the page renders on the server first, with no address bar.
+  const [recovering, setRecovering] = useState(false);
+  useEffect(() => {
+    setRecovering(new URLSearchParams(window.location.search).has('recover'));
+  }, []);
   const [share, setShare] = useState<ShareResult>('idle');
   const backdrop = useRef<HTMLDivElement>(null);
 
@@ -91,7 +97,7 @@ export const LeaderboardApp = ({
         onShare: () => void shareThis(shared),
       };
     if (me.isPending) return { kind: 'loading' };
-    if (!mine) return { kind: 'signedOut', ...signIn };
+    if (!mine) return { kind: 'signedOut', ...signIn, recover, recovering };
     return {
       kind: 'player',
       player: mine,
@@ -100,6 +106,7 @@ export const LeaderboardApp = ({
       share,
       onShare: () => void shareThis(mine),
       signOut,
+      recovery,
     };
   })();
 

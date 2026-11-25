@@ -612,7 +612,13 @@ export const App = () => {
 
   const account = ((): StartAccount => {
     if (me.isPending) return { kind: 'loading' };
-    if (me.data) return { kind: 'signedIn', name: me.data.name, ...signOut };
+    if (me.data)
+      return {
+        kind: 'signedIn',
+        name: me.data.name,
+        hasRecovery: me.data.hasRecovery,
+        ...signOut,
+      };
     return { kind: 'signedOut', ...signIn };
   })();
 

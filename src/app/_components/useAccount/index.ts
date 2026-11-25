@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SignInState, SignOutState } from '~/organisms/EnterForm';
+import { useState } from 'react';
+import type {
+  RecoverState,
+  SignInState,
+  SignOutState,
+} from '~/organisms/EnterForm';
+import type { RecoveryState } from '~/organisms/PlayerCard';
 import { useTRPC } from '~/providers/TrpcProvider';
 import { boardError } from '../boardErrors';
 
@@ -21,8 +27,31 @@ export const useAccount = () => {
   const enter = useMutation(
     trpc.account.enter.mutationOptions({ onSuccess: changed }),
   );
+  /** A recovery code just made, shown once: only its hash is kept. */
+  const [freshCode, setFreshCode] = useState<string | null>(null);
   const leave = useMutation(
-    trpc.account.signOut.mutationOptions({ onSuccess: changed }),
+    trpc.account.signOut.mutationOptions({
+      onSuccess: async () => {
+        setFreshCode(null);
+        await changed();
+      },
+    }),
+  );
+  const recovering = useMutation(
+    trpc.account.recover.mutationOptions({
+      onSuccess: async ({ code }) => {
+        setFreshCode(code);
+        await changed();
+      },
+    }),
+  );
+  const issuing = useMutation(
+    trpc.account.newRecoveryCode.mutationOptions({
+      onSuccess: async ({ code }) => {
+        setFreshCode(code);
+        await queryClient.invalidateQueries(trpc.account.me.queryFilter());
+      },
+    }),
   );
   const signIn: SignInState = {
     isEntering: enter.isPending,
@@ -34,5 +63,17 @@ export const useAccount = () => {
     signOutFailed: leave.isError,
     onSignOut: () => leave.mutate(),
   };
-  return { me, enter, signIn, signOut };
+  const recover: RecoverState = {
+    isRecovering: recovering.isPending,
+    error: recovering.error ? boardError(recovering.error) : null,
+    onRecover: recovery => recovering.mutate(recovery),
+  };
+  const recovery: RecoveryState = {
+    hasRecovery: me.data?.hasRecovery ?? false,
+    freshCode,
+    isIssuing: issuing.isPending,
+    error: issuing.error ? boardError(issuing.error) : null,
+    onIssue: () => issuing.mutate(),
+  };
+  return { me, enter, signIn, signOut, recover, recovery };
 };
