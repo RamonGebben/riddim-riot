@@ -85,6 +85,7 @@ export const RunStanding = ({ standing, boardHref }: RunStandingProps) => {
             error={standing.error}
             onSubmit={standing.onEnter}
             onSkip={standing.onSkip}
+            forgot={{ href: `${boardHref}?recover` }}
           />
         </>
       )}

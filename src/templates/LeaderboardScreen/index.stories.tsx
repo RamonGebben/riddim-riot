@@ -7,6 +7,7 @@ const SIGNED_OUT = {
   isEntering: false,
   error: null,
   onEnter: fn(),
+  recover: { isRecovering: false, error: null, onRecover: fn() },
 } as const;
 
 const NAMES = [

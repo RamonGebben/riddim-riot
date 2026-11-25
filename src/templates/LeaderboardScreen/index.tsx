@@ -57,7 +57,7 @@ export const LeaderboardScreen = ({
         </Header>
         <Columns>
           <BoardPanel aria-labelledby="board-heading">
-            <h2 id="board-heading">All-time points</h2>
+            <h2 id="board-heading">Best runs</h2>
             <BoardTable
               rows={rows}
               highlight={highlight}

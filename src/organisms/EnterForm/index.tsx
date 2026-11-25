@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Button } from '~/atoms/Button';
 import { TextInput } from '~/atoms/TextInput';
+import { TextLink } from '~/atoms/TextLink';
 import {
   NAME_MAX,
   nameProblem,
@@ -11,6 +12,13 @@ import { Buttons } from './components/Buttons';
 import { Field } from './components/Field';
 import { Form } from './components/Form';
 import { Problem } from './components/Problem';
+
+export { RecoverForm } from './components/RecoverForm';
+export type {
+  Recovery,
+  RecoverFormProps,
+  RecoverState,
+} from './components/RecoverForm';
 
 export interface EnterFormProps {
   /** What pressing the button does, e.g. "Save to the board". */
@@ -25,6 +33,11 @@ export interface EnterFormProps {
   onSkip?: () => void;
   /** The way out's label; "Skip" unless given. */
   skipLabel?: string;
+  /**
+   * Where a forgotten password goes: a page (`href`) or a form in place
+   * (`onClick`); omitted, there's no link.
+   */
+  forgot?: { href: string } | { onClick: () => void };
 }
 
 /** Signing in, as a screen showing this form gets it. */
@@ -60,6 +73,7 @@ export const EnterForm = ({
   onSubmit,
   onSkip,
   skipLabel = 'Skip',
+  forgot,
 }: EnterFormProps) => {
   const id = useId();
   const [name, setName] = useState('');
@@ -126,6 +140,14 @@ export const EnterForm = ({
           </Button>
         )}
       </Buttons>
+      {forgot &&
+        ('href' in forgot ? (
+          <TextLink href={forgot.href}>Forgot your password?</TextLink>
+        ) : (
+          <TextLink as="button" type="button" onClick={forgot.onClick}>
+            Forgot your password?
+          </TextLink>
+        ))}
     </Form>
   );
 };

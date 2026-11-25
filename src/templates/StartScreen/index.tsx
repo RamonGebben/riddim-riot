@@ -131,7 +131,11 @@ export const StartScreen = ({
             <TextLink href={highScoresHref}>High scores</TextLink>
           </Options>
           {/* Keyed by kind: signing out starts from the closed link again. */}
-          <Account key={account.kind} account={account} />
+          <Account
+            key={account.kind}
+            account={account}
+            highScoresHref={highScoresHref}
+          />
           {error && (
             <Status role="alert" $error>
               Couldn't start the game. Press Drop in to try again; if it keeps

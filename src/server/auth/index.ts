@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
+import {
+  CODE_ALPHABET,
+  CODE_LENGTH,
+  normalizeCode,
+} from '~/utils/recoveryCode';
 
 export const SESSION_COOKIE = 'bw_session';
 const SESSION_DAYS = 180;
@@ -15,6 +20,19 @@ export const newSessionToken = () => randomBytes(32).toString('base64url');
 
 export const hashToken = (token: string) =>
   createHash('sha256').update(token).digest('hex');
+
+/**
+ * A fresh recovery code: each byte picks one of 32 characters, and 256 is
+ * a multiple of 32, so every character is equally likely.
+ */
+export const newRecoveryCode = () =>
+  [...randomBytes(CODE_LENGTH)]
+    .map(byte => CODE_ALPHABET[byte % CODE_ALPHABET.length])
+    .join('');
+
+/** What's stored of a code: the hash of its normalized form. */
+export const hashRecoveryCode = (code: string) =>
+  hashToken(normalizeCode(code));
 
 export const readCookie = (header: string | null, name: string) =>
   header
