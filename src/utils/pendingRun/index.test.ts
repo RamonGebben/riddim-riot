@@ -28,6 +28,13 @@ describe('pending runs', () => {
     expect(readPendingRun(store)).toBeNull();
   });
 
+  it('keeps a quit run', () => {
+    const store = memory();
+    const quit = { ...RUN, outcome: 'quit' as const };
+    keepPendingRun(quit, store);
+    expect(readPendingRun(store)).toEqual(quit);
+  });
+
   it('only drops the run it was asked to', () => {
     const store = memory();
     keepPendingRun(RUN, store);

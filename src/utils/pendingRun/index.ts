@@ -1,3 +1,5 @@
+import { RUN_OUTCOMES, type RunOutcome } from '~/game/sim';
+
 const KEY = 'bass-weapons:pending-run';
 
 /** A finished run waiting to be saved to the board. */
@@ -7,7 +9,7 @@ export interface PendingRun {
   level: number;
   kills: number;
   seed: number;
-  outcome: 'died' | 'won';
+  outcome: RunOutcome;
 }
 
 /** Browser storage as far as this needs it; may be missing or throw. */
@@ -29,7 +31,7 @@ const isPendingRun = (value: unknown): value is PendingRun => {
     ['score', 'level', 'kills', 'seed'].every(
       field => typeof run[field] === 'number',
     ) &&
-    (run.outcome === 'died' || run.outcome === 'won')
+    RUN_OUTCOMES.some(outcome => outcome === run.outcome)
   );
 };
 

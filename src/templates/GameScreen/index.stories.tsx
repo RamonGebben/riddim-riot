@@ -78,6 +78,7 @@ const meta = {
       bagSize: 24,
     },
     onStop: fn(),
+    onLeave: fn(),
     onRetry: fn(),
     onNewRun: fn(),
     onCopySeed: fn(() => Promise.resolve(true)),
@@ -277,8 +278,40 @@ export const LevelCleared: Story = {
     await expect(
       canvas.getByText('Bonus').nextElementSibling,
     ).toHaveTextContent('+10,000');
-    await userEvent.click(canvas.getByRole('button', { name: 'Next level' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Start level 2' }),
+    );
     await expect(args.onNextLevel).toHaveBeenCalled();
+  },
+};
+
+export const LevelClearedWithLoot: Story = {
+  args: {
+    run: { ...meta.args.run, status: 'cleared', phase: 'clear', bag: 3 },
+  },
+  play: async ({ args, canvas, userEvent }) => {
+    // Loot goes through the sort first; there's no way past it.
+    await expect(
+      canvas.queryByRole('button', { name: /Start level/ }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Sort your loot' }),
+    );
+    await expect(args.onOpenMenu).toHaveBeenCalled();
+    await expect(args.onNextLevel).not.toHaveBeenCalled();
+  },
+};
+
+export const RunQuit: Story = {
+  args: {
+    run: { ...meta.args.run, status: 'quit', bag: 0 },
+  },
+  play: async ({ args, canvas, userEvent }) => {
+    await expect(
+      canvas.getByRole('heading', { name: 'Run ended' }),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Main menu' }));
+    await expect(args.onLeave).toHaveBeenCalled();
   },
 };
 
@@ -730,6 +763,30 @@ export const UndoingChanges: Story = {
       slots: ['s0', 's1', 's2'],
       bag: ['b0', 'b1', 'b2'],
     });
+  },
+};
+
+export const SortingLootBetweenLevels: Story = {
+  args: {
+    run: { ...meta.args.run, status: 'cleared', phase: 'clear' },
+    menu: {
+      ...menu(),
+      heading: 'Sort your loot',
+      doneLabel: 'Start level 2',
+      scrapsBag: true,
+    },
+  },
+  play: async ({ args, canvas, userEvent }) => {
+    // The bag goes with the button, so it says so; Esc doesn't press it.
+    await userEvent.keyboard('{Escape}');
+    await expect(args.menu?.onDone).not.toHaveBeenCalled();
+    await expect(
+      canvas.queryByRole('button', { name: /^Discard/ }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Scrap 3 weapons · start level 2' }),
+    );
+    await expect(args.menu?.onDone).toHaveBeenCalled();
   },
 };
 

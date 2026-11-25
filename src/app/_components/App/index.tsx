@@ -46,9 +46,6 @@ type SessionStatus = 'idle' | 'starting' | 'playing';
 
 const randomSeed = () => getSeed('');
 
-/** How long a cleared level's stats show before the next one starts. */
-const NEXT_LEVEL_MS = 3500;
-
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
 /** Far longer than a phone takes to build a level; past it, say where. */
@@ -160,6 +157,8 @@ export const App = () => {
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
   const [paused, setPaused] = useState(false);
+  /** The player quit: the run ends here, frozen, and goes on the board. */
+  const [quit, setQuit] = useState(false);
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [startStep, setStartStep] = useState<StartStep | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
@@ -235,7 +234,7 @@ export const App = () => {
     };
   }, [status, session]);
 
-  const fighting = status === 'playing' && hud?.status === 'playing';
+  const fighting = status === 'playing' && hud?.status === 'playing' && !quit;
 
   // The walkthrough is for a first play only: once the circle has started
   // a run, it's done with, however far through it the player got.
@@ -253,13 +252,13 @@ export const App = () => {
     hud.level >= hud.levels;
   const advancing = status === 'playing' && hud?.status === 'cleared' && !won;
 
-  // A run that ends - dead or won - keeps its score if it's the best yet.
-  const ended = status === 'playing' && (hud?.status === 'dead' || won);
+  // A run that ends - dead, quit or won - keeps its score if it's the best.
+  const ended = status === 'playing' && (hud?.status === 'dead' || won || quit);
   useEffect(() => {
     if (ended && hud) saveBest(hud.score);
   }, [ended, hud]);
 
-  // Dying or winning goes on the board; quitting doesn't. Keyed on the
+  // Every ending goes on the board, quitting too. Keyed on the
   // run's numbers, not the HUD: it keeps changing after the end (the song
   // clock, the combo lapsing), and a new object would keep the run on the
   // device again after it was saved or skipped.
@@ -280,18 +279,10 @@ export const App = () => {
       level: endLevel,
       kills: endKills,
       seed: run.seed,
-      outcome: won ? 'won' : 'died',
+      outcome: won ? 'won' : quit ? 'quit' : 'died',
     };
-  }, [ticket, endScore, endLevel, endKills, run.seed, won]);
+  }, [ticket, endScore, endLevel, endKills, run.seed, won, quit]);
 
-  // A cleared level shows its stats a moment, then the next one starts by
-  // itself: the run flows on without a click.
-  useEffect(() => {
-    if (!advancing) return;
-    const timer = setTimeout(handleNextLevel, NEXT_LEVEL_MS);
-    return () => clearTimeout(timer);
-    // Timed from the clear alone: a re-render mustn't restart the wait.
-  }, [advancing]);
   const pause = () => {
     game.current?.pause();
     setPaused(true);
@@ -346,6 +337,7 @@ export const App = () => {
     game.current?.stop();
     game.current = null;
     setPaused(false);
+    setQuit(false);
     setMenu(null);
     if (fresh) seen.current = [];
     setBetween(!fresh);
@@ -400,8 +392,32 @@ export const App = () => {
     game.current?.stop();
     game.current = null;
     setPaused(false);
+    setQuit(false);
     setMenu(null);
     setStatus('idle');
+  };
+
+  /**
+   * Quitting ends the run with what it has scored, on the run-over
+   * screen. A run with nothing to show yet - the first level, no points -
+   * just goes back to the start.
+   */
+  const handleQuit = () => {
+    const current = game.current;
+    if (!current) return;
+    const { level: at, score } = current.hud();
+    if (at === 1 && score === 0) {
+      handleStop();
+      return;
+    }
+    current.pause();
+    setQuit(true);
+  };
+
+  /** From a quit run's end: the start screen, on a fresh run of its seed. */
+  const handleLeave = () => {
+    handleStop();
+    setRun(freshRun(run.seed));
   };
 
   /**
@@ -445,7 +461,8 @@ export const App = () => {
         const recipe = menuWeapons.recipes.get(id);
         return recipe ? [recipe] : [];
       });
-    const chosen = { recipes: pick(slots), bag: pick(bag) };
+    // Leaving a cleared level scraps whatever isn't in a slot.
+    const chosen = { recipes: pick(slots), bag: advancing ? [] : pick(bag) };
     setArranging(true);
     try {
       // Armed while still frozen, so the level resumes with the new weapons.
@@ -463,6 +480,10 @@ export const App = () => {
     kept.keep(chosen.recipes);
     setMenu(null);
     setPreviewing(null);
+    if (advancing) {
+      handleNextLevel();
+      return;
+    }
     if (current.hud().status === 'playing') current.closeMenu();
   };
 
@@ -509,27 +530,41 @@ export const App = () => {
 
   const menuProps = ((): LoadoutMenuProps | null => {
     if (!menuWeapons) return null;
-    const over = hud?.status !== 'playing';
-    return {
-      heading: over ? 'Your loadout' : 'Loadout',
+    const shared = {
       slots: menuWeapons.slots,
       bag: menuWeapons.bag,
       bagSize: BAG_SIZE,
-      note: over
-        ? `${KEPT_NOTES[kept.status]} The bag empties when the next run starts.`
-        : KEPT_NOTES[kept.status],
-      doneLabel: over ? 'Done' : 'Back',
       isApplying: arranging,
       error: menuError,
       preview: previewing,
       barSeconds: (60 / BPM) * 4,
-      onPreview: id => audition([id]),
-      onPreviewAB: (a, b) => audition([a, b]),
+      onPreview: (id: string) => audition([id]),
+      onPreviewAB: (a: string, b: string) => audition([a, b]),
       onStopPreview: () => {
         game.current?.stopPreview();
         setPreviewing(null);
       },
-      onDone: choice => void closeMenu(choice),
+      onDone: (choice: Choice) => void closeMenu(choice),
+    };
+    // Between levels: keep three, and the rest goes when the next starts.
+    if (advancing && hud) {
+      const next = hud.level + 1;
+      return {
+        ...shared,
+        heading: 'Sort your loot',
+        note: `Equip the three weapons to take into level ${next}. Everything left in the bag is scrapped when it starts.`,
+        doneLabel: `Start level ${next}`,
+        scrapsBag: true,
+      };
+    }
+    const over = hud?.status !== 'playing' || quit;
+    return {
+      ...shared,
+      heading: over ? 'Your loadout' : 'Loadout',
+      note: over
+        ? `${KEPT_NOTES[kept.status]} The bag empties when the next run starts.`
+        : KEPT_NOTES[kept.status],
+      doneLabel: over ? 'Done' : 'Back',
     };
   })();
 
@@ -542,7 +577,7 @@ export const App = () => {
       <GameScreen
         seed={run.seed}
         musicalKey={level.key}
-        run={hud}
+        run={quit ? { ...hud, status: 'quit' } : hud}
         loadout={loadout}
         best={best}
         board={
@@ -551,7 +586,8 @@ export const App = () => {
         paused={paused}
         menu={menuProps}
         surfaceRef={surface}
-        onStop={handleStop}
+        onStop={handleQuit}
+        onLeave={handleLeave}
         onPause={pause}
         onResume={resume}
         soundBlocked={soundBlocked}

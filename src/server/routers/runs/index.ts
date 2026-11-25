@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, eq, gt, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { RUN_LEVELS } from '~/game/sim';
+import { RUN_LEVELS, RUN_OUTCOMES } from '~/game/sim';
 import { asPlayer, players, runs } from '../../db';
 import { implausible } from '../../plausible';
 import { playerStanding, rowsAround } from '../../standing';
@@ -25,7 +25,7 @@ const report = z.object({
     .int()
     .min(0)
     .max(2 ** 32),
-  outcome: z.enum(['died', 'won']),
+  outcome: z.enum(RUN_OUTCOMES),
 });
 
 export const runsRouter = router({
@@ -40,7 +40,7 @@ export const runsRouter = router({
   ),
 
   /**
-   * Saves a finished run (a death or a win; quitting saves nothing) and
+   * Saves a finished run (a death, a quit or a win) and
    * returns the player's place before and after. Saving the same ticket
    * twice saves it once.
    */

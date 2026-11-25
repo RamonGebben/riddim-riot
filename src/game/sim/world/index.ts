@@ -117,6 +117,10 @@ const BOSS_MIN_TILES = 8;
 
 /** A run is this many levels; the last one's boss ends it. */
 export const RUN_LEVELS = 5;
+
+/** How a run ends: every one goes on the board, quit ones too. */
+export const RUN_OUTCOMES = ['died', 'quit', 'won'] as const;
+export type RunOutcome = (typeof RUN_OUTCOMES)[number];
 /** Points for taking a level's exit, the last level's included. */
 export const LEVEL_CLEAR_BONUS = 10_000;
 /** The final boss has this much more health than the level's would be. */

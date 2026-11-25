@@ -2,6 +2,7 @@ import { Button } from '~/atoms/Button';
 import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { SHARE_ICON } from '~/game/icons';
+import type { RunOutcome } from '~/game/sim';
 import {
   EnterForm,
   signOutLabel,
@@ -20,7 +21,7 @@ import { Totals } from './components/Totals';
 export interface BestRun {
   score: number;
   level: number;
-  outcome: 'died' | 'won';
+  outcome: RunOutcome;
 }
 
 export interface PlayerPlace {
