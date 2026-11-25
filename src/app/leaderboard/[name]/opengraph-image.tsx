@@ -9,7 +9,7 @@ import { findPlace } from './place';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const alt =
-  "A player's place on the Bass Weapons high scores: their rank, name and all-time points.";
+  "A player's place on the Riddim Riot high scores: their rank, name and all-time points.";
 
 const { colorPalette: color } = darkMode;
 /** The song track's shape: two drops brighter, the way the HUD draws it. */
@@ -58,7 +58,31 @@ const PlaceCard = async ({ params }: CardProps) => {
           letterSpacing: '0.2em',
         }}
       >
-        <span>BASS WEAPONS</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* The wordmark's ring: the circle every level starts in. */}
+          <svg width="30" height="30" viewBox="0 0 32 32">
+            <circle
+              cx="16"
+              cy="16"
+              r="11"
+              fill="none"
+              stroke={color.tertiary.base}
+              strokeOpacity="0.28"
+              strokeWidth="6"
+            />
+            <circle
+              cx="16"
+              cy="16"
+              r="11"
+              fill="none"
+              stroke={color.primary.base}
+              strokeWidth="6"
+              strokeDasharray={`${2 * Math.PI * 11 * 0.75} 100`}
+              transform="rotate(-90 16 16)"
+            />
+          </svg>
+          RIDDIM RIOT
+        </span>
         <span>HIGH SCORES</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -73,7 +97,7 @@ const PlaceCard = async ({ params }: CardProps) => {
           {rank}
         </span>
         <span style={{ fontSize: 88, lineHeight: 1.1 }}>
-          {place?.name ?? 'BASS WEAPONS'}
+          {place?.name ?? 'RIDDIM RIOT'}
         </span>
         <span style={{ color: color.secondary.base, fontSize: 36 }}>
           {place

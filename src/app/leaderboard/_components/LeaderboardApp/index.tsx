@@ -29,8 +29,8 @@ const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
 const shareText = (place: PlayerPlace) =>
   place.rank === null
-    ? `${place.name} on Bass Weapons`
-    : `${place.name} is ${ordinal(place.rank)} on Bass Weapons`;
+    ? `${place.name} on Riddim Riot`
+    : `${place.name} is ${ordinal(place.rank)} on Riddim Riot`;
 
 /** The board page: everyone's points, your place, and a shared one. */
 export const LeaderboardApp = ({

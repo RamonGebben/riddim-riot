@@ -34,6 +34,11 @@ export interface OverlayProps {
   actions: Array<OverlayAction>;
   /** More under the note, like where the run puts you on the board. */
   children?: ReactNode;
+  /**
+   * Focus the first action on mount, for a panel the player opened. Not for
+   * one that appears mid-fight: Space dashes, and would press it.
+   */
+  focusFirst?: boolean;
 }
 
 /** A panel over the frozen stage: a run that ended, or a level cleared. */
@@ -45,6 +50,7 @@ export const Overlay = ({
   note,
   actions,
   children,
+  focusFirst = false,
 }: OverlayProps) => {
   return (
     <Backdrop>
@@ -69,7 +75,12 @@ export const Overlay = ({
         <Actions>
           {/* Keyed by place: a label that changes (Link copied) keeps focus. */}
           {actions.map(({ label, onClick, variant }, index) => (
-            <Button key={index} $variant={variant} onClick={onClick}>
+            <Button
+              key={index}
+              $variant={variant}
+              onClick={onClick}
+              autoFocus={focusFirst && index === 0}
+            >
               {label}
             </Button>
           ))}

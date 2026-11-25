@@ -1,4 +1,4 @@
-const DOMAIN = 'bass-weapons.ra-ge.net';
+const DOMAIN = 'riddimriot.com';
 
 /**
  * The canonical origin for share cards and crawlers. Vercel sets

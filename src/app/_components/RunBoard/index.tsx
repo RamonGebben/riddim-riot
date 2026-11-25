@@ -68,7 +68,7 @@ export const RunBoard = ({ run }: RunBoardProps) => {
           setShare(
             await sharePlace(
               url.href,
-              `${saved.name} is ${rank} on Bass Weapons`,
+              `${saved.name} is ${rank} on Riddim Riot`,
             ),
           );
         },

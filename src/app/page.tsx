@@ -6,12 +6,12 @@ const SITE_URL = siteUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL);
 const GAME = {
   '@context': 'https://schema.org',
   '@type': 'VideoGame',
-  name: 'Bass Weapons',
+  name: 'Riddim Riot',
   url: `${SITE_URL}/`,
   image: `${SITE_URL}/og.png`,
   description:
-    'A twin-stick rhythm roguelite where every gun is a dubstep bass synth and every shot is quantized to the beat, so your fighting writes the track.',
-  genre: ['Rhythm', 'Roguelite', 'Twin-stick shooter'],
+    'A twin-stick rhythm shooter where every gun is a dubstep bass synth and every shot is quantized to the beat, so your fighting writes the track.',
+  genre: ['Rhythm', 'Shooter', 'Twin-stick shooter'],
   gamePlatform: 'Web browser',
   applicationCategory: 'Game',
   operatingSystem: 'Any',

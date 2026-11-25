@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { placePath, sharePlace } from '.';
 
-const URL = 'https://bass-weapons.ra-ge.net/leaderboard/RIDDIMRAT';
+const URL = 'https://riddimriot.com/leaderboard/RIDDIMRAT';
 
 describe('placePath', () => {
   it('links a name to its place', () => {

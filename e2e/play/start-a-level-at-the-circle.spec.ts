@@ -51,7 +51,7 @@ test('step into the circle to start the fight', async ({ page }) => {
   await page.keyboard.press('Tab');
   await page
     .getByRole('dialog', { name: 'Loadout' })
-    .getByRole('button', { name: 'Back to the fight' })
+    .getByRole('button', { name: 'Back', exact: true })
     .click();
   await step('Health and pause');
   await page.keyboard.press('KeyP');

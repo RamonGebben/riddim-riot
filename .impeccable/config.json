@@ -9,6 +9,21 @@
         "files": ["src/templates/StartScreen/components/Title/index.tsx"],
         "createdAt": "2026-11-20T08:08:45.727Z",
         "reason": "DESIGN.md records the gradient wordmark as the one deliberate loud moment (Display type, Overview); incumbent brand title"
+      },
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "src/templates/StartScreen/components/Title/components/Heading/index.tsx"
+        ],
+        "createdAt": "2026-11-24T20:46:44.738Z",
+        "reason": "DESIGN.md: the wordmark is the one sanctioned gradient text (violet-to-blue clipped to text); user chose to keep the world and only redo the wordmark"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "jetbrains mono",
+        "createdAt": "2026-11-24T20:46:44.752Z",
+        "reason": "Pre-existing: the OG image renderer can't use ui-monospace, so the bundled JetBrains Mono stands in for the documented mono data face"
       }
     ]
   }

@@ -219,7 +219,7 @@ export const createArrangement = ({
     charge: (time, { from, seconds }) => {
       // Picked up part-filled: the sweep starts where the fill is.
       const hz = patch.riserFrom * (patch.riserTo / patch.riserFrom) ** from;
-      riser.envelope.attack = Math.max(seconds, 0.05);
+      riser.envelope.attack = Math.max(seconds, patch.riserAttack);
       riserFilter.frequency.cancelScheduledValues(time);
       riserFilter.frequency.setValueAtTime(hz, time);
       if (seconds > 0) {

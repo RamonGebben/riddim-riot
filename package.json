@@ -1,7 +1,11 @@
 {
-  "name": "dubstep-game",
+  "name": "riddim-riot",
   "private": true,
   "version": "0.0.0",
+  "description": "A twin-stick rhythm shooter in the browser where every gun is a bass synth.",
+  "license": "MIT",
+  "author": "Ramon Gebben",
+  "homepage": "https://riddimriot.com",
   "type": "module",
   "packageManager": "pnpm@12.14.0",
   "scripts": {

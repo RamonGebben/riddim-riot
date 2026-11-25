@@ -3,15 +3,15 @@ import { publicCaller } from '~/server/caller';
 import { LeaderboardApp } from './_components/LeaderboardApp';
 
 export const metadata: Metadata = {
-  title: 'High scores · Bass Weapons',
+  title: 'High scores · Riddim Riot',
   description:
-    "The all-time Bass Weapons board: every run's points add up. Play a run in your browser and save it to get on it.",
+    "The all-time Riddim Riot board: every run's points add up. Play a run in your browser and save it to get on it.",
   alternates: { canonical: '/leaderboard' },
   openGraph: {
     type: 'website',
-    siteName: 'Bass Weapons',
+    siteName: 'Riddim Riot',
     url: '/leaderboard',
-    title: 'Bass Weapons high scores',
+    title: 'Riddim Riot high scores',
     description:
       "Every gun is a bass synth and every shot lands on the beat. Every run's points add up on the board.",
     images: [{ url: '/og.png', width: 1200, height: 630 }],

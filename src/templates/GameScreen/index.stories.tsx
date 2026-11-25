@@ -138,6 +138,10 @@ export const Paused: Story = {
     ).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Resume' }));
     await expect(args.onResume).toHaveBeenCalled();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Loadout and bag' }),
+    );
+    await expect(args.onOpenMenu).toHaveBeenCalled();
     await userEvent.click(canvas.getByRole('button', { name: 'Quit' }));
     await expect(args.onStop).toHaveBeenCalled();
   },
@@ -369,7 +373,7 @@ const menu = () => ({
   bag: MENU_WEAPONS.slice(3),
   bagSize: 24,
   note: 'Your loadout is kept on your account.',
-  doneLabel: 'Back to the fight',
+  doneLabel: 'Back',
   onPreview: fn(),
   onPreviewAB: fn(),
   onStopPreview: fn(),
@@ -462,9 +466,7 @@ export const ComparingLoot: Story = {
         'Vandal Laser 1/8 Echo into slot 2; Lumen Laser 1/16 Crush back to the bag.',
       ),
     ).toBeInTheDocument();
-    await userEvent.click(
-      canvas.getByRole('button', { name: 'Back to the fight' }),
-    );
+    await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
     await expect(args.menu?.onDone).toHaveBeenCalledWith({
       slots: ['s0', 'b1', 's2'],
       bag: ['b0', 's1', 'b2'],
@@ -512,6 +514,17 @@ export const FilteringTheBag: Story = {
   },
 };
 
+export const BagOverThePause: Story = {
+  args: { paused: true, menu: menu() },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('dialog', { name: 'Loadout' })).toBeVisible();
+    // The pause waits underneath, for when the bag closes.
+    await expect(
+      canvas.queryByRole('heading', { name: 'Paused' }),
+    ).not.toBeInTheDocument();
+  },
+};
+
 export const PreviewPlaying: Story = {
   args: {
     menu: { ...menu(), preview: { ids: ['s1'], sounding: 's1', turn: 1 } },
@@ -544,7 +557,7 @@ export const DiscardingLoot: Story = {
     ).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Keep it' })).toBeVisible();
     await expect(
-      canvas.getByRole('button', { name: 'Back to the fight · discard 1' }),
+      canvas.getByRole('button', { name: 'Back · discard 1' }),
     ).toBeVisible();
     // Esc asks once before it throws anything away, then closes.
     await userEvent.keyboard('{Escape}');
@@ -553,6 +566,38 @@ export const DiscardingLoot: Story = {
     );
     await expect(args.menu?.onDone).not.toHaveBeenCalled();
     await userEvent.keyboard('{Escape}');
+    await expect(args.menu?.onDone).toHaveBeenCalledWith({
+      slots: ['s0', 's1', 's2'],
+      bag: ['b1', 'b2'],
+    });
+  },
+};
+
+export const DiscardingFromTheBag: Story = {
+  args: { menu: menu() },
+  play: async ({ args, canvas, userEvent }) => {
+    // The bin beside a card marks it without picking it.
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Discard Lumen Beam 1/8' }),
+    );
+    await expect(canvas.getByText('Bag 2/24')).toBeVisible();
+    await expect(
+      canvas.getByRole('button', {
+        name: 'Lumen Beam 1/8, marked to discard',
+        pressed: false,
+      }),
+    ).toBeVisible();
+    // Marked, the bin turns into the way back.
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Keep Lumen Beam 1/8' }),
+    );
+    await expect(canvas.getByText('Bag 3/24')).toBeVisible();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Discard Lumen Beam 1/8' }),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Back · discard 1' }),
+    );
     await expect(args.menu?.onDone).toHaveBeenCalledWith({
       slots: ['s0', 's1', 's2'],
       bag: ['b1', 'b2'],
@@ -597,7 +642,7 @@ export const DiscardingWeakerLoot: Story = {
       }),
     ).toBeVisible();
     await userEvent.click(
-      canvas.getByRole('button', { name: 'Back to the fight · discard 1' }),
+      canvas.getByRole('button', { name: 'Back · discard 1' }),
     );
     await expect(args.menu?.onDone).toHaveBeenCalledWith({
       slots: ['s0', 's1', 's2'],
@@ -661,9 +706,7 @@ export const PlacingWithNumberKeys: Story = {
     await expect(
       canvas.getByRole('button', { name: /^Slot 1: Vandal Wobble 1\/2 Crush/ }),
     ).toBeInTheDocument();
-    await userEvent.click(
-      canvas.getByRole('button', { name: 'Back to the fight' }),
-    );
+    await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
     await expect(args.menu?.onDone).toHaveBeenCalledWith({
       slots: ['b2', 's1', 's2'],
       bag: ['b0', 'b1', 's0'],

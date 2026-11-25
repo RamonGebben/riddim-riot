@@ -1,5 +1,5 @@
 ---
-name: Bass Weapons
+name: Riddim Riot
 description: A twin-stick rhythm roguelite where every gun is a bass synth; screens are smoked glass over a live dancefloor.
 colors:
   strobe-blue: '#60a5fa'
@@ -113,11 +113,11 @@ components:
     padding: '1.7769rem'
 ---
 
-# Design System: Bass Weapons
+# Design System: Riddim Riot
 
 <!-- impeccable:design-map -->
 
-Name: Bass Weapons
+Name: Riddim Riot
 Colors: primary: strobe-blue #60a5fa; secondary: uv-violet #a78bfa; tertiary: hype-amber #fbbf24; neutral: floor-black #111111; primary: strobe-blue-bright #93c5fd; primary: strobe-ink #0b1220 (+6 more in the sidecar)
 Fonts: system-ui (display, headline, title, body); ui-monospace (label, data)
 Spacing: xxs 0.4222rem, xs 0.5628rem, s 0.7502rem, base 1rem, m 1.333rem, l 1.7769rem, xl 2.3686rem
@@ -135,7 +135,7 @@ Rules:
 - Modal: 0 8px 24px rgba(0, 0, 0, 0.6)
 - State halo: 0 0 14px color-mix(in srgb, <accent> 50-55%, transparent)
 - Readout glow: text-shadow: 0 0 8px currentColor
-- Wordmark breath: drop-shadow(0 0 18px rgb(167 139 250 / 0.55))
+- Wordmark glow: drop-shadow(0 0 18px rgb(167 139 250 / 0.55)), steady; the motion is the O's ring
   Don't:
 - Don't introduce light surfaces or light-mode variants; the color mode is forced dark.
 - Don't use glitch text, scanlines, RGB-split type or magenta/cyan hacker styling.

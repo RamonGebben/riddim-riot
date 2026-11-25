@@ -200,7 +200,10 @@ export interface Game {
    * a press (the loop's context starts on it).
    */
   openMenu: () => void;
-  /** Close the menu: the loop fades and the level carries on. */
+  /**
+   * Close the menu: the loop fades and the level carries on - unless it
+   * was opened from the pause, which it goes back to.
+   */
   closeMenu: () => void;
   /**
    * Audition a weapon: a bar of its riff in the level's key, heard even
@@ -452,6 +455,8 @@ export const startGame = async ({
   };
   let trackIn = false;
   let menuOpen = false;
+  /** The menu was opened over the pause: closing it goes back there. */
+  let menuOverPause = false;
   /** The riff moved onto the chord being played, as a preview plays it. */
   const chordShift = () =>
     lastTick
@@ -579,6 +584,7 @@ export const startGame = async ({
     },
     openMenu: () => {
       previewer.prime();
+      menuOverPause = paused;
       pause();
       menuOpen = true;
       if (!lastTick || hud.status !== 'playing') return;
@@ -606,7 +612,7 @@ export const startGame = async ({
       previewTurn += 1;
       previewer.stop();
       previewer.stopLoop();
-      resume();
+      if (!menuOverPause) resume();
     },
     preview: async (recipe, onStart) => {
       previewer.prime();

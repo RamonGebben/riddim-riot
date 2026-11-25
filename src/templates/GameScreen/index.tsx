@@ -338,9 +338,11 @@ export const GameScreen = ({
           ]}
         />
       )}
-      {paused && run.status === 'playing' && (
+      {/* The bag opens over the pause, and closes back to it. */}
+      {paused && run.status === 'playing' && !menu && (
         <Overlay
           heading="Paused"
+          focusFirst
           stats={[
             { label: 'Level', value: `${run.level}/${run.levels}` },
             { label: 'Key', value: musicalKey },
@@ -350,6 +352,11 @@ export const GameScreen = ({
           note={`seed ${seed}`}
           actions={[
             { label: 'Resume', onClick: onResume },
+            {
+              label: 'Loadout and bag',
+              onClick: onOpenMenu,
+              variant: 'secondary',
+            },
             { label: 'Quit', onClick: onStop },
           ]}
         />

@@ -1,5 +1,5 @@
 ---
-name: Bass Weapons
+name: Riddim Riot
 description: A twin-stick rhythm roguelite where every gun is a bass synth; screens are smoked glass over a live dancefloor.
 colors:
   strobe-blue: '#60a5fa'
@@ -113,7 +113,7 @@ components:
     padding: '1.7769rem'
 ---
 
-# Design System: Bass Weapons
+# Design System: Riddim Riot
 
 ## Overview
 
@@ -130,7 +130,8 @@ The chrome recedes and the game leads. Color and glow are not decoration.
 They mark state: the slot you're holding, a magazine that's loaded, a
 combo, dash being ready, a heart you just got back. The one deliberate
 performance is the wordmark: heavy italic caps in a violet-to-blue
-gradient whose glow breathes on two beats at 140 BPM. Density runs high in
+gradient, RIDDIM stacked over RIOT, whose O is the level's circle filling
+a quarter on each beat at 140 BPM. Density runs high in
 the HUD (small mono readouts, segment bars, key caps) and loose on the
 landing and level cards, where a single headline holds the screen.
 
@@ -222,10 +223,13 @@ Spacing uses the same ratio.
 
 ### Hierarchy
 
-- **Display** (900 italic, uppercase, clamp(2.75rem, min(10vw, 16vh), 6rem),
-  0.95, balanced): the wordmark only, with the violet-to-blue gradient
-  clipped to the text. Sized by the short side too, so a landscape phone
-  keeps the button in view.
+- **Display** (900 italic, uppercase, clamp(3.5rem, min(16vw, 18vh), 6rem)
+  stacked, clamp(2.75rem, min(10vw, 16vh), 6rem) on one line below 32rem
+  tall, 0.95): the wordmark only, with the violet-to-blue gradient clipped
+  to the text. Stacked, RIDDIM sets at 0.62em with 0.06em tracking so it
+  spans RIOT's width. RIOT's O is a drawn ring (the level's circle), the
+  letter kept in the text at zero size. Sized by the short side too, so a
+  landscape phone keeps the button in view.
 - **Headline** (700, 2.3686rem, 1.2): overlay headings (paused, run over,
   victory). The level card's heading runs 1.6× larger with a violet glow.
 - **Title** (700, 1.333rem): the primary button, score, combo and the
@@ -286,8 +290,8 @@ only true drop shadow. Glow is the other depth cue: a lit element floats.
   the active weapon slot (Strobe Blue) and the ready dash button (Hype Amber).
 - **Readout glow** (`text-shadow: 0 0 8px currentColor` / `filter: drop-shadow(0 0 4px currentColor)`):
   the combo, and full hearts.
-- **Wordmark breath** (`drop-shadow(0 0 18px rgb(167 139 250 / 0.55))` to
-  `drop-shadow(0 0 34px rgb(96 165 250 / 0.9))`): the title, on two beats.
+- **Wordmark glow** (`drop-shadow(0 0 18px rgb(167 139 250 / 0.55))`): the
+  title, steady. Its motion is the O's ring filling on the beat.
 
 ### Named Rules
 

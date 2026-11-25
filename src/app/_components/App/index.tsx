@@ -310,7 +310,9 @@ export const App = () => {
       `${TOUCH_SCREEN} and (orientation: portrait)`,
     );
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.code === 'Tab' || event.code === 'KeyB') && !paused) {
+      // Paused, only B opens the bag (it closes back to the pause): Tab
+      // moves between the pause's buttons.
+      if (event.code === 'KeyB' || (event.code === 'Tab' && !paused)) {
         event.preventDefault();
         if (!event.repeat) openMenu();
         return;
@@ -486,9 +488,7 @@ export const App = () => {
     const failed = (error: unknown) => {
       console.error(error);
       setPreviewing(now => (now?.ids === ids ? null : now));
-      setMenuError(
-        "Couldn't play the preview: the browser held the sound back. Press it again to retry.",
-      );
+      setMenuError("Couldn't play the preview. Press it again to retry.");
     };
     const [a, b] = recipes;
     setMenuError(null);
@@ -518,7 +518,7 @@ export const App = () => {
       note: over
         ? `${KEPT_NOTES[kept.status]} The bag empties when the next run starts.`
         : KEPT_NOTES[kept.status],
-      doneLabel: over ? 'Done' : 'Back to the fight',
+      doneLabel: over ? 'Done' : 'Back',
       isApplying: arranging,
       error: menuError,
       preview: previewing,
