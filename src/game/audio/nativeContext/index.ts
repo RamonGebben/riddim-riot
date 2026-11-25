@@ -94,6 +94,16 @@ export const startAudio = async ({
     const context = getContext();
     const raw = context.rawContext;
     const native = nativeOf(raw);
+    // A resume asked for earlier can settle after a pause has suspended
+    // the sound (a slow start, the browser holding it back): put it back.
+    context.on('statechange', () => {
+      if (
+        wanted === 'suspended' &&
+        context.state === 'running' &&
+        'close' in raw
+      )
+        void raw.suspend();
+    });
     realtime = {
       context,
       audio: {
