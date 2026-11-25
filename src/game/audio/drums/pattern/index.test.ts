@@ -42,6 +42,19 @@ describe('generateDrumBar', () => {
     });
   });
 
+  it.each(Object.entries(SUBGENRES))(
+    'keeps %s on its own feel, every bar',
+    (_, { drums }) => {
+      const snares = drums.feel === 'halftime' ? [8] : [4, 12];
+      Array.from({ length: 32 }, (__, bar) =>
+        generateDrumBar(11, bar, drums),
+      ).forEach(bar => {
+        expect(bar.kick[0]).toBe(1);
+        snares.forEach(step => expect(bar.snare[step]).toBe(1));
+      });
+    },
+  );
+
   it('plays a sparser style with fewer extras than a busy one', () => {
     const extras = (style: keyof typeof SUBGENRES) =>
       Array.from({ length: 64 }, (_, bar) =>

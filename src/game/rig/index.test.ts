@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cleanRig, describeRig, isRigged, rigLoot, rigRun, rigStyle } from '.';
 import { styleFor } from '../genre';
-import { newRun } from '../run';
+import { newRun, nextLevel } from '../run';
 
 describe('rig', () => {
   it('keeps only what makes a valid rig', () => {
@@ -12,9 +12,17 @@ describe('rig', () => {
         bpm: 174,
         god: true,
         stress: false,
+        skipCircle: true,
         seed: 12,
       }),
-    ).toEqual({ level: 4, subgenre: 'liquid', bpm: 174, god: true, seed: 12 });
+    ).toEqual({
+      level: 4,
+      subgenre: 'liquid',
+      bpm: 174,
+      god: true,
+      skipCircle: true,
+      seed: 12,
+    });
     expect(
       cleanRig({ level: 9, subgenre: 'polka', bpm: 2.5, god: 'yes' }),
     ).toEqual({});
@@ -35,6 +43,13 @@ describe('rig', () => {
     // Better weapons than the level's keep their own tier.
     const strong = { ...newRun(7), recipes: [{ seed: 1, tier: 5 }] };
     expect(rigRun(strong, { level: 2 }).recipes[0].tier).toBe(5);
+  });
+
+  it('carries the rig to every level after the first', () => {
+    const run = rigRun(newRun(7), { subgenre: 'liquid', god: true });
+    const next = nextLevel(run, run);
+    expect(next.level).toBe(2);
+    expect(next.rig).toEqual({ subgenre: 'liquid', god: true });
   });
 
   it('forces the subgenre and tempo, or keeps what the seed rolled', () => {

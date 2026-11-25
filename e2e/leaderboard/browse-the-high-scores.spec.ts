@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { pageErrors } from '../support/game';
 
 test('open the high scores from the start screen and drop back in', async ({
   page,
 }) => {
-  const errors: Array<string> = [];
-  page.on('pageerror', error => errors.push(error.message));
+  const errors = pageErrors(page);
 
   await page.goto('/?seed=42');
   await page.getByRole('link', { name: 'High scores' }).click();
