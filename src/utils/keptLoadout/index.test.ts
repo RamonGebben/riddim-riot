@@ -50,4 +50,14 @@ describe('loadoutSchema', () => {
         .success,
     ).toBe(false);
   });
+
+  it('keeps a weapon tier, within the run', () => {
+    const tiered = (tier: number) => [
+      ...recipes.slice(0, 2),
+      { seed: 3, tier },
+    ];
+    expect(loadoutSchema.safeParse(tiered(4)).success).toBe(true);
+    expect(loadoutSchema.safeParse(tiered(0)).success).toBe(false);
+    expect(loadoutSchema.safeParse(tiered(9)).success).toBe(false);
+  });
 });

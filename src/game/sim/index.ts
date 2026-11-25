@@ -3,6 +3,7 @@ export * from './weaponSlot';
 export { MAX_MULTIPLIER, POINTS_PER_KILL } from './combo';
 export {
   LEVEL_CLEAR_BONUS,
+  levelClearBonus,
   RUN_LEVELS,
   RUN_OUTCOMES,
   type RunOutcome,

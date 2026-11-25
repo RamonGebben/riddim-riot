@@ -2,7 +2,7 @@ import type { WeaponFace } from '~/molecules/WeaponTag';
 import { verdictOf, type WeaponStats } from './verdict';
 
 /** A weapon as the rack judges it: what it is, and its numbers. */
-export type Judged = WeaponFace & { stats: WeaponStats };
+export type Judged = WeaponFace & { stats: WeaponStats; tier?: number };
 
 /** The menu's working copy: weapon ids in the slots, and in the bag. */
 export interface Rack {
@@ -115,6 +115,37 @@ export const likelySlot = (
   const same = rack.slots.findIndex(id => faces.get(id)?.oscillator === engine);
   return Math.max(same, 0);
 };
+
+/** What "best" means to the rack: damage a bar, then the higher tier. */
+const strength = (faces: ReadonlyMap<string, Judged>, id: string) => {
+  const face = faces.get(id);
+  return face ? face.stats.perBar * 10 + (face.tier ?? 1) : -Infinity;
+};
+
+/**
+ * Each slot takes the strongest weapon of its own engine, from the slot
+ * and the bag (marked ones aside); what it held goes back in the bag. Per
+ * engine, because damage a bar alone would never pick a beam, and the
+ * player chose their mix.
+ */
+export const keepBest = (
+  rack: Rack,
+  faces: ReadonlyMap<string, Judged>,
+): Rack =>
+  rack.slots.reduce((acc, _, slot) => {
+    const held = acc.slots[slot];
+    const engine = faces.get(held)?.oscillator;
+    const best = acc.bag
+      .filter(
+        id =>
+          !acc.discarded.includes(id) && faces.get(id)?.oscillator === engine,
+      )
+      .reduce(
+        (top, id) => (strength(faces, id) > strength(faces, top) ? id : top),
+        held,
+      );
+    return best === held ? acc : (swap(acc, held, best) ?? acc);
+  }, rack);
 
 export type BagOrder = 'newest' | 'best';
 

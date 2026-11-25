@@ -1,10 +1,11 @@
 import {
-  LEVEL_CLEAR_BONUS,
+  levelClearBonus,
   MAX_MULTIPLIER,
   POINTS_PER_KILL,
   RUN_LEVELS,
   type RunOutcome,
 } from '~/game/sim';
+import { scoreMultiplier } from '~/game/tier';
 
 /** A finished run as the client reports it. */
 export interface RunReport {
@@ -56,12 +57,16 @@ export const implausible = (
   const playedMs = Math.min(elapsedMs, MAX_PLAY_MS);
   if (kills > Math.ceil((playedMs / 1000) * MAX_KILLS_PER_SECOND))
     return 'too many kills for the time played';
-  // Every kill scores 100 to 800 points, by the combo multiplier, and
-  // every cleared level its bonus.
-  const killPoints = score - cleared * LEVEL_CLEAR_BONUS;
+  // Every kill scores 100 to 800 points by the combo, times its level's
+  // tier, and every cleared level its bonus, times its tier too.
+  const bonus = Array.from({ length: cleared }, (_, i) =>
+    levelClearBonus(i + 1),
+  ).reduce((sum, points) => sum + points, 0);
+  const killPoints = score - bonus;
   if (killPoints < kills * POINTS_PER_KILL)
     return 'too few points for the kills';
-  if (killPoints > kills * POINTS_PER_KILL * MAX_MULTIPLIER)
+  const topTier = scoreMultiplier(outcome === 'won' ? RUN_LEVELS : level);
+  if (killPoints > kills * POINTS_PER_KILL * MAX_MULTIPLIER * topTier)
     return 'too many points for the kills';
   return null;
 };

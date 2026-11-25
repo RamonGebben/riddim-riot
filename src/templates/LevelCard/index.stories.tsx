@@ -28,3 +28,12 @@ export const FinalLevel: Story = {
     ).toBeVisible();
   },
 };
+
+export const PointsMultiplied: Story = {
+  args: { level: 3, multiplier: 3 },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Level 3 of 5 · points ×3',
+    );
+  },
+};

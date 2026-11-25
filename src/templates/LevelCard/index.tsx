@@ -7,14 +7,22 @@ export interface LevelCardProps {
   levels: number;
   /** The next level's key, e.g. "G minor". */
   musicalKey: string;
+  /** What its points are multiplied by: its tier. */
+  multiplier?: number;
 }
 
 /** Between levels, while the next one builds: where the run is going. */
-export const LevelCard = ({ level, levels, musicalKey }: LevelCardProps) => {
+export const LevelCard = ({
+  level,
+  levels,
+  musicalKey,
+  multiplier = 1,
+}: LevelCardProps) => {
   return (
     <Page role="status">
       <Meta>
         Level {level} of {levels}
+        {multiplier > 1 && ` · points ×${multiplier}`}
       </Meta>
       <Heading>{level === levels ? 'Final level' : musicalKey}</Heading>
       <Meta>{level === levels ? musicalKey : 'Get ready'}</Meta>

@@ -2,6 +2,7 @@ import { STEPS_PER_BAR, STEPS_PER_BEAT, STEPS_PER_DIVISION } from '../../grid';
 import { degreeToMidi, type Key } from '../../music';
 import { createRng, type Rng } from '../../rng';
 import { SOUND_DESIGN, type SoundDesign } from '../../sound';
+import { fxChance, weaponScale } from '../../tier';
 import {
   BEAM,
   CRUSHED_BLAST_GROWTH,
@@ -62,6 +63,10 @@ const rollRiff = (rng: Rng, degrees: Array<number>) => [
  * loadout pins the engine so a run never opens with three of a kind, and
  * the sound playground pins whatever it's auditioning. A pinned roll
  * consumes the same random numbers, so the rest of it doesn't change.
+ *
+ * `tier` is the weapon's own: better loot rolls an FX more often. It
+ * plays at `playing` (its tier unless a level holds it back), which
+ * scales its damage, reach and blasts; its sound doesn't change.
  */
 export const rollWeapon = (
   seed: number,
@@ -69,14 +74,22 @@ export const rollWeapon = (
   {
     pins = {},
     design = SOUND_DESIGN,
-  }: { pins?: WeaponPins; design?: SoundDesign } = {},
+    tier = 1,
+    playing = tier,
+  }: {
+    pins?: WeaponPins;
+    design?: SoundDesign;
+    tier?: number;
+    playing?: number;
+  } = {},
 ): Weapon => {
+  const scale = weaponScale(playing);
   const sounds = design.parts;
   const rng = createRng(seed);
   const rolledMaker = rng.pick<ManufacturerPart>(['vandal', 'lumen']);
   const rolledEngine = rng.pick<OscillatorPart>(['wobble', 'laser', 'beam']);
   const rolledLfo = rollLfo(rng);
-  const rolledFx: FxPart | null = rng.chance(FX_CHANCE)
+  const rolledFx: FxPart | null = rng.chance(fxChance(FX_CHANCE, tier))
     ? rng.pick<FxPart>(['distortion', 'echo'])
     : null;
   const manufacturer = pins.manufacturer ?? rolledMaker;
@@ -110,6 +123,7 @@ export const rollWeapon = (
   const steps = STEPS_PER_DIVISION[division];
   const shotBeats = steps / STEPS_PER_BEAT;
   const damage =
+    scale.damage *
     engine.damage *
     (continuous ? 1 : rate.damage) *
     maker.damage *
@@ -119,15 +133,17 @@ export const rollWeapon = (
   const crushed = FX.distortion.splash;
   const crushRadius =
     fx === 'distortion' && !continuous
-      ? crushed.radius[0] +
-        (crushed.radius[1] - crushed.radius[0]) *
-          along(crush, sounds.crush.drive)
+      ? (crushed.radius[0] +
+          (crushed.radius[1] - crushed.radius[0]) *
+            along(crush, sounds.crush.drive)) *
+        scale.blast
       : null;
   // A slow shot's own blast, grown by Crush; otherwise Crush's alone.
   const slow = continuous ? null : rate.blast;
   const splash = slow
     ? {
-        radius: slow.radius + CRUSHED_BLAST_GROWTH * (crushRadius ?? 0),
+        radius:
+          slow.radius * scale.blast + CRUSHED_BLAST_GROWTH * (crushRadius ?? 0),
         damage: damage * (slow.share + (crushRadius ? crushed.share / 2 : 0)),
         knockback: slow.knockback,
       }
@@ -152,6 +168,7 @@ export const rollWeapon = (
 
   return {
     seed,
+    tier: { own: tier, playing },
     name: [maker.label, engine.label, lfo, fx ? FX[fx].label : null]
       .filter(Boolean)
       .join(' '),
@@ -171,7 +188,10 @@ export const rollWeapon = (
       radius: engine.radius * (continuous ? 1 : rate.size),
       damage,
       // Brighter filters reach further; more resonance focuses the shots.
-      lifetime: engine.lifetime * (0.8 + 0.4 * along(cutoff, ranges.cutoff)),
+      lifetime:
+        engine.lifetime *
+        scale.reach *
+        (0.8 + 0.4 * along(cutoff, ranges.cutoff)),
       ...(splash ? { splash } : {}),
       ...(slow ? { detonates: true } : {}),
       spread: continuous ? 0 : 0.12 * (1 - along(resonance, ranges.resonance)),

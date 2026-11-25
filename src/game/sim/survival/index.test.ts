@@ -195,7 +195,9 @@ describe('waveSize', () => {
     expect(waveSize({ sent: 0, level: 1, alive: 0 })).toBe(2);
     expect(waveSize({ sent: 8, level: 1, alive: 0, extra: 3 })).toBe(9);
     expect(waveSize({ sent: 0, level: 3, alive: 0 })).toBe(6);
-    expect(waveSize({ sent: 40, level: 5, alive: 0 })).toBe(14);
+    // The cap grows with the tier: 14 on level 1, 22 on level 5.
+    expect(waveSize({ sent: 40, level: 1, alive: 0 })).toBe(14);
+    expect(waveSize({ sent: 40, level: 5, alive: 0 })).toBe(22);
     expect(waveSize({ sent: 40, level: 5, alive: 25 })).toBe(5);
   });
 });

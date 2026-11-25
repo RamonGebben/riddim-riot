@@ -2,7 +2,7 @@ import { useState, type ReactNode, type Ref } from 'react';
 import { formatNumber } from '~/utils/formatNumber';
 import { Icon } from '~/atoms/Icon';
 import { PAUSE_ICON } from '~/game/icons';
-import { LEVEL_CLEAR_BONUS } from '~/game/sim';
+import { levelClearBonus } from '~/game/sim';
 import { BagButton } from './components/BagButton';
 import { Combo } from './components/Combo';
 import { DashButton } from './components/DashButton';
@@ -414,7 +414,10 @@ export const GameScreen = ({
           heading={`Level ${run.level} cleared`}
           stats={[
             kills(run.kills),
-            { label: 'Bonus', value: `+${formatNumber(LEVEL_CLEAR_BONUS)}` },
+            {
+              label: 'Bonus',
+              value: `+${formatNumber(levelClearBonus(run.level))}`,
+            },
             points(run.score),
           ]}
           message={

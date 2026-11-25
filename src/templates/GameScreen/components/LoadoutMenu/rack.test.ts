@@ -6,6 +6,7 @@ import {
   discardAll,
   enginesIn,
   filterBag,
+  keepBest,
   likelySlot,
   placeOf,
   rackOf,
@@ -90,6 +91,56 @@ describe('weakerInBag', () => {
     expect(choiceOf(marked).bag).toEqual(['b2']);
     expect(weakerInBag(marked, faces)).toEqual([]);
     expect(choiceOf(toggleDiscard(marked, 'b1')).bag).toEqual(['b1', 'b2']);
+  });
+});
+
+describe('keepBest', () => {
+  const judged = (
+    oscillator: WeaponFace['oscillator'],
+    perBar: number,
+    tier = 1,
+  ): Judged => ({
+    name: '',
+    oscillator,
+    lfo: '1/8',
+    fx: null,
+    blasts: false,
+    tier,
+    stats: { perBar, hit: 1, shots: 8, reach: 8, area: 0 },
+  });
+  const big = rackOf({
+    slots: ['s1', 's2', 's3'],
+    bag: ['b1', 'b2', 'b3', 'b4'],
+  });
+  const faces = new Map([
+    ['s1', judged('wobble', 80)],
+    ['s2', judged('laser', 60)],
+    ['s3', judged('beam', 50)],
+    ['b1', judged('wobble', 120)],
+    ['b2', judged('wobble', 100)],
+    ['b3', judged('beam', 50, 3)],
+    ['b4', judged('laser', 200)],
+  ]);
+
+  it("puts each slot's strongest of its own engine in it", () => {
+    const best = keepBest(big, faces);
+    expect(best.slots).toEqual(['b1', 'b4', 'b3']);
+    // What the slots held goes back to the bag, nothing lost.
+    expect(best.bag.toSorted()).toEqual(['b2', 's1', 's2', 's3']);
+  });
+
+  it('breaks a tie in damage on the higher tier', () => {
+    expect(keepBest(big, faces).slots[2]).toBe('b3');
+  });
+
+  it('leaves weapons marked to discard where they are', () => {
+    const marked = discardAll(big, ['b1', 'b4']);
+    expect(keepBest(marked, faces).slots).toEqual(['b2', 's2', 'b3']);
+  });
+
+  it('changes nothing when the slots already hold the best', () => {
+    const done = keepBest(big, faces);
+    expect(keepBest(done, faces)).toEqual(done);
   });
 });
 

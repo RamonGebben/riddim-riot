@@ -1,4 +1,5 @@
 import { MAX_ENEMIES } from '../enemy';
+import { waveCap, waveEvery } from '../../tier';
 
 /**
  * A level plays as one track. It waits for the player to step into the
@@ -180,12 +181,15 @@ export const advanceSurvival = (
     alive,
     bossAlive,
     song,
+    level = 1,
   }: {
     bar: number;
     time: number;
     alive: number;
     bossAlive: boolean;
     song: Array<SongSection>;
+    /** Further into a run, waves come sooner (see `tier`). */
+    level?: number;
   },
 ): { survival: Survival; spawn: SurvivalSpawn | null } => {
   const hold = { survival, spawn: null };
@@ -201,7 +205,7 @@ export const advanceSurvival = (
         startBar: bar,
         lastWaveBar: bar - 1,
       },
-      { bar, time, alive, bossAlive, song },
+      { bar, time, alive, bossAlive, song, level },
     );
   }
   if (survival.phase !== 'song') return hold;
@@ -215,7 +219,7 @@ export const advanceSurvival = (
   const due =
     plan.everyBars !== null &&
     (at.bar === 0 ||
-      bar - survival.lastWaveBar >= plan.everyBars ||
+      bar - survival.lastWaveBar >= waveEvery(plan.everyBars, level) ||
       (alive === 0 && bar > survival.lastWaveBar));
   if (!due && !boss) return hold;
   return {
@@ -249,7 +253,7 @@ export const waveSize = ({
     0,
     Math.min(
       2 + Math.floor(sent / 2) + 2 * (level - 1) + extra,
-      14,
+      waveCap(level),
       MAX_ENEMIES - alive,
     ),
   );
