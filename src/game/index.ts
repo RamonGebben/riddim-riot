@@ -22,6 +22,7 @@ import {
 import { createBus } from './bus';
 import { createClock, type Tick } from './clock';
 import { styleFor } from './genre';
+import { rigStyle } from './rig';
 import type { GameEvents } from './events';
 import { initialHud, type HudView } from './hud';
 import {
@@ -58,7 +59,17 @@ export { sameRecipe, type WeaponRecipe } from './weapons';
 export { BAG_SIZE } from './sim/loot';
 export type { LoadoutView } from './loadout';
 export { RUN_LEVELS } from './sim/world';
-export { scoreMultiplier } from './tier';
+export { MAX_TIER, scoreMultiplier, tierOf } from './tier';
+export {
+  cleanRig,
+  describeRig,
+  isRigged,
+  RIG_BPM,
+  RIG_SUBGENRES,
+  rigLoot,
+  rigRun,
+  type Rig,
+} from './rig';
 export { attachBackdrop } from './backdrop';
 export {
   readFlashing,
@@ -68,10 +79,9 @@ export {
   type FlashingChoice,
 } from './flashing';
 
-/** Fixed for the PoC; the level seed picks it later. */
-/** A level's subgenre and tempo, from its seed (see `genre`). */
+/** A level's subgenre and tempo, from its seed (see `genre`) or the rig. */
 export const levelStyle = (run: RunState) =>
-  styleFor(levelSeed(run), run.level);
+  rigStyle(styleFor(levelSeed(run), run.level), run.rig);
 const DUCK_SECONDS = 0.6;
 /** A press within this of the weapon's grid is on the beat. */
 const ON_BEAT_SECONDS = 0.05;
@@ -246,6 +256,10 @@ export interface Game {
   hud: () => HudView;
   /** The run as it stands, moved on to the next level - after a clear. */
   nextRun: () => RunState;
+  /** Play-testing: clear the level now, as if the exit were taken. */
+  skipLevel: () => void;
+  /** Play-testing: put `recipes` in the bag, in place of what's there. */
+  stockBag: (recipes: Array<WeaponRecipe>) => void;
   /** Called whenever health, kills or the run's status change. */
   onHud: (listener: (view: HudView) => void) => () => void;
   stop: () => void;
@@ -516,8 +530,9 @@ export const startGame = async ({
         level,
         rules: rulesFor({
           level: run.level,
-          stress,
+          stress: stress || Boolean(run.rig?.stress),
           pressure: style.pressure,
+          god: run.rig?.god,
         }),
         carry: run,
         seed,
@@ -679,6 +694,11 @@ export const startGame = async ({
       previewer.stop();
     },
     hud: () => hud,
+    skipLevel: () => mounted?.skip(),
+    stockBag: recipes => {
+      detachedBag = recipes;
+      mounted?.setBag(recipes);
+    },
     nextRun: () =>
       nextLevel(run, {
         hp: hud.hp,

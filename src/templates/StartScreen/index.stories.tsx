@@ -106,6 +106,16 @@ export const WithABest: Story = {
   },
 };
 
+export const Rigged: Story = {
+  args: { rigged: 'level 4 · Liquid · god mode' },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText(/Rigged: level 4 · Liquid · god mode/),
+    ).toBeVisible();
+    await expect(canvas.getByText(/stays off the board/)).toBeVisible();
+  },
+};
+
 export const Starting: Story = {
   args: { isStarting: true, step: 'weapons' },
   play: async ({ args, canvas, userEvent }) => {

@@ -1,5 +1,6 @@
 import { deriveSeed } from '../rng';
 import { PLAYER_MAX_HP } from '../sim/world';
+import type { Rig } from '../rig';
 import type { OscillatorPart, WeaponRecipe } from '../weapons';
 
 /** Everything that carries from one level of a run to the next. */
@@ -15,6 +16,8 @@ export interface RunState {
   active: number;
   /** Weapons picked up this run and not equipped; empty at a run's start. */
   bag: Array<WeaponRecipe>;
+  /** Rigged for play-testing (see `rig`); kept on every level after. */
+  rig?: Rig;
 }
 
 /** Keeps weapon rolls their own random stream, apart from drums and spawns. */

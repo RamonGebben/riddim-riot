@@ -5,10 +5,12 @@ import {
   BAG_SIZE,
   describeLevel,
   describeLoadout,
+  describeRig,
   describeWeapons,
   newRun,
   readFlashing,
   reducesFlashing,
+  rigRun,
   RUN_LEVELS,
   sameRecipe,
   scoreMultiplier,
@@ -41,6 +43,7 @@ import { RunBoard } from '../RunBoard';
 import { SavePendingRun } from '../SavePendingRun';
 import { useAccount } from '../useAccount';
 import { useKeptLoadout, type KeptStatus } from '../useKeptLoadout';
+import { useRiotConsole } from '../useRiotConsole';
 
 type SessionStatus = 'idle' | 'starting' | 'playing';
 
@@ -117,8 +120,13 @@ export const App = () => {
   const [run, setRun] = useState(() => newRun(getSeed(window.location.search)));
   const kept = useKeptLoadout();
   const { me, signIn, signOut } = useAccount();
+  const game = useRef<Game | null>(null);
+  /** Set from the dev console (`riot`) for play-testing; `{}` normally. */
+  const rig = useRiotConsole({ game, level: run.level });
   /** A fresh run on `seed`, opening with the kept loadout if there is one. */
   const freshRun = (seed: number) => newRun(seed, kept.recipes ?? undefined);
+  /** The same, rigged if the console says so: what a press starts. */
+  const nextRun = (seed: number) => rigRun(freshRun(seed), rig);
   // A level-1 run hasn't started yet (later levels are a run under way,
   // left by quitting): it opens with the kept loadout as it is now.
   const ready = useMemo(
@@ -128,6 +136,8 @@ export const App = () => {
         : run,
     [run, kept.recipes],
   );
+  /** The run Drop in starts: the ready one, rigged if the console says so. */
+  const staged = useMemo(() => rigRun(ready, rig), [ready, rig]);
   /** The loadout menu's inventory while it's open, with ids for each weapon. */
   const [menu, setMenu] = useState<Inventory | null>(null);
   const [arranging, setArranging] = useState(false);
@@ -151,9 +161,12 @@ export const App = () => {
       firefox: navigator.userAgent.includes('Firefox'),
     }),
   );
-  const level = useMemo(() => describeLevel(run), [run]);
-  const weapons = useMemo(() => describeLoadout(ready), [ready]);
   const [status, setStatus] = useState<SessionStatus>('idle');
+  const level = useMemo(
+    () => describeLevel(status === 'idle' ? staged : run),
+    [status, staged, run],
+  );
+  const weapons = useMemo(() => describeLoadout(staged), [staged]);
   const [loadout, setLoadout] = useState<LoadoutView>({ slots: [], active: 0 });
   const [hud, setHud] = useState<HudView | null>(null);
   const [paused, setPaused] = useState(false);
@@ -169,7 +182,6 @@ export const App = () => {
   const [between, setBetween] = useState(false);
   // Bumped on every (re)start, so the stage re-attaches to the new game.
   const [session, setSession] = useState(0);
-  const game = useRef<Game | null>(null);
   // The watchdog reads the step outside React's render.
   const step = useRef<StartStep | null>(null);
   const surface = useRef<HTMLElement>(null);
@@ -203,8 +215,8 @@ export const App = () => {
   const onStart = status !== 'playing' && !between;
   useEffect(() => {
     if (!onStart || !backdrop.current) return;
-    return attachBackdrop(backdrop.current, run);
-  }, [onStart, run]);
+    return attachBackdrop(backdrop.current, staged);
+  }, [onStart, staged]);
 
   /** A link that plays this run's seed; resolves whether it was copied. */
   const copySeed = async () => {
@@ -252,11 +264,13 @@ export const App = () => {
     hud.level >= hud.levels;
   const advancing = status === 'playing' && hud?.status === 'cleared' && !won;
 
-  // A run that ends - dead, quit or won - keeps its score if it's the best.
+  // A run that ends - dead, quit or won - keeps its score if it's the
+  // best. A rigged one doesn't count.
   const ended = status === 'playing' && (hud?.status === 'dead' || won || quit);
+  const rigged = Boolean(run.rig);
   useEffect(() => {
-    if (ended && hud) saveBest(hud.score);
-  }, [ended, hud]);
+    if (ended && hud && !rigged) saveBest(hud.score);
+  }, [ended, hud, rigged]);
 
   // Every ending goes on the board, quitting too. Keyed on the
   // run's numbers, not the HUD: it keeps changing after the end (the song
@@ -361,8 +375,9 @@ export const App = () => {
       // Only a press can go fullscreen; the next level starts by itself.
       if (fresh) void goLandscape();
       // The board's ticket starts the run's clock. Without one (offline)
-      // the run plays the same, it just can't be saved.
-      if (fresh) {
+      // the run plays the same, it just can't be saved; a rigged run
+      // never asks for one.
+      if (fresh && !next.rig) {
         const count = ++runCount.current;
         startRun.mutateAsync().then(
           started => {
@@ -481,7 +496,8 @@ export const App = () => {
       setArranging(false);
     }
     seen.current = [...chosen.recipes, ...chosen.bag];
-    kept.keep(chosen.recipes);
+    // A rigged run's weapons (raised a tier, or console loot) stay in it.
+    if (!run.rig) kept.keep(chosen.recipes);
     setMenu(null);
     setPreviewing(null);
     if (advancing) {
@@ -583,9 +599,11 @@ export const App = () => {
         musicalKey={level.key}
         run={quit ? { ...hud, status: 'quit' } : hud}
         loadout={loadout}
-        best={best}
+        best={rigged ? null : best}
         board={
-          ended ? <RunBoard key={ticket ?? 'none'} run={finished} /> : undefined
+          ended ? (
+            <RunBoard key={ticket ?? 'none'} run={finished} rigged={rigged} />
+          ) : undefined
         }
         paused={paused}
         menu={menuProps}
@@ -597,8 +615,8 @@ export const App = () => {
         soundBlocked={soundBlocked}
         tutorial={!tutorialSeen && run.level === 1}
         onRetrySound={() => game.current?.retrySound()}
-        onRetry={() => play(freshRun(run.seed))}
-        onNewRun={() => play(freshRun(randomSeed()))}
+        onRetry={() => play(nextRun(run.seed))}
+        onNewRun={() => play(nextRun(randomSeed()))}
         onCopySeed={copySeed}
         onNextLevel={handleNextLevel}
         onOpenMenu={openMenu}
@@ -652,7 +670,8 @@ export const App = () => {
         error={startError}
         highScoresHref={HIGH_SCORES_HREF}
         account={account}
-        onStart={() => play(ready)}
+        rigged={describeRig(rig) || null}
+        onStart={() => play(staged)}
       />
     </>
   );

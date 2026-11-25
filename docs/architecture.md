@@ -625,6 +625,21 @@ of 1x drew the whole stage at 1x and upscaled it, pixelated on a phone. The
 renderer itself is capped at 2x. The camera eases after the player, stays
 inside the level and zooms out on small screens.
 
+## Play-testing rigs
+
+`riot` in the dev console (`useRiotConsole`, `src/app/_components`) sets
+a `Rig` (`src/game/rig`), kept in localStorage. `rigRun` applies it to
+a fresh run: the start level, the loadout raised to that level's tier,
+and the rig stored on `RunState.rig`, so `nextLevel` carries it through
+the run. `levelStyle` passes the rolled style through `rigStyle`, which
+can force the subgenre or tempo. `startGame` turns `god` and `stress` into
+`WaveRules.invulnerable` and `fill`. In a level, `Game.skipLevel` (a
+`takeExit` on the world: enemies gone, the player on a full exit) and
+`Game.stockBag` (`rigLoot`) skip the fight. The App asks for no board
+ticket for a rigged run. It doesn't save the run's best, keep its
+loadout, or show it against the device's best (`GameScreen.best` is
+null).
+
 ## Measuring things
 
 These checks are scripted with Playwright against `pnpm dev`; they live in
