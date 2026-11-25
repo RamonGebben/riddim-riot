@@ -65,3 +65,40 @@ test('open the bag from the pause and close back to it', async ({
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeHidden();
   await expect.poll(() => gameState(page)).toBe('running');
 });
+
+test('a pause after a slow audio start stays frozen through the next press', async ({
+  page,
+}) => {
+  await watchAudio(page);
+  // The browser takes its time starting the sound, past the game's wait:
+  // the game falls back to starting it on the next press.
+  await page.addInitScript(() => {
+    const resume = AudioContext.prototype.resume;
+    let first = true;
+    AudioContext.prototype.resume = function (this: AudioContext) {
+      if (!first) return resume.call(this);
+      first = false;
+      return new Promise<void>(settle =>
+        setTimeout(() => void resume.call(this).then(settle), 1500),
+      );
+    };
+  });
+  await page.goto('/?seed=42');
+  await page.getByRole('button', { name: 'Drop in' }).click();
+  await expect(
+    page.getByRole('main', { name: 'Play area' }).locator('canvas'),
+  ).toBeVisible();
+  await expect.poll(() => gameState(page)).toBe('running');
+
+  await page.keyboard.press('KeyP');
+  await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
+  await expect.poll(() => gameState(page)).toBe('suspended');
+  // A press on the pause's buttons doesn't start the sound again.
+  await page.getByRole('button', { name: 'Loadout and bag' }).click();
+  await page
+    .getByRole('dialog', { name: 'Loadout' })
+    .getByRole('button', { name: 'Back', exact: true })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
+  await expect.poll(() => gameState(page)).toBe('suspended');
+});

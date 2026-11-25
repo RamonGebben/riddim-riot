@@ -39,13 +39,38 @@ const resumeWithin = async (context: BaseContext) => {
   ]);
 };
 
+const GESTURES = ['pointerdown', 'keydown'] as const;
+
+/**
+ * Whether the game wants sound running: a pause suspends on purpose, and
+ * a gesture waiting to start held-back audio mustn't undo it.
+ */
+let wanted: 'running' | 'suspended' = 'running';
+/** The pending next-gesture resume, if one is waiting. */
+let pendingGesture: (() => void) | null = null;
+
+const cancelGesture = () => {
+  pendingGesture?.();
+  pendingGesture = null;
+};
+
+/**
+ * The next touch or key starts held-back audio, once, and only if
+ * nothing has suspended it on purpose since.
+ */
 const resumeOnNextGesture = (context: BaseContext) => {
+  cancelGesture();
   const resume = () => {
-    void context.resume();
+    cancelGesture();
+    if (wanted === 'running') void context.resume();
   };
-  ['pointerdown', 'keydown'].forEach(type =>
-    window.addEventListener(type, resume, { once: true, capture: true }),
+  GESTURES.forEach(type =>
+    window.addEventListener(type, resume, { capture: true }),
   );
+  pendingGesture = () =>
+    GESTURES.forEach(type =>
+      window.removeEventListener(type, resume, { capture: true }),
+    );
 };
 
 let realtime: { context: BaseContext; audio: Audio } | null = null;
@@ -73,9 +98,14 @@ export const startAudio = async ({
       context,
       audio: {
         suspend: async () => {
+          wanted = 'suspended';
+          cancelGesture();
           if ('close' in raw) await raw.suspend();
         },
-        resume: () => resumeWithin(context),
+        resume: () => {
+          wanted = 'running';
+          return resumeWithin(context);
+        },
         outputTimestamp: () => native?.getOutputTimestamp(),
         running: () => context.state === 'running',
         onChange: listener => {
@@ -88,6 +118,7 @@ export const startAudio = async ({
     };
   }
   const { context, audio } = realtime;
+  wanted = 'running';
   await resumeWithin(context);
   if (context.state !== 'running') resumeOnNextGesture(context);
   return audio;
