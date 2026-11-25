@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { implausible, MIN_LEVEL_MS } from '.';
+import { implausible, MAX_RUN_MS, MIN_LEVEL_MS } from '.';
 
 const MINUTE = 60_000;
 
@@ -88,12 +88,21 @@ describe('implausible', () => {
     ).toBe('too many kills for the time played');
   });
 
-  it('rejects a ticket held for hours', () => {
+  it('keeps a run paused overnight', () => {
+    expect(
+      implausible(
+        { score: 35_700, level: 1, kills: 148, outcome: 'died' },
+        20 * 60 * MINUTE,
+      ),
+    ).toBeNull();
+  });
+
+  it('rejects a run started more than a week ago', () => {
     expect(
       implausible(
         { score: 0, level: 1, kills: 0, outcome: 'died' },
-        7 * 60 * MINUTE,
+        MAX_RUN_MS + MINUTE,
       ),
-    ).toBe('the run ticket expired');
+    ).toBe('it started more than a week ago');
   });
 });

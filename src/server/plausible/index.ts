@@ -22,8 +22,12 @@ export interface RunReport {
 export const MIN_LEVEL_MS = 120_000;
 /** Far past what the 30-enemy cap allows, even with blasts. */
 export const MAX_KILLS_PER_SECOND = 6;
-/** A run's ticket expires after this. */
-export const MAX_RUN_MS = 6 * 60 * 60 * 1000;
+/**
+ * A run's ticket expires after this. Wall time, not play time: a run paused
+ * overnight or over a weekend still saves. The kill and point checks are
+ * what bound a score; this only retires tickets nobody came back to.
+ */
+export const MAX_RUN_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Why a reported run can't have happened in `elapsedMs` since its ticket,
@@ -34,7 +38,7 @@ export const implausible = (
   { score, level, kills, outcome }: RunReport,
   elapsedMs: number,
 ): string | null => {
-  if (elapsedMs > MAX_RUN_MS) return 'the run ticket expired';
+  if (elapsedMs > MAX_RUN_MS) return 'it started more than a week ago';
   // Every point comes in hundreds; the database refuses anything else.
   if (score % POINTS_PER_KILL !== 0) return 'the score is off the scale';
   if (outcome === 'won' && level !== RUN_LEVELS)
