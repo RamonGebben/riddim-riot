@@ -5,7 +5,7 @@ import {
   sounding,
   watchAudio,
 } from '../support/audio';
-import { dropIn, musical, pageErrors, rig } from '../support/game';
+import { dropIn, inTheSong, musical, pageErrors, rig } from '../support/game';
 
 test('open the loadout mid-level, hear a weapon, trade two slots and fight on', async ({
   page,
@@ -18,7 +18,7 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   // is the circle test's to walk.
   await rig(page, { skipCircle: true });
   await dropIn(page);
-  await expect(page.getByText(/intro \d:\d\d/)).toBeVisible(musical);
+  await inTheSong(page);
   // The game's context is the latest so far (an earlier probe may be closed).
   const contexts = await contextCount(page);
   const weapons = page.getByRole('list', { name: 'Weapons' });

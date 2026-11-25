@@ -57,3 +57,24 @@ export const dropIn = async (page: Page) => {
  * audio clock crawls (Firefox's did).
  */
 export const musical = { timeout: 20_000 };
+
+/** The song's countdown, e.g. "intro 0:13"; 0:00 until the clock ticks. */
+export const introLabel = (page: Page) => page.getByText(/intro \d:\d\d/);
+
+/** Seconds left in the intro, as the HUD shows them. */
+export const introSeconds = async (page: Page) => {
+  const [, minutes, seconds] =
+    /intro (\d):(\d\d)/.exec((await introLabel(page).textContent()) ?? '') ??
+    [];
+  return Number(minutes) * 60 + Number(seconds);
+};
+
+/**
+ * Into the song, its clock ticking. A skipped circle shows the intro
+ * before the first tick, and a bar has to have played before anything
+ * can loop it.
+ */
+export const inTheSong = async (page: Page) => {
+  await expect(introLabel(page)).toBeVisible(musical);
+  await expect.poll(() => introSeconds(page), musical).toBeGreaterThan(0);
+};
