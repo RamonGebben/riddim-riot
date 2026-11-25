@@ -113,6 +113,8 @@ export interface WaveRules {
   pressure: number;
   /** Stress test: skip the circle and top the level up to the cap every bar. */
   fill: boolean;
+  /** Play-testing: nothing can hit the player. */
+  invulnerable: boolean;
 }
 
 /** The boss appears at least this far away, so it walks in on the drop. */
@@ -137,10 +139,13 @@ export const rulesFor = ({
   level,
   stress = false,
   pressure = 1,
+  god = false,
 }: {
   level: number;
   stress?: boolean;
   pressure?: number;
+  /** Play-testing: the player can't be hit. */
+  god?: boolean;
 }): WaveRules => ({
   level,
   pressure,
@@ -152,6 +157,7 @@ export const rulesFor = ({
   ),
   chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
+  invulnerable: god,
 });
 
 export const DEFAULT_RULES: WaveRules = rulesFor({ level: 1 });
@@ -518,6 +524,22 @@ export const placePickup = (
 });
 
 /** The bag sorted in the loadout menu: what's left in it, in its order. */
+/**
+ * Play-testing: the level done with - its enemies gone and the player on
+ * a full exit - so the next frame takes the exit, clear bonus and all.
+ */
+export const takeExit = (world: World): World =>
+  world.status !== 'playing'
+    ? world
+    : {
+        ...world,
+        player: { ...world.player, position: world.level.pad },
+        survival: { ...world.survival, phase: 'clear', charge: 1 },
+        enemies: [],
+        hostiles: [],
+        pendingShots: [],
+      };
+
 export const setBag = (world: World, bag: Array<WeaponRecipe>): World => ({
   ...world,
   bag: bag.slice(0, BAG_SIZE),
@@ -858,7 +880,8 @@ export const stepWorld = (
     radius: PLAYER_RADIUS,
     now,
   });
-  const canBeHit = now >= world.invulnerableUntil && !dashing;
+  const canBeHit =
+    !world.rules.invulnerable && now >= world.invulnerableUntil && !dashing;
   const touched =
     harmful[0]?.position ??
     (struck[0] ? hostilePosition(struck[0], now) : null);

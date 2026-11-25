@@ -988,6 +988,18 @@ export const RunWon: Story = {
   },
 };
 
+export const RiggedRunWon: Story = {
+  args: { ...RunWon.args, best: null },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole('heading', { name: 'Run complete' }),
+    ).toBeVisible();
+    // A rigged run beats no best and is held to none.
+    await expect(canvas.queryByText('New best!')).toBeNull();
+    await expect(canvas.queryByText('Best')).toBeNull();
+  },
+};
+
 export const ExitOpen: Story = {
   args: {
     run: {

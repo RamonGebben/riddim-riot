@@ -34,6 +34,7 @@ import {
   rulesFor,
   stepWorld,
   setBag,
+  takeExit,
   type World,
 } from '.';
 
@@ -384,6 +385,29 @@ describe('stepWorld', () => {
     );
     expect(lastHit.world.hp).toBe(0);
     expect(lastHit.world.status).toBe('dead');
+  });
+
+  it('never costs a hit in god mode', () => {
+    const near = { x: start.x + 10, y: start.y };
+    const god = createWorld(level, rulesFor({ level: 1, god: true }));
+    const touched = stepWorld(withEnemies(god, [enemyAt(1, near)]), {
+      input: still,
+      dt: 1 / 60,
+      now: 1,
+    });
+    expect(touched.world.hp).toBe(PLAYER_MAX_HP);
+    expect(touched.playerHit).toBeNull();
+  });
+
+  it('takes the exit at once when skipped, the clear bonus with it', () => {
+    const skipped = takeExit(
+      withEnemies(fighting(rulesFor({ level: 3 })), [enemyAt(1, start)]),
+    );
+    const taken = stepWorld(skipped, { input: still, dt: 1 / 60, now: 9 });
+    expect(taken.world.status).toBe('cleared');
+    expect(taken.world.score).toBe(LEVEL_CLEAR_BONUS * 3);
+    // Once over, there's nothing left to skip.
+    expect(takeExit(taken.world)).toBe(taken.world);
   });
 
   it('freezes once the run is over', () => {

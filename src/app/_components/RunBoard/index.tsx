@@ -16,6 +16,8 @@ import { useSaveRun } from '../useSaveRun';
 export interface RunBoardProps {
   /** The finished run; null when it has no ticket to save it with. */
   run: PendingRun | null;
+  /** Rigged from the dev console: it never goes on the board. */
+  rigged?: boolean;
 }
 
 const BOARD_HREF = '/leaderboard';
@@ -24,7 +26,7 @@ const BOARD_HREF = '/leaderboard';
  * A finished run's way onto the board: saved straight away when you're
  * signed in, or after a name and password when you're not.
  */
-export const RunBoard = ({ run }: RunBoardProps) => {
+export const RunBoard = ({ run, rigged = false }: RunBoardProps) => {
   const { me, signIn } = useAccount();
   const [skipped, setSkipped] = useState(false);
   const [share, setShare] = useState<ShareResult>('idle');
@@ -45,6 +47,12 @@ export const RunBoard = ({ run }: RunBoardProps) => {
   };
 
   const standing = ((): Standing => {
+    if (rigged)
+      return {
+        kind: 'rejected',
+        message:
+          'This run was rigged from the console, so it stays off the board.',
+      };
     if (!run)
       return {
         kind: 'rejected',

@@ -51,6 +51,8 @@ export interface StartScreenProps {
   highScoresHref: string;
   /** Who's playing, and signing in before a run. */
   account: StartAccount;
+  /** What the dev console has rigged, e.g. "level 4 · god mode"; null if nothing. */
+  rigged?: string | null;
   onStart: () => void;
   onFlashingReduced: (reduced: boolean) => void;
 }
@@ -78,6 +80,7 @@ export const StartScreen = ({
   backdropRef,
   highScoresHref,
   account,
+  rigged = null,
   onStart,
   onFlashingReduced,
 }: StartScreenProps) => {
@@ -150,6 +153,12 @@ export const StartScreen = ({
             {subgenre} in {musicalKey} · {bpm} BPM · {levels} levels
             {best > 0 && <> · best {best.toLocaleString('en')}</>}
           </Meta>
+          {rigged && (
+            <Meta>
+              Rigged: {rigged}. This run stays off the board (riot.reset() in
+              the console to stop).
+            </Meta>
+          )}
         </Hero>
         <Briefing>
           <Group aria-labelledby="loadout-heading">
