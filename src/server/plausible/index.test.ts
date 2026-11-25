@@ -28,6 +28,23 @@ describe('implausible', () => {
     ).toBe('the levels were cleared too fast');
   });
 
+  it("accepts kills worth the level's tier, and bonuses that grow with it", () => {
+    // Level 3: bonuses of 10,000 and 20,000 in, 60 kills at up to 8 × 300.
+    expect(
+      implausible(
+        { score: 30_000 + 60 * 2_400, level: 3, kills: 60, outcome: 'died' },
+        12 * MINUTE,
+      ),
+    ).toBeNull();
+    // Past what even the level's tier allows.
+    expect(
+      implausible(
+        { score: 30_000 + 60 * 2_500, level: 3, kills: 60, outcome: 'died' },
+        12 * MINUTE,
+      ),
+    ).toBe('too many points for the kills');
+  });
+
   it('rejects a level bonus that was never earned', () => {
     expect(
       implausible(

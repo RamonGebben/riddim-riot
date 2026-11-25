@@ -52,21 +52,25 @@ export const dropOnKill = (levelSeed: number, enemyId: number): Drop => {
   return rng.chance(POWERUP_DROP_CHANCE) ? 'powerup' : null;
 };
 
+/** A kill's weapon, at `tier` (see `lootTier`). */
 export const lootRecipe = (
   levelSeed: number,
   pickupId: number,
+  tier = 1,
 ): WeaponRecipe => ({
   seed: deriveSeed(levelSeed, LOOT_STREAM, 1_000_000 + pickupId),
+  tier,
 });
 
 /** Boss loot: the heavier maker with an FX, never a plain roll. */
 export const goodLootRecipe = (
   levelSeed: number,
   pickupId: number,
+  tier = 1,
 ): WeaponRecipe => {
   const seed = deriveSeed(levelSeed, LOOT_STREAM, 2_000_000 + pickupId);
   const fx = createRng(seed).pick<FxPart>(['distortion', 'echo']);
-  return { seed, manufacturer: 'vandal', fx };
+  return { seed, manufacturer: 'vandal', fx, tier };
 };
 
 /** Hearts the player is over, while there's health to heal. */

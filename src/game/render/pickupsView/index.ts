@@ -41,12 +41,12 @@ const LABEL_FAR = 480;
 const LABEL_CROWD = 140;
 
 /** What the label says: the engine and its beat, then the maker and FX. */
-const labelOf = ({ parts, projectile }: Weapon) => {
+const labelOf = ({ parts, projectile, tier }: Weapon) => {
   const engine = OSCILLATORS[parts.oscillator].label.toUpperCase();
   const blast = projectile.detonates ? ' · BLAST' : '';
   const fx = parts.fx ? ` · ${FX[parts.fx].label}` : '';
   const maker = parts.manufacturer === 'vandal' ? 'Vandal' : 'Lumen';
-  return `${engine} ${parts.lfo}${blast}\n${maker}${fx}`;
+  return `T${tier.own} ${engine} ${parts.lfo}${blast}\n${maker}${fx}`;
 };
 
 interface WeaponSprite {
@@ -195,7 +195,10 @@ export const createPickupsView = (palette: Palette, key: Key): PickupsView => {
   const weaponFor = (pickup: Pickup) => {
     const existing = weapons.get(pickup.id);
     if (existing) return existing;
-    const sprite = drawWeapon(weaponFrom(pickup.recipe, key), palette);
+    const sprite = drawWeapon(
+      weaponFrom(pickup.recipe, key, pickup.recipe.tier ?? 1),
+      palette,
+    );
     weapons.set(pickup.id, sprite);
     items.addChild(sprite.root);
     labels.addChild(sprite.label);

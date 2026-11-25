@@ -57,6 +57,7 @@ export { sameRecipe, type WeaponRecipe } from './weapons';
 export { BAG_SIZE } from './sim/loot';
 export type { LoadoutView } from './loadout';
 export { RUN_LEVELS } from './sim/world';
+export { scoreMultiplier } from './tier';
 export { attachBackdrop } from './backdrop';
 export {
   readFlashing,
@@ -115,6 +116,9 @@ export interface WeaponCard {
   blasts: boolean;
   /** Dropped by a boss: always the heavier maker with an FX. */
   bossLoot: boolean;
+  /** The tier it dropped at, and the one it plays at on the run's level. */
+  tier: number;
+  playing: number;
   stats: WeaponStats;
 }
 
@@ -127,7 +131,11 @@ export const describeWeapons = (
 ): Array<WeaponCard> => {
   const { key } = generateLevel(levelSeed(run));
   return recipes.map(recipe => {
-    const { name, parts, projectile, timing, echo } = weaponFrom(recipe, key);
+    const { name, parts, projectile, timing, echo, tier } = weaponFrom(
+      recipe,
+      key,
+      run.level,
+    );
     return {
       name,
       maker: MANUFACTURERS[parts.manufacturer].label,
@@ -137,6 +145,8 @@ export const describeWeapons = (
       blasts: projectile.detonates === true,
       // Only boss loot pins its maker (see `goodLootRecipe`).
       bossLoot: recipe.manufacturer !== undefined,
+      tier: tier.own,
+      playing: tier.playing,
       stats: {
         perBar: Math.round(
           (projectile.damage + (echo?.damage ?? 0)) * timing.magazine * 10,
@@ -332,7 +342,7 @@ export const startGame = async ({
   const chord = createChordSound({ output: musicBus.direct, key });
 
   const arm = async (recipe: WeaponRecipe): Promise<Armed> => {
-    const weapon = weaponFrom(recipe, key);
+    const weapon = weaponFrom(recipe, key, run.level);
     const volume = await measureWeaponLoudness(weapon, { bpm: BPM });
     const voice = createWeaponVoice({
       output: musicBus.weapons,
@@ -471,7 +481,7 @@ export const startGame = async ({
     const id = `${JSON.stringify(recipe)}@${shift}`;
     const known = previews.get(id);
     if (known) return known;
-    const rendering = renderWeaponPreview(weaponFrom(recipe, key), {
+    const rendering = renderWeaponPreview(weaponFrom(recipe, key, run.level), {
       bpm: BPM,
       pitch: note => transposeInKey(key, note, shift),
     });

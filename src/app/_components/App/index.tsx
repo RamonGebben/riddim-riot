@@ -12,6 +12,7 @@ import {
   reducesFlashing,
   RUN_LEVELS,
   sameRecipe,
+  scoreMultiplier,
   saveFlashing,
   setFlashingReduced,
   startGame,
@@ -432,16 +433,20 @@ export const App = () => {
     setMenu(current.inventory());
   };
 
-  /** The menu's weapons, described once per opening, with ids for each. */
+  /**
+   * The menu's weapons, described once per opening, with ids for each.
+   * Between levels they're judged as they'll play on the next one.
+   */
   const menuWeapons = useMemo(() => {
     if (!menu) return null;
     const fresh = freshIn(menu.bag, seen.current);
+    const judged = advancing ? { ...run, level: run.level + 1 } : run;
     return {
-      slots: describeWeapons(menu.recipes, run).map((face, i) => ({
+      slots: describeWeapons(menu.recipes, judged).map((face, i) => ({
         ...face,
         id: `slot-${i}`,
       })),
-      bag: describeWeapons(menu.bag, run).map((face, i) => ({
+      bag: describeWeapons(menu.bag, judged).map((face, i) => ({
         ...face,
         id: `bag-${i}`,
         fresh: fresh[i],
@@ -451,7 +456,7 @@ export const App = () => {
         ...menu.bag.map((recipe, i) => [`bag-${i}`, recipe] as const),
       ]),
     };
-  }, [menu, run]);
+  }, [menu, run, advancing]);
 
   const closeMenu = async ({ slots, bag }: Choice) => {
     const current = game.current;
@@ -613,7 +618,12 @@ export const App = () => {
 
   if (status === 'starting' && between) {
     return (
-      <LevelCard level={run.level} levels={RUN_LEVELS} musicalKey={level.key} />
+      <LevelCard
+        level={run.level}
+        levels={RUN_LEVELS}
+        musicalKey={level.key}
+        multiplier={scoreMultiplier(run.level)}
+      />
     );
   }
 

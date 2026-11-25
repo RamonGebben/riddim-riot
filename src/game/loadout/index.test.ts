@@ -5,7 +5,7 @@ import { weaponFrom, type WeaponRecipe } from '../weapons';
 import { createLoadout, type Armed } from '.';
 
 const fakeArm = (recipe: WeaponRecipe): Armed => {
-  const weapon = weaponFrom(recipe, F_MINOR);
+  const weapon = weaponFrom(recipe, F_MINOR, 1);
   return {
     recipe,
     weapon,

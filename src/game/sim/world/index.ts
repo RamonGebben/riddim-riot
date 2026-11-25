@@ -1,3 +1,4 @@
+import { bossHpScale, lootTier, MAX_TIER, scoreMultiplier } from '../../tier';
 import {
   distanceAt,
   distanceField,
@@ -116,13 +117,16 @@ export interface WaveRules {
 const BOSS_MIN_TILES = 8;
 
 /** A run is this many levels; the last one's boss ends it. */
-export const RUN_LEVELS = 5;
+export const RUN_LEVELS = MAX_TIER;
 
 /** How a run ends: every one goes on the board, quit ones too. */
 export const RUN_OUTCOMES = ['died', 'quit', 'won'] as const;
 export type RunOutcome = (typeof RUN_OUTCOMES)[number];
-/** Points for taking a level's exit, the last level's included. */
+/** Points for taking a level's exit at tier 1, the last level's included. */
 export const LEVEL_CLEAR_BONUS = 10_000;
+/** The clear bonus on `level`: tier 1's, times the score multiplier. */
+export const levelClearBonus = (level: number): number =>
+  LEVEL_CLEAR_BONUS * scoreMultiplier(level);
 /** The final boss has this much more health than the level's would be. */
 const FINAL_BOSS_HP = 1.5;
 
@@ -137,7 +141,9 @@ export const rulesFor = ({
   level,
   song: songFor(level),
   bossHp: Math.round(
-    (30 + 12 * (level - 1)) * (level >= RUN_LEVELS ? FINAL_BOSS_HP : 1),
+    (30 + 12 * (level - 1)) *
+      bossHpScale(level) *
+      (level >= RUN_LEVELS ? FINAL_BOSS_HP : 1),
   ),
   chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
@@ -525,10 +531,11 @@ const HEART_SCATTER = 36;
 /** What a kill leaves behind (see `dropOnKill`); the boss always pays out. */
 const dropLoot = (world: World, enemy: Enemy, position: Vec): World => {
   const { seed } = world.level;
+  const { level } = world.rules;
   if (enemy.kind === 'boss') {
     const armed = placePickup(
       world,
-      goodLootRecipe(seed, world.nextId),
+      goodLootRecipe(seed, world.nextId, lootTier(level, { boss: true })),
       position,
     );
     return Array.from({ length: BOSS_HEARTS }, (_, i) => i).reduce(
@@ -547,7 +554,11 @@ const dropLoot = (world: World, enemy: Enemy, position: Vec): World => {
   }
   const drop = dropOnKill(seed, enemy.id);
   if (drop === 'weapon') {
-    return placePickup(world, lootRecipe(seed, world.nextId), position);
+    return placePickup(
+      world,
+      lootRecipe(seed, world.nextId, lootTier(level)),
+      position,
+    );
   }
   if (drop === 'powerup') {
     return placePowerup(world, powerupFor(seed, enemy.id), position);
@@ -635,6 +646,7 @@ export const onBar = (
     alive,
     bossAlive: world.enemies.some(enemy => enemy.kind === 'boss'),
     song: rules.song,
+    level: rules.level,
   });
   const advanced = { ...world, survival: next.survival };
   if (!next.spawn) return advanced;
@@ -866,9 +878,9 @@ export const stepWorld = (
   const scored = killed.reduce(
     (acc, kill) => {
       const next = registerKill(acc.combo, beat);
-      const points = eaten.includes(kill)
-        ? next.points * EATEN_POINTS
-        : next.points;
+      const points =
+        (eaten.includes(kill) ? next.points * EATEN_POINTS : next.points) *
+        scoreMultiplier(world.rules.level);
       return { combo: next.combo, score: acc.score + points };
     },
     { combo: world.combo, score: world.score },
@@ -902,7 +914,9 @@ export const stepWorld = (
       hp,
       kills: world.kills + killed.length,
       // The step stops once a level ends, so the bonus lands once.
-      score: scored.score + (status === 'cleared' ? LEVEL_CLEAR_BONUS : 0),
+      score:
+        scored.score +
+        (status === 'cleared' ? levelClearBonus(world.rules.level) : 0),
       combo: scored.combo,
       player,
       projectiles: hits.projectiles,

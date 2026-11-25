@@ -56,6 +56,7 @@ import {
   choiceOf,
   discardAll,
   enginesIn,
+  keepBest,
   filterBag,
   likelySlot,
   placeOf,
@@ -86,6 +87,10 @@ export interface MenuWeapon extends WeaponFace {
   stats: WeaponStats;
   /** Picked up since the menu was last open. */
   fresh?: boolean;
+  /** The tier it dropped at; 1 when missing. */
+  tier?: number;
+  /** The tier it plays at here, when the level holds it below its own. */
+  playing?: number;
 }
 
 export interface LoadoutMenuProps {
@@ -167,6 +172,12 @@ const VERDICT_SENTENCES = {
   'trade-off': 'A trade-off against',
   weaker: 'Weaker than',
 } satisfies Record<Verdict, string>;
+
+/** Why a card's tier reads as it does: held back on an early level. */
+const tierTitle = ({ tier = 1, playing }: MenuWeapon) =>
+  playing !== undefined && playing < tier
+    ? `Tier ${tier}, playing as tier ${playing} on this level`
+    : `Tier ${tier}`;
 
 const signed = (value: number) =>
   `${value > 0 ? '+' : '−'}${Math.abs(Math.round(value * 10) / 10)}`;
@@ -507,6 +518,11 @@ export const LoadoutMenu = ({
       : null;
   };
   // Only what's in view: a filter mustn't hide what it throws away.
+  /** The rack with each slot's best of its engine; the same one when it is. */
+  const best = (() => {
+    const kept = keepBest(rack, weapons);
+    return kept.slots.every((id, i) => id === rack.slots[i]) ? rack : kept;
+  })();
   const weaker = scrapsBag
     ? []
     : filterBag(weakerInBag(rack, weapons), weapons, engine);
@@ -579,6 +595,7 @@ export const LoadoutMenu = ({
       <span data-part="name">
         {ENGINE_NAMES[weapon.oscillator]}
         {weapon.fx && ` · ${FX_NAMES[weapon.fx]}`}
+        <Tag title={tierTitle(weapon)}>T{weapon.tier ?? 1}</Tag>
         {weapon.bossLoot && <Tag>Boss</Tag>}
         {note}
       </span>
@@ -954,6 +971,19 @@ export const LoadoutMenu = ({
                     value={order}
                     onChange={setOrder}
                   />
+                )}
+                {best !== rack && (
+                  <Button
+                    type="button"
+                    $variant="quiet"
+                    onClick={() => {
+                      setRack(best);
+                      setPicked(null);
+                      setLanded(null);
+                    }}
+                  >
+                    Keep best
+                  </Button>
                 )}
                 {weaker.length > 0 && (
                   <Button

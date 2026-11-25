@@ -80,6 +80,8 @@ export interface WeaponSound {
 export interface Weapon {
   seed: number;
   name: string;
+  /** The tier it dropped at, and the one it plays at here (see `tier`). */
+  tier: { own: number; playing: number };
   parts: {
     manufacturer: ManufacturerPart;
     oscillator: OscillatorPart;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_TIER } from '~/game/tier';
 import { FX, MANUFACTURERS, OSCILLATORS } from '~/game/weapons';
 
 const KEY = 'bass-weapons:loadout';
@@ -16,6 +17,7 @@ export const recipeSchema = z.strictObject({
   oscillator: z.enum(keysOf(OSCILLATORS)).optional(),
   manufacturer: z.enum(keysOf(MANUFACTURERS)).optional(),
   fx: z.enum(keysOf(FX)).optional(),
+  tier: z.number().int().min(1).max(MAX_TIER).optional(),
 });
 
 /** The three slots, in order: the same check here and on the server. */

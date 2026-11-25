@@ -352,6 +352,20 @@ describe('stepWorld', () => {
     expect(chained.score).toBe(300);
   });
 
+  it("multiplies a kill's points by the level's tier", () => {
+    const at = { x: start.x + 50, y: start.y };
+    const third = stepWorld(
+      queueShot(
+        withEnemies(createWorld(level, rulesFor({ level: 3 })), [
+          enemyAt(1, at, 1),
+        ]),
+        shot(1),
+      ),
+      { input: still, dt: 1 / 60, now: 1, beat: 4 },
+    ).world;
+    expect(third.score).toBe(300);
+  });
+
   it('costs a hit point per hit, and the run ends at zero', () => {
     const near = { x: start.x + 10, y: start.y };
     const fresh = createWorld(level);
@@ -590,6 +604,29 @@ describe('stepWorld', () => {
     expect(
       stepWorld(ready, { input: still, dt: BAR_SECONDS, now: 1 }).world.status,
     ).toBe('cleared');
+  });
+
+  it("pays the clear bonus times the level's tier", () => {
+    const rules = rulesFor({ level: 3 });
+    const ready = {
+      ...fighting(rules),
+      enemies: [],
+      score: 0,
+      player: { ...createWorld(level).player, position: level.pad },
+      survival: {
+        ...fighting(rules).survival,
+        phase: 'clear' as const,
+        charge: 1,
+      },
+    };
+    expect(
+      stepWorld(ready, { input: still, dt: 1 / 60, now: 1 }).world.score,
+    ).toBe(3 * LEVEL_CLEAR_BONUS);
+  });
+
+  it('gives a later boss more health than the level alone would', () => {
+    expect(rulesFor({ level: 3 }).bossHp).toBeGreaterThan(30 + 12 * 2);
+    expect(rulesFor({ level: 1 }).bossHp).toBe(30);
   });
 
   it('pays a bonus for taking the exit', () => {

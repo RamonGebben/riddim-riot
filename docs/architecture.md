@@ -179,6 +179,36 @@ the level under way included. It also offers **Main menu**. A run with
 nothing to show (level 1, no points) quits straight to the start. React only re-renders on HUD
 changes, never per frame.
 
+### Tiers (`tier/`, pure)
+
+A level's tier is its place in the run (level 3 is tier 3, up to
+`MAX_TIER` = `RUN_LEVELS`), and every number it drives lives in
+`tier/`. It's all gameplay: a weapon sounds the same at any tier.
+
+- **Harder levels.** Waves come sooner (`waveEvery`: a part's
+  `everyBars` divided by 1 + 0.15 a tier, never under 2) and bigger
+  (`waveCap`: 14, +2 a tier). The boss's health also grows by
+  `bossHpScale` (+15% a tier), on top of its +12 a level.
+- **Better loot.** A weapon's tier is stored on its recipe
+  (`WeaponRecipe.tier`, 1 when missing). Kills drop it at the level's tier
+  and a boss one higher (`lootTier`). A weapon's own tier decides its
+  parts: a higher tier rolls an FX more often (`fxChance`). The tier it
+  plays at scales its damage (+25% a tier), reach (+5%) and blasts (+8%).
+  Only the boss outlives one hit, so damage is what beats it.
+- **Played at no more than the level.** Kept loadouts carry over to
+  the next run, so a weapon plays at `playsAt` = the lower of its tier
+  and the level's. A kept tier-5 weapon is tier 1 on level 1 and grows
+  into its power, which keeps a fresh run fair on the board.
+  `weaponFrom(recipe, key, level)` rolls it that way. The menu tags each
+  weapon `T1`-`T5` and, between levels, judges it as it plays on the
+  next level.
+- **Points.** Kills and the clear bonus score × tier (`scoreMultiplier`:
+  a whole number, so scores stay in hundreds). The level card says so
+  ("points ×3"), and the server's plausibility check allows for it.
+- **Keep best** (`rack` `keepBest`): each slot takes the strongest weapon
+  of its own engine from the bag, by damage a bar and then tier. Going
+  by damage alone would never pick a beam.
+
 ### Simulation (`sim/`, pure)
 
 `World` is a plain object stepped by pure functions, and the play loop holds
@@ -234,7 +264,7 @@ the only mutable reference:
   exit fills it's `cleared`. Either way it freezes.
 
 `WaveRules` (from `rulesFor({ level, stress })`) set the song, boss HP
-(30, +12 a level) and charger share. Hoppers and chargers die to any hit
+(30, +12 a level, times `bossHpScale`) and charger share. Hoppers and chargers die to any hit
 (a shot, echo, blast or beam tick), so difficulty comes from wave size,
 chargers and the boss. An enemy stores
 its current hop (`from`, `to`, `hopAt`, `hopSeconds`), so its position is a

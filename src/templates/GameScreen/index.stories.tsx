@@ -790,6 +790,24 @@ export const SortingLootBetweenLevels: Story = {
   },
 };
 
+export const KeepingTheBest: Story = {
+  args: { menu: menu() },
+  play: async ({ args, canvas, userEvent }) => {
+    // One press upgrades each slot within its engine, and then there's
+    // nothing left to upgrade.
+    await userEvent.click(canvas.getByRole('button', { name: 'Keep best' }));
+    await expect(
+      canvas.queryByRole('button', { name: 'Keep best' }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
+    // The laser slot (64 a bar) takes the bag's laser (84), and the second
+    // wobble (96) the bag's 1/2 wobble (106); the best wobble stays.
+    await expect(args.menu?.onDone).toHaveBeenCalledWith(
+      expect.objectContaining({ slots: ['s0', 'b1', 'b2'] }),
+    );
+  },
+};
+
 export const SortingLootAtTheEnd: Story = {
   args: {
     run: { ...meta.args.run, status: 'dead', hp: 0 },
