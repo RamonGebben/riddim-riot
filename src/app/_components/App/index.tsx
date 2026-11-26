@@ -122,7 +122,11 @@ export const App = () => {
   const { me, signIn, signOut } = useAccount();
   const game = useRef<Game | null>(null);
   /** Set from the dev console (`riot`) for play-testing; `{}` normally. */
-  const rig = useRiotConsole({ game, level: run.level });
+  const rig = useRiotConsole({
+    game,
+    level: run.level,
+    rigged: Boolean(run.rig),
+  });
   /** A fresh run on `seed`, opening with the kept loadout if there is one. */
   const freshRun = (seed: number) => newRun(seed, kept.recipes ?? undefined);
   /** The same, rigged if the console says so: what a press starts. */
@@ -670,7 +674,7 @@ export const App = () => {
         error={startError}
         highScoresHref={HIGH_SCORES_HREF}
         account={account}
-        rigged={describeRig(rig) || null}
+        rigged={describeRig(staged.rig ?? {}) || null}
         onStart={() => play(staged)}
       />
     </>

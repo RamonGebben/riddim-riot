@@ -1,4 +1,4 @@
-import { cleanRig, type Rig } from '~/game/rig';
+import { cleanRig, isRigged, type Rig } from '~/game/rig';
 
 const KEY = 'riddim-riot:rig';
 
@@ -26,7 +26,7 @@ export const readRig = (store: Store | null = local()): Rig => {
 /** Keep `rig` across reloads; an empty one is forgotten. */
 export const saveRig = (rig: Rig, store: Store | null = local()) => {
   try {
-    if (Object.keys(rig).length === 0) store?.removeItem(KEY);
+    if (!isRigged(rig)) store?.removeItem(KEY);
     else store?.setItem(KEY, JSON.stringify(rig));
   } catch {
     // Private window or storage blocked: the rig lasts until a reload.

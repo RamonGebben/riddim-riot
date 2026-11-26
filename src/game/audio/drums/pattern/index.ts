@@ -52,9 +52,8 @@ const rollFeel = (rng: Rng, bar: number, style: DrumStyle): BarFeel => ({
 
 const kickLane = (rng: Rng, feel: BarFeel) =>
   lane(step => {
-    if (feel.steps.kicks.includes(step) && !(feel.fill && step >= FILL_START))
-      return step === 0 ? 1 : 0.9;
     if (feel.fill && step >= FILL_START) return 0;
+    if (feel.steps.kicks.includes(step)) return step === 0 ? 1 : 0.9;
     if (!feel.steps.ghostKicks.includes(step)) return 0;
     return rng.chance(feel.ghostKicks) ? 0.8 : 0;
   });

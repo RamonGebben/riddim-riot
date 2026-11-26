@@ -122,9 +122,13 @@ export const rigLoot = (
   { tier, count }: { tier: number; count: number },
 ): Array<WeaponRecipe> => {
   const rng = createRng(deriveSeed(seed, LOOT_STREAM));
+  // From the console, so anything: what isn't a number is the lowest tier.
+  const clamped = Number.isFinite(tier)
+    ? Math.min(Math.max(Math.round(tier), 1), MAX_TIER)
+    : 1;
   return Array.from({ length: count }, (_, i) => ({
     seed: rng.int(0, 2 ** 31),
     oscillator: ENGINES[i % ENGINES.length],
-    tier: Math.min(Math.max(Math.round(tier), 1), MAX_TIER),
+    tier: clamped,
   }));
 };

@@ -32,13 +32,13 @@ describe('generateDrumBar', () => {
     const { drums } = SUBGENRES.neurofunk;
     Array.from({ length: 64 }, (_, bar) =>
       generateDrumBar(7, bar, drums),
-    ).forEach((bar, index) => {
+    ).forEach(bar => {
       expect(bar.kick[0]).toBe(1);
+      // The "and" of 3 comes before the fill, so it holds in every bar.
+      expect(bar.kick[10]).toBeGreaterThan(0);
       expect(bar.snare[4]).toBe(1);
       expect(bar.snare[12]).toBe(1);
       expect(bar.snare[8]).toBe(0);
-      // The fill takes the bar's end, the "and" of 3 included.
-      if (!isFillBar(index)) expect(bar.kick[10]).toBeGreaterThan(0);
     });
   });
 
