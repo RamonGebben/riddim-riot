@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { pageErrors } from '../support/game';
 
 test('wait for sound the browser holds back, and start it on a press', async ({
   page,
 }) => {
-  const errors: Array<string> = [];
-  page.on('pageerror', error => errors.push(error.message));
+  const errors = pageErrors(page);
   // Act like a browser with no sound output (or strict autoplay rules):
   // every context starts suspended - test browsers allow autoplay, so it
   // wouldn't otherwise - and every resume is held back until the test

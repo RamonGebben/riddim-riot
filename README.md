@@ -113,6 +113,7 @@ riot.subgenre('liquid'); // every level plays Liquid (riot.subgenre() to clear)
 riot.bpm(174); // every level at 174 BPM
 riot.god(); // take no hits (riot.god(false) to stop)
 riot.stress(); // as ?stress
+riot.skipCircle(); // no circle: the song plays from the first bar
 riot.seed(1234); // the run's seed
 riot.rig({ level: 5, god: true }); // several at once
 riot.reset(); // back to a normal run

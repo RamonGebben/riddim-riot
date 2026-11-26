@@ -20,6 +20,7 @@ Set before pressing Drop in (the rig is kept on this device):
   riot.bpm(174)          every level at this tempo (${RIG_BPM[0]}-${RIG_BPM[1]})
   riot.god()             take no hits; riot.god(false) to stop
   riot.stress()          the level full of enemies from the first bar
+  riot.skipCircle()      no circle: the song plays from the first bar
   riot.seed(1234)        the run's seed
   riot.rig({ level: 5, god: true })  several at once
   riot.reset()           back to a normal run
@@ -37,6 +38,7 @@ export interface RiotConsole {
   bpm: (bpm?: number) => Rig;
   god: (on?: boolean) => Rig;
   stress: (on?: boolean) => Rig;
+  skipCircle: (on?: boolean) => Rig;
   seed: (seed?: number) => Rig;
   reset: () => Rig;
   skip: () => void;
@@ -109,6 +111,7 @@ export const useRiotConsole = ({
       bpm: next => change({ bpm: next }),
       god: (on = true) => change({ god: on }),
       stress: (on = true) => change({ stress: on }),
+      skipCircle: (on = true) => change({ skipCircle: on }),
       seed: next => change({ seed: next }),
       reset: () => apply({}),
       skip: () => inLevel(current => current.skipLevel()),

@@ -533,6 +533,7 @@ export const startGame = async ({
           stress: stress || Boolean(run.rig?.stress),
           pressure: style.pressure,
           god: run.rig?.god,
+          skipCircle: run.rig?.skipCircle,
         }),
         carry: run,
         seed,

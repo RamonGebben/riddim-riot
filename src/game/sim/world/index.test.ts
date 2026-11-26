@@ -186,6 +186,15 @@ describe('onBar', () => {
     ).toHaveLength(30);
   });
 
+  it('starts the song without the circle when skipped, sending only waves', () => {
+    const world = createWorld(level, rulesFor({ level: 1, skipCircle: true }));
+    expect(world.survival.phase).toBe('song');
+    const first = onBar(world, { bar: 0, time: 0, rng: createRng(1) });
+    // A wave, not the stress test's full level.
+    expect(first.enemies.length).toBeGreaterThan(0);
+    expect(first.enemies.length).toBeLessThan(30);
+  });
+
   it('spawns anywhere on floor, but never right on top of the player', () => {
     const world = fighting();
     expect(world.enemies.length).toBeGreaterThan(0);

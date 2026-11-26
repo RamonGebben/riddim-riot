@@ -1,27 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
-
-/** Every realtime AudioContext, to see the game stay frozen. */
-const watchAudio = (page: Page) =>
-  page.addInitScript(() => {
-    const contexts: Array<AudioContext> = [];
-    Object.assign(window, { audioContexts: contexts });
-    const Native = window.AudioContext;
-    window.AudioContext = class extends Native {
-      constructor(options?: AudioContextOptions) {
-        super(options);
-        contexts.push(this);
-      }
-    };
-  });
-
-/** The state of the latest context: the game's. */
-const gameState = (page: Page) =>
-  page.evaluate(
-    () =>
-      (
-        window as unknown as { audioContexts: Array<AudioContext> }
-      ).audioContexts.at(-1)?.state,
-  );
+import { expect, test } from '@playwright/test';
+import { gameAudioState, watchAudio } from '../support/audio';
+import { dropIn } from '../support/game';
 
 test('open the bag from the pause and close back to it', async ({
   page,
@@ -29,10 +8,7 @@ test('open the bag from the pause and close back to it', async ({
 }) => {
   await watchAudio(page);
   await page.goto('/?seed=42');
-  await page.getByRole('button', { name: 'Drop in' }).click();
-  await expect(
-    page.getByRole('main', { name: 'Play area' }).locator('canvas'),
-  ).toBeVisible();
+  await dropIn(page);
 
   await page.keyboard.press('KeyP');
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
@@ -45,7 +21,7 @@ test('open the bag from the pause and close back to it', async ({
   await menu.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(menu).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
-  await expect.poll(() => gameState(page)).toBe('suspended');
+  await expect.poll(() => gameAudioState(page)).toBe('suspended');
 
   // B opens it from the pause too, and only Resume starts the game again.
   await page.keyboard.press('KeyB');
@@ -63,7 +39,7 @@ test('open the bag from the pause and close back to it', async ({
   ).toBeFocused();
   await page.getByRole('button', { name: 'Resume' }).click();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeHidden();
-  await expect.poll(() => gameState(page)).toBe('running');
+  await expect.poll(() => gameAudioState(page)).toBe('running');
 });
 
 test('a pause after a slow audio start stays frozen through the next press', async ({
@@ -97,17 +73,14 @@ test('a pause after a slow audio start stays frozen through the next press', asy
       () => (window as unknown as { lateResume: string }).lateResume,
     );
   await page.goto('/?seed=42');
-  await page.getByRole('button', { name: 'Drop in' }).click();
-  await expect(
-    page.getByRole('main', { name: 'Play area' }).locator('canvas'),
-  ).toBeVisible();
+  await dropIn(page);
 
   await page.keyboard.press('KeyP');
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
-  await expect.poll(() => gameState(page)).toBe('suspended');
+  await expect.poll(() => gameAudioState(page)).toBe('suspended');
   // The late start lands on the pause, and doesn't undo it.
   await expect.poll(lateResume).toBe('landed');
-  await expect.poll(() => gameState(page)).toBe('suspended');
+  await expect.poll(() => gameAudioState(page)).toBe('suspended');
   // A press on the pause's buttons doesn't start the sound again.
   await page.getByRole('button', { name: 'Loadout and bag' }).click();
   await page
@@ -115,5 +88,5 @@ test('a pause after a slow audio start stays frozen through the next press', asy
     .getByRole('button', { name: 'Back', exact: true })
     .click();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
-  await expect.poll(() => gameState(page)).toBe('suspended');
+  await expect.poll(() => gameAudioState(page)).toBe('suspended');
 });

@@ -20,6 +20,8 @@ export interface Rig {
   god?: boolean;
   /** The stress test: the level full of enemies from the first bar. */
   stress?: boolean;
+  /** No circle to stand in: the song plays from the first bar. */
+  skipCircle?: boolean;
   /** The run's seed, as `?seed` would set it. */
   seed?: number;
 }
@@ -53,6 +55,7 @@ export const cleanRig = (input: unknown): Rig => {
     ...(wholeIn(raw.bpm, ...RIG_BPM) && { bpm: raw.bpm as number }),
     ...(raw.god === true && { god: true }),
     ...(raw.stress === true && { stress: true }),
+    ...(raw.skipCircle === true && { skipCircle: true }),
     ...(wholeIn(raw.seed, 0, 2 ** 32 - 1) && { seed: raw.seed as number }),
   };
 };
@@ -101,6 +104,7 @@ export const describeRig = (rig: Rig): string =>
     rig.bpm !== undefined && `${rig.bpm} BPM`,
     rig.god && 'god mode',
     rig.stress && 'stress',
+    rig.skipCircle && 'no circle',
     rig.seed !== undefined && `seed ${rig.seed}`,
   ]
     .filter(Boolean)

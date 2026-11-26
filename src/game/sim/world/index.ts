@@ -115,6 +115,8 @@ export interface WaveRules {
   fill: boolean;
   /** Play-testing: nothing can hit the player. */
   invulnerable: boolean;
+  /** Play-testing: no circle, the song from the first bar (as `fill` does). */
+  skipCircle: boolean;
 }
 
 /** The boss appears at least this far away, so it walks in on the drop. */
@@ -140,12 +142,15 @@ export const rulesFor = ({
   stress = false,
   pressure = 1,
   god = false,
+  skipCircle = false,
 }: {
   level: number;
   stress?: boolean;
   pressure?: number;
   /** Play-testing: the player can't be hit. */
   god?: boolean;
+  /** Play-testing: the song starts without the circle. */
+  skipCircle?: boolean;
 }): WaveRules => ({
   level,
   pressure,
@@ -158,6 +163,7 @@ export const rulesFor = ({
   chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
   invulnerable: god,
+  skipCircle,
 });
 
 export const DEFAULT_RULES: WaveRules = rulesFor({ level: 1 });
@@ -273,7 +279,7 @@ export const createWorld = (
   kills,
   score,
   combo: NO_COMBO,
-  survival: rules.fill ? songFrom(0) : INITIAL_SURVIVAL,
+  survival: rules.fill || rules.skipCircle ? songFrom(0) : INITIAL_SURVIVAL,
   enemies: [],
   pickups: [],
   bag,
