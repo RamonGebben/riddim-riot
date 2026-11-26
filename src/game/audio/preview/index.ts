@@ -28,12 +28,17 @@ const SILENCE = `data:audio/wav;base64,${btoa(
   ),
 )}`;
 
-/** Resolves once the element can play through, rejects if it can't. */
+/**
+ * Resolves once the element can play, rejects if it can't. `canplay` is
+ * enough: the whole file is already in memory. `canplaythrough` is the
+ * browser's guess at the download keeping up, and Firefox sometimes made
+ * it past the wait.
+ */
 const loaded = (element: HTMLAudioElement) =>
   new Promise<void>((resolve, reject) => {
     const done = (fail?: string) => {
       clearTimeout(timer);
-      element.removeEventListener('canplaythrough', ok);
+      element.removeEventListener('canplay', ok);
       element.removeEventListener('error', failed);
       if (fail) reject(new Error(fail));
       else resolve();
@@ -44,9 +49,9 @@ const loaded = (element: HTMLAudioElement) =>
       () => done('The preview sound took too long to load'),
       START_WAIT_MS,
     );
-    if (element.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) done();
-    element.addEventListener('canplaythrough', ok);
+    element.addEventListener('canplay', ok);
     element.addEventListener('error', failed);
+    if (element.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) done();
   });
 
 /** Empties an element, so it holds no file and plays nothing. */
@@ -344,12 +349,17 @@ export const createPreviewer = ({
           element.loop = true;
           element.volume = 0;
           element.load();
-          await loaded(element);
-          if (loop !== current) return;
+          // No load wait: play() waits for the data itself, and nothing
+          // starts on the loop's start. A slow load gives a late loop, not
+          // none (Firefox on a CI runner went past the wait).
           await element.play();
+          if (loop !== current) return;
           current.fade = fade(element, 1);
         })
-        .catch((error: unknown) => console.error(error));
+        .catch((error: unknown) => {
+          // Cut off meanwhile (the element emptied under play()): not wanted.
+          if (loop === current) console.error(error);
+        });
     },
     stopLoop,
     play: (buffer, options) => {
