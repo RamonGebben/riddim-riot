@@ -9,6 +9,9 @@ export interface LevelCardProps {
   musicalKey: string;
   /** What its points are multiplied by: its tier. */
   multiplier?: number;
+  /** Its subgenre and tempo, e.g. "Liquid", 172. */
+  subgenre?: string;
+  bpm?: number;
 }
 
 /** Between levels, while the next one builds: where the run is going. */
@@ -17,6 +20,8 @@ export const LevelCard = ({
   levels,
   musicalKey,
   multiplier = 1,
+  subgenre,
+  bpm,
 }: LevelCardProps) => {
   return (
     <Page role="status">
@@ -26,6 +31,12 @@ export const LevelCard = ({
       </Meta>
       <Heading>{level === levels ? 'Final level' : musicalKey}</Heading>
       <Meta>{level === levels ? musicalKey : 'Get ready'}</Meta>
+      {subgenre && (
+        <Meta>
+          {subgenre}
+          {bpm !== undefined && ` · ${bpm} BPM`}
+        </Meta>
+      )}
     </Page>
   );
 };

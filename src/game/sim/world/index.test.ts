@@ -34,6 +34,7 @@ import {
   rulesFor,
   stepWorld,
   setBag,
+  takeExit,
   type World,
 } from '.';
 
@@ -183,6 +184,15 @@ describe('onBar', () => {
     expect(
       onBar(filled, { bar: 1, time: 1, rng: createRng(2) }).enemies,
     ).toHaveLength(30);
+  });
+
+  it('starts the song without the circle when skipped, sending only waves', () => {
+    const world = createWorld(level, rulesFor({ level: 1, skipCircle: true }));
+    expect(world.survival.phase).toBe('song');
+    const first = onBar(world, { bar: 0, time: 0, rng: createRng(1) });
+    // A wave, not the stress test's full level.
+    expect(first.enemies.length).toBeGreaterThan(0);
+    expect(first.enemies.length).toBeLessThan(30);
   });
 
   it('spawns anywhere on floor, but never right on top of the player', () => {
@@ -384,6 +394,29 @@ describe('stepWorld', () => {
     );
     expect(lastHit.world.hp).toBe(0);
     expect(lastHit.world.status).toBe('dead');
+  });
+
+  it('never costs a hit in god mode', () => {
+    const near = { x: start.x + 10, y: start.y };
+    const god = createWorld(level, rulesFor({ level: 1, god: true }));
+    const touched = stepWorld(withEnemies(god, [enemyAt(1, near)]), {
+      input: still,
+      dt: 1 / 60,
+      now: 1,
+    });
+    expect(touched.world.hp).toBe(PLAYER_MAX_HP);
+    expect(touched.playerHit).toBeNull();
+  });
+
+  it('takes the exit at once when skipped, the clear bonus with it', () => {
+    const skipped = takeExit(
+      withEnemies(fighting(rulesFor({ level: 3 })), [enemyAt(1, start)]),
+    );
+    const taken = stepWorld(skipped, { input: still, dt: 1 / 60, now: 9 });
+    expect(taken.world.status).toBe('cleared');
+    expect(taken.world.score).toBe(LEVEL_CLEAR_BONUS * 3);
+    // Once over, there's nothing left to skip.
+    expect(takeExit(taken.world)).toBe(taken.world);
   });
 
   it('freezes once the run is over', () => {
@@ -668,6 +701,19 @@ describe('stepWorld', () => {
       }).playerHit;
     expect(hitAt(1.9)).toBeNull();
     expect(hitAt(2)).not.toBeNull();
+  });
+
+  it("keeps the player's invulnerability at 140's length at a faster tempo", () => {
+    const near = { x: start.x + 10, y: start.y };
+    const hit = stepWorld(withEnemies(createWorld(level), [enemyAt(1, near)]), {
+      input: still,
+      dt: 1 / 60,
+      now: 1,
+      beatSeconds: 60 / 174,
+    });
+    expect(hit.world.invulnerableUntil).toBeCloseTo(
+      1 + INVULNERABLE_BEATS * (60 / 140),
+    );
   });
 });
 

@@ -6,8 +6,10 @@ export interface Tick extends Position {
   step: number;
   /**
    * The AudioContext time this step plays at. It's ahead of `now()` by the
-   * scheduling lookahead - schedule sound at it, and draw at it via
-   * `Tone.getDraw()`, never off `setTimeout` or frame counts.
+   * scheduling lookahead - schedule sound at it, never off `setTimeout` or
+   * frame counts. Visuals store it and read it back at the heard clock
+   * (`heardNow`), which trails by the output latency: `Tone.getDraw()`
+   * fires at the audio clock, so would land early.
    */
   time: number;
 }

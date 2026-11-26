@@ -75,8 +75,11 @@ export interface GameScreenProps {
   musicalKey: string;
   run: RunProps;
   loadout: LoadoutProps;
-  /** The best score on this device, before this run. */
-  best: number;
+  /**
+   * The best score on this device, before this run; null when the run
+   * doesn't count towards it (rigged from the dev console).
+   */
+  best: number | null;
   /** Where a finished run puts the player on the board. */
   board?: ReactNode;
   /** Frozen mid-level, waiting for Resume. */
@@ -163,11 +166,12 @@ const points = (score: number) => ({
 });
 
 /** Beat the device's best: worth a badge instead of a Best tile. */
-const isNewBest = (score: number, best: number) => score > best && score > 0;
+const isNewBest = (score: number, best: number | null) =>
+  best !== null && score > best && score > 0;
 
 /** The score, next to the best to beat unless this run is it. */
-const scoreStats = (score: number, best: number) =>
-  isNewBest(score, best)
+const scoreStats = (score: number, best: number | null) =>
+  best === null || isNewBest(score, best)
     ? [points(score)]
     : [points(score), { label: 'Best', value: formatNumber(best) }];
 

@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { dropIn, pageErrors } from '../support/game';
 
 test('start the music, move and fire the wobble gun', async ({ page }) => {
   // A dozen steps on a real-time game: past the default 30 s on a slow runner.
   test.setTimeout(60_000);
-  const errors: Array<string> = [];
-  page.on('pageerror', error => errors.push(error.message));
+  const errors = pageErrors(page);
 
   const response = await page.goto('/?seed=42');
   expect(response?.ok()).toBe(true);
@@ -12,13 +12,12 @@ test('start the music, move and fire the wobble gun', async ({ page }) => {
     page.getByRole('heading', { name: 'Riddim Riot' }),
   ).toBeVisible();
   await expect(
-    page.getByText(/^[A-G]#? (minor|phrygian) · 140 BPM halftime · 5 levels$/),
+    page.getByText(
+      /^(Deep dubstep|Riddim) in [A-G]#? (minor|phrygian) · 1[34][0-9] BPM · 5 levels$/,
+    ),
   ).toBeVisible();
 
-  await page.getByRole('button', { name: 'Drop in' }).click();
-  const playArea = page.getByRole('main', { name: 'Play area' });
-  await expect(playArea).toBeVisible();
-  await expect(playArea.locator('canvas')).toBeVisible();
+  const playArea = await dropIn(page);
 
   await page.keyboard.down('KeyD');
   await page.waitForTimeout(300);

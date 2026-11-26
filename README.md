@@ -101,6 +101,32 @@ limited `bass_app` role that every request runs as.
 | `/?stress`           | Skip the circle and fill the level to the 30-enemy cap from the first bar, for performance checks                                                      |
 | `/?latency=playback` | Pick the audio buffer: `interactive`, `balanced` (desktop default) or `playback` (touch-screen default, as Firefox on phones crackles on smaller ones) |
 
+### Play-testing from the console
+
+Open the browser's dev console on the game page and call `riot.help()`.
+`riot` rigs the next run, starting it on a later level and forcing a subgenre or tempo,
+and lends a hand in the level under way:
+
+```js
+riot.level(4); // start on level 4, the loadout at tier 4
+riot.subgenre('liquid'); // every level plays Liquid (riot.subgenre() to clear)
+riot.bpm(174); // every level at 174 BPM
+riot.god(); // take no hits (riot.god(false) to stop)
+riot.stress(); // as ?stress
+riot.skipCircle(); // no circle: the song plays from the first bar
+riot.seed(1234); // the run's seed
+riot.rig({ level: 5, god: true }); // several at once
+riot.reset(); // back to a normal run
+riot.skip(); // in a level: clear it now
+riot.loot(5); // in a level: fill the bag with tier 5 loot
+```
+
+The rig is kept on the device until `riot.reset()`. The start screen
+says what's rigged. Press Drop in to start: the console can't start
+audio, only a press can. A rigged run never goes on the board, doesn't
+count as the device's best, and doesn't keep its loadout for the next
+run.
+
 ## Sound playground
 
 Open <http://localhost:3000/playground> while `pnpm dev` runs, press

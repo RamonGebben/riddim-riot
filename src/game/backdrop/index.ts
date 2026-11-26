@@ -2,11 +2,10 @@ import { flashingReduced } from '../flashing';
 import { generateLevel } from '../level';
 import { clampCamera, createStage, shakeOffset, type Stage } from '../render';
 import { levelSeed, type RunState } from '../run';
+import { levelStyle } from '../rig';
 import { createWorld, rulesFor } from '../sim/world';
 import { ghostAt } from './ghost';
 
-/** The beat the backdrop pulses to: the game's tempo, heard or not. */
-const BEAT_SECONDS = 60 / 140;
 /** How far the camera drifts round the circle, in world px: it stays in view. */
 const DRIFT = { x: 70, y: 40 };
 /**
@@ -17,23 +16,27 @@ const DRIFT = { x: 70, y: 40 };
 const ASIDE = 0.25;
 const SIDE_BY_SIDE_MIN_WIDTH = 720;
 
-/** 1 on the beat, falling away after it. */
-const pulse = (t: number, decay: number, every = BEAT_SECONDS) =>
+/** 1 every `every` seconds, falling away after it. */
+const pulse = (t: number, decay: number, every: number) =>
   Math.exp(-(t % every) / decay);
 
 /**
- * The landing page's backdrop: the run's first level drawn live under the
- * rave shader, the camera drifting round its circle, pulsing to the tempo,
- * with a silent demo of shots landing on the kick (`ghostAt`).
+ * The landing page's backdrop: the run's level drawn live under the rave
+ * shader, the camera drifting round its circle, pulsing to `bpm` (the
+ * level's own tempo, as the start screen says, heard or not), with a
+ * silent demo of shots landing on the kick (`ghostAt`).
  * It's decoration before any sound exists - no AudioContext, no clock - so
- * it times itself off the page's own time. Returns detach.
+ * it times itself off the page's own time. It reads only the run's seed,
+ * level and tempo, so a caller can redraw on just those. Returns detach.
  */
 export const attachBackdrop = (
   element: HTMLElement,
-  run: RunState,
+  run: Pick<RunState, 'seed' | 'level' | 'rig'>,
+  bpm = levelStyle(run).bpm,
 ): (() => void) => {
   const level = generateLevel(levelSeed(run));
   const world = createWorld(level, rulesFor({ level: run.level }));
+  const beatSeconds = 60 / bpm;
   let stage: Stage | null = null;
   let detached = false;
   const started = performance.now();
@@ -64,9 +67,9 @@ export const attachBackdrop = (
           level,
         );
         // Halftime: the kick on beats 1 and 3, a flash every eight bars.
-        const kick = pulse(t, 0.14, BEAT_SECONDS * 2);
+        const kick = pulse(t, 0.14, beatSeconds * 2);
         // A silent demo: shots off the circle landing on the kick.
-        const ghost = ghostAt(t, level.pad);
+        const ghost = ghostAt(t, level.pad, beatSeconds * 2);
         mounted.render({
           world: {
             ...world,
@@ -80,11 +83,11 @@ export const attachBackdrop = (
           camera,
           shake: shakeOffset(t, kick * 3),
           kick,
-          beat: pulse(t, 0.1),
+          beat: pulse(t, 0.1, beatSeconds),
           shot: 0,
           hit: 0,
-          drop: pulse(t, 0.6, BEAT_SECONDS * 32) * 0.6,
-          barSeconds: BEAT_SECONDS * 4,
+          drop: pulse(t, 0.6, beatSeconds * 32) * 0.6,
+          barSeconds: beatSeconds * 4,
         });
       });
     })

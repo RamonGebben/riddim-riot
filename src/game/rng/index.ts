@@ -53,3 +53,20 @@ export const deriveSeed = (seed: number, ...keys: Array<number>): number =>
     (hash, key) => avalanche(hash ^ avalanche(key + 0x9e3779b9)),
     avalanche(seed),
   );
+
+/**
+ * One of `weights`' items, each as likely as its weight: one `rng.next()`,
+ * landing in the item whose share of the total it falls in.
+ */
+export const pickWeighted = <T>(
+  rng: Rng,
+  weights: ReadonlyArray<readonly [T, number]>,
+): T => {
+  const ends = weights.reduce<Array<number>>(
+    (acc, [, weight]) => [...acc, (acc.at(-1) ?? 0) + weight],
+    [],
+  );
+  const roll = rng.next() * (ends.at(-1) ?? 0);
+  const hit = ends.findIndex(end => roll < end);
+  return weights[hit === -1 ? weights.length - 1 : hit][0];
+};

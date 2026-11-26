@@ -81,6 +81,10 @@ db:migrate`); `pnpm test:db` checks the policies against the real
   and uniforms shared with the vertex stage need `highp`.
 - `?stress` fills the level to the 30-enemy cap from the first bar (chargers
   included), for frame-rate checks.
+- **`riot` in the dev console rigs a run for play-testing** (`src/game/rig`,
+  `riot.help()`): start level, subgenre, tempo, god mode, skip, loot. A
+  rigged run carries `RunState.rig` and must stay off the board, the
+  device's best and the kept loadout.
 - **React never runs per frame.** The play loop publishes a `HudView`
   (`src/game/hud`) only when it changes; App holds the run and restarts the
   game per level.

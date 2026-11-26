@@ -29,6 +29,8 @@ export interface StartScreenProps {
   /** The first level's key, e.g. "F minor". */
   musicalKey: string;
   bpm: number;
+  /** The first level's subgenre, e.g. "Riddim". */
+  subgenre: string;
   /** Levels in a run. */
   levels: number;
   /** The best score on this device; 0 hides it. */
@@ -49,6 +51,8 @@ export interface StartScreenProps {
   highScoresHref: string;
   /** Who's playing, and signing in before a run. */
   account: StartAccount;
+  /** What the dev console has rigged, e.g. "level 4 · god mode"; null if nothing. */
+  rigged?: string | null;
   onStart: () => void;
   onFlashingReduced: (reduced: boolean) => void;
 }
@@ -65,6 +69,7 @@ const STEP_LABELS = {
 export const StartScreen = ({
   musicalKey,
   bpm,
+  subgenre,
   levels,
   best,
   weapons,
@@ -75,6 +80,7 @@ export const StartScreen = ({
   backdropRef,
   highScoresHref,
   account,
+  rigged = null,
   onStart,
   onFlashingReduced,
 }: StartScreenProps) => {
@@ -144,9 +150,15 @@ export const StartScreen = ({
             </Status>
           )}
           <Meta>
-            {musicalKey} · {bpm} BPM halftime · {levels} levels
+            {subgenre} in {musicalKey} · {bpm} BPM · {levels} levels
             {best > 0 && <> · best {best.toLocaleString('en')}</>}
           </Meta>
+          {rigged && (
+            <Meta>
+              Rigged: {rigged}. This run stays off the board (riot.reset() in
+              the console to stop).
+            </Meta>
+          )}
         </Hero>
         <Briefing>
           <Group aria-labelledby="loadout-heading">

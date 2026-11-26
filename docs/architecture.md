@@ -179,6 +179,39 @@ the level under way included. It also offers **Main menu**. A run with
 nothing to show (level 1, no points) quits straight to the start. React only re-renders on HUD
 changes, never per frame.
 
+### Subgenres (`genre/`, pure)
+
+Each level plays one subgenre, rolled from its seed by the level's
+weights (`styleFor`), so the same level always plays the same:
+
+| Level | Weights                           | Feel                               |
+| ----- | --------------------------------- | ---------------------------------- |
+| 1     | Deep 60 · Riddim 40               | halftime, 138-140                  |
+| 2     | Riddim 50 · Brostep 30 · Deep 20  | halftime, 140-145                  |
+| 3     | Halfstep 60 · Brostep 40          | halftime at dnb tempo (170-172)    |
+| 4     | Liquid 60 · Jump-up 30 · Neuro 10 | two-step, 170-175, the relaxed one |
+| 5     | Neurofunk 70 · Jump-up 30         | two-step, 172-176, the intense one |
+
+70 and 140 BPM are the same pulse, so a style is set by where its snare
+falls: halftime on 3, two-step on 2 and 4 with the kick on 1 and the "and"
+of 3 (`audio/drums/pattern`). Halfstep on level 3 bridges the two: the
+clock is at drum & bass tempo while the snare stays on 3. A subgenre sets:
+
+- **The tempo.** The clock, weapon timing, loudness measurement, previews
+  and the menu loop all run at it.
+- **The drums.** Their feel, and how busy the ghost kicks, ghost snares
+  and hat shuffle are. Riddim's halftime is the pattern from before,
+  bar for bar.
+- **Pressure** (`WaveRules.pressure`), on top of the tier: waves are that
+  much bigger, so Liquid (0.85) plays easier than Neurofunk (1.15).
+
+Enemies still move on the beat, so a faster tempo is harder by itself.
+What the player gets in beats (invulnerability, the dash's cooldown,
+`playerBeatSeconds`) never runs shorter than at 140. The level card and the
+start page name the subgenre and its BPM. The sound per subgenre (which
+bass leads, how busy the pad and arp are) is still the same for all: see
+[Roadmap](#roadmap).
+
 ### Tiers (`tier/`, pure)
 
 A level's tier is its place in the run (level 3 is tier 3, up to
@@ -592,6 +625,21 @@ of 1x drew the whole stage at 1x and upscaled it, pixelated on a phone. The
 renderer itself is capped at 2x. The camera eases after the player, stays
 inside the level and zooms out on small screens.
 
+## Play-testing rigs
+
+`riot` in the dev console (`useRiotConsole`, `src/app/_components`) sets
+a `Rig` (`src/game/rig`), kept in localStorage. `rigRun` applies it to
+a fresh run: the start level, the loadout raised to that level's tier,
+and the rig stored on `RunState.rig`, so `nextLevel` carries it through
+the run. `levelStyle` passes the rolled style through `rigStyle`, which
+can force the subgenre or tempo. `startGame` turns `god` and `stress` into
+`WaveRules.invulnerable` and `fill`. In a level, `Game.skipLevel` (a
+`takeExit` on the world: enemies gone, the player on a full exit) and
+`Game.stockBag` (`rigLoot`) skip the fight. The App asks for no board
+ticket for a rigged run. It doesn't save the run's best, keep its
+loadout, or show it against the device's best (`GameScreen.best` is
+null).
+
 ## Measuring things
 
 These checks are scripted with Playwright against `pnpm dev`; they live in
@@ -642,6 +690,7 @@ Gameplay ideas still open:
 
 Known gaps: holstered weapons refill silently (the brief wants a quiet fill
 layer), no active reload, manufacturers only pick saw or square (no FM or
-wavetable engines yet), BPM is fixed at 140, and the boss (its phases and orbs), the
+wavetable engines yet), every subgenre has the same sound (only tempo,
+drums and pressure differ), and the boss (its phases and orbs), the
 exit, the level transition and the victory screen are only covered by unit
 and story tests: reaching them takes the whole ~4-minute song.

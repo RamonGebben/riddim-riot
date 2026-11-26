@@ -1,6 +1,6 @@
 import { STEPS_PER_BAR, STEPS_PER_BEAT, STEPS_PER_DIVISION } from '../../grid';
 import { degreeToMidi, type Key } from '../../music';
-import { createRng, type Rng } from '../../rng';
+import { createRng, pickWeighted, type Rng } from '../../rng';
 import { SOUND_DESIGN, type SoundDesign } from '../../sound';
 import { fxChance, weaponScale } from '../../tier';
 import {
@@ -39,18 +39,7 @@ const along = (value: number, [min, max]: [number, number]) =>
   max === min ? 0.5 : (value - min) / (max - min);
 
 /** One random number, landing on a rate by `LFO_WEIGHTS`. */
-const rollLfo = (rng: Rng): LfoPart => {
-  const total = LFO_WEIGHTS.reduce((sum, [, weight]) => sum + weight, 0);
-  const roll = rng.next() * total;
-  const { picked } = LFO_WEIGHTS.reduce<{ picked: LfoPart | null; at: number }>(
-    (acc, [lfo, weight]) =>
-      acc.picked || roll >= acc.at + weight
-        ? { ...acc, at: acc.at + weight }
-        : { picked: lfo, at: acc.at + weight },
-    { picked: null, at: 0 },
-  );
-  return picked ?? LFO_WEIGHTS[LFO_WEIGHTS.length - 1][0];
-};
+const rollLfo = (rng: Rng): LfoPart => pickWeighted(rng, LFO_WEIGHTS);
 
 const rollRiff = (rng: Rng, degrees: Array<number>) => [
   0,

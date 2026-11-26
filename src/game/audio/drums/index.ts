@@ -1,3 +1,4 @@
+import type { DrumStyle } from '../../genre';
 import type { DrumsPatch } from '../../sound';
 import type { Tick } from '../../clock';
 import type { Output } from '../graph';
@@ -30,12 +31,15 @@ export interface DrumHit {
 
 export const createDrums = ({
   seed,
+  style,
   output,
   kickHz,
   patch,
   onHit,
 }: {
   seed: number;
+  /** How the level's subgenre plays them; riddim's halftime unless given. */
+  style?: DrumStyle;
   output: Output;
   kickHz: number;
   patch?: DrumsPatch;
@@ -51,7 +55,7 @@ export const createDrums = ({
         half !== null && tick.bar >= half.from && tick.bar < half.to;
       const at = slowed && half ? halfSpeedStep(tick, half.from) : tick;
       if (!at) return;
-      hitsAt(generateDrumBar(seed, at.bar), at.stepInBar).forEach(
+      hitsAt(generateDrumBar(seed, at.bar, style), at.stepInBar).forEach(
         ({ voice, velocity }) => {
           kit.play(voice, tick.time, velocity);
           onHit?.({ voice, time: tick.time, velocity });

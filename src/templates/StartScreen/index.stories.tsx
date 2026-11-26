@@ -7,6 +7,7 @@ const meta = {
   args: {
     musicalKey: 'F minor',
     bpm: 140,
+    subgenre: 'Riddim',
     levels: 5,
     best: 0,
     highScoresHref: '/leaderboard',
@@ -102,6 +103,16 @@ export const WithABest: Story = {
   args: { best: 12_300 },
   play: async ({ canvas }) => {
     await expect(canvas.getByText(/best 12,300/)).toBeVisible();
+  },
+};
+
+export const Rigged: Story = {
+  args: { rigged: 'level 4 · Liquid · god mode' },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText(/Rigged: level 4 · Liquid · god mode/),
+    ).toBeVisible();
+    await expect(canvas.getByText(/stays off the board/)).toBeVisible();
   },
 };
 

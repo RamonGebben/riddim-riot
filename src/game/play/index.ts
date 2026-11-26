@@ -40,6 +40,7 @@ import {
   onBeat,
   queueShot,
   setBag,
+  takeExit,
   stepWorld,
   type View,
   type WaveRules,
@@ -118,6 +119,8 @@ export interface Play {
   bag: () => Array<WeaponRecipe>;
   /** The bag as the loadout menu left it. */
   setBag: (bag: Array<WeaponRecipe>) => void;
+  /** Play-testing: take the exit on the next frame (see `takeExit`). */
+  skip: () => void;
   /** Dash on the next frame - the touch screen's button for Space. */
   dash: () => void;
   detach: () => void;
@@ -410,6 +413,9 @@ export const startPlay = async ({
     bag: () => world.bag,
     setBag: bag => {
       world = setBag(world, bag);
+    },
+    skip: () => {
+      world = takeExit(world);
     },
     dash: () => {
       dashPressed = true;
