@@ -21,8 +21,7 @@ import {
 } from './audio';
 import { createBus } from './bus';
 import { createClock, type Tick } from './clock';
-import { styleFor } from './genre';
-import { rigStyle } from './rig';
+import { levelStyle } from './rig';
 import type { GameEvents } from './events';
 import { initialHud, type HudView } from './hud';
 import {
@@ -64,6 +63,7 @@ export {
   cleanRig,
   describeRig,
   isRigged,
+  levelStyle,
   RIG_BPM,
   RIG_SUBGENRES,
   rigLoot,
@@ -79,9 +79,6 @@ export {
   type FlashingChoice,
 } from './flashing';
 
-/** A level's subgenre and tempo, from its seed (see `genre`) or the rig. */
-export const levelStyle = (run: RunState) =>
-  rigStyle(styleFor(levelSeed(run), run.level), run.rig);
 const DUCK_SECONDS = 0.6;
 /** A press within this of the weapon's grid is on the beat. */
 const ON_BEAT_SECONDS = 0.05;

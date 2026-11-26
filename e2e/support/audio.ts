@@ -36,12 +36,6 @@ export const gameAudioState = (page: Page) =>
     () => (window as unknown as Watched).audioContexts.at(-1)?.state,
   );
 
-/** The game's audio clock, in seconds. */
-export const gameAudioTime = (page: Page) =>
-  page.evaluate(
-    () => (window as unknown as Watched).audioContexts.at(-1)?.currentTime ?? 0,
-  );
-
 export const contextCount = (page: Page) =>
   page.evaluate(() => (window as unknown as Watched).audioContexts.length);
 

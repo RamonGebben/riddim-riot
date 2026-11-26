@@ -52,7 +52,10 @@ export const newRun = (
 });
 
 /** The seed of the level the run is on: a fresh layout, key and palette. */
-export const levelSeed = ({ seed, level }: RunState): number =>
+export const levelSeed = ({
+  seed,
+  level,
+}: Pick<RunState, 'seed' | 'level'>): number =>
   level === 1 ? seed : deriveSeed(seed, LEVEL_STREAM, level);
 
 export const nextLevel = (

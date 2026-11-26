@@ -1,5 +1,5 @@
 import { STEPS_PER_BAR } from '../../../grid';
-import { DEFAULT_STYLE, type DrumStyle } from '../../../genre';
+import { SUBGENRES, type DrumStyle } from '../../../genre';
 import { createRng, deriveSeed, type Rng } from '../../../rng';
 
 export type DrumVoice = 'kick' | 'snare' | 'hat' | 'openHat';
@@ -104,7 +104,7 @@ const generateFromRng = (rng: Rng, bar: number, style: DrumStyle): DrumBar => {
 export const generateDrumBar = (
   seed: number,
   bar: number,
-  style: DrumStyle = DEFAULT_STYLE.style.drums,
+  style: DrumStyle = SUBGENRES.riddim.drums,
 ): DrumBar => generateFromRng(createRng(deriveSeed(seed, bar)), bar, style);
 
 /** The voices hit on a step, with their velocity. */

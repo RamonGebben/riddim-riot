@@ -1,9 +1,8 @@
 import { flashingReduced } from '../flashing';
-import { styleFor } from '../genre';
 import { generateLevel } from '../level';
 import { clampCamera, createStage, shakeOffset, type Stage } from '../render';
 import { levelSeed, type RunState } from '../run';
-import { rigStyle } from '../rig';
+import { levelStyle } from '../rig';
 import { createWorld, rulesFor } from '../sim/world';
 import { ghostAt } from './ghost';
 
@@ -22,21 +21,21 @@ const pulse = (t: number, decay: number, every: number) =>
   Math.exp(-(t % every) / decay);
 
 /**
- * The landing page's backdrop: the run's first level drawn live under the
- * rave shader, the camera drifting round its circle, pulsing to the tempo,
- * with a silent demo of shots landing on the kick (`ghostAt`).
+ * The landing page's backdrop: the run's level drawn live under the rave
+ * shader, the camera drifting round its circle, pulsing to `bpm` (the
+ * level's own tempo, as the start screen says, heard or not), with a
+ * silent demo of shots landing on the kick (`ghostAt`).
  * It's decoration before any sound exists - no AudioContext, no clock - so
- * it times itself off the page's own time. Returns detach.
+ * it times itself off the page's own time. It reads only the run's seed,
+ * level and tempo, so a caller can redraw on just those. Returns detach.
  */
 export const attachBackdrop = (
   element: HTMLElement,
-  run: RunState,
+  run: Pick<RunState, 'seed' | 'level' | 'rig'>,
+  bpm = levelStyle(run).bpm,
 ): (() => void) => {
   const level = generateLevel(levelSeed(run));
   const world = createWorld(level, rulesFor({ level: run.level }));
-  // The beat it pulses to: the level's own tempo (as the start screen says),
-  // heard or not.
-  const { bpm } = rigStyle(styleFor(levelSeed(run), run.level), run.rig);
   const beatSeconds = 60 / bpm;
   let stage: Stage | null = null;
   let detached = false;

@@ -1,4 +1,5 @@
-import { createRng, deriveSeed } from '../rng';
+import { createRng, deriveSeed, pickWeighted } from '../rng';
+import { tierOf } from '../tier';
 
 /**
  * Each level plays one subgenre, rolled from its seed by the level's
@@ -159,8 +160,7 @@ const LEVEL_WEIGHTS: ReadonlyArray<ReadonlyArray<readonly [Subgenre, number]>> =
 const GENRE_STREAM = 60;
 
 /** The weights a level rolls by: its own, the last level's past the run. */
-export const weightsFor = (level: number) =>
-  LEVEL_WEIGHTS[Math.min(Math.max(level, 1), LEVEL_WEIGHTS.length) - 1];
+export const weightsFor = (level: number) => LEVEL_WEIGHTS[tierOf(level) - 1];
 
 export interface LevelStyle {
   subgenre: Subgenre;
@@ -174,24 +174,7 @@ export interface LevelStyle {
  */
 export const styleFor = (levelSeed: number, level: number): LevelStyle => {
   const rng = createRng(deriveSeed(levelSeed, GENRE_STREAM));
-  const weights = weightsFor(level);
-  const total = weights.reduce((sum, [, weight]) => sum + weight, 0);
-  const roll = rng.next() * total;
-  const { picked } = weights.reduce<{ picked: Subgenre | null; at: number }>(
-    (acc, [subgenre, weight]) =>
-      acc.picked || roll >= acc.at + weight
-        ? { ...acc, at: acc.at + weight }
-        : { picked: subgenre, at: acc.at + weight },
-    { picked: null, at: 0 },
-  );
-  const subgenre = picked ?? weights[weights.length - 1][0];
+  const subgenre = pickWeighted(rng, weightsFor(level));
   const style = SUBGENRES[subgenre];
   return { subgenre, style, bpm: rng.int(style.bpm[0], style.bpm[1]) };
-};
-
-/** Riddim at 140: what plays when no level has picked (the backdrop, tests). */
-export const DEFAULT_STYLE: LevelStyle = {
-  subgenre: 'riddim',
-  style: SUBGENRES.riddim,
-  bpm: 140,
 };

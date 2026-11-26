@@ -7,6 +7,7 @@ import {
   describeLoadout,
   describeRig,
   describeWeapons,
+  levelStyle,
   newRun,
   readFlashing,
   reducesFlashing,
@@ -121,12 +122,10 @@ export const App = () => {
   const kept = useKeptLoadout();
   const { me, signIn, signOut } = useAccount();
   const game = useRef<Game | null>(null);
+  /** The run under way was rigged: it stays off every record. */
+  const rigged = Boolean(run.rig);
   /** Set from the dev console (`riot`) for play-testing; `{}` normally. */
-  const rig = useRiotConsole({
-    game,
-    level: run.level,
-    rigged: Boolean(run.rig),
-  });
+  const rig = useRiotConsole({ game, level: run.level, rigged });
   /** A fresh run on `seed`, opening with the kept loadout if there is one. */
   const freshRun = (seed: number) => newRun(seed, kept.recipes ?? undefined);
   /** The same, rigged if the console says so: what a press starts. */
@@ -215,12 +214,19 @@ export const App = () => {
     setReduced(reduced);
   };
 
-  // The start screen's live level, redrawn when the seed changes.
+  // The start screen's live level, redrawn only when what it draws changes:
+  // not for a loadout or a rig switch it doesn't show.
   const onStart = status !== 'playing' && !between;
+  const { seed: stagedSeed, level: stagedLevel } = staged;
+  const stagedBpm = useMemo(() => levelStyle(staged).bpm, [staged]);
   useEffect(() => {
     if (!onStart || !backdrop.current) return;
-    return attachBackdrop(backdrop.current, staged);
-  }, [onStart, staged]);
+    return attachBackdrop(
+      backdrop.current,
+      { seed: stagedSeed, level: stagedLevel },
+      stagedBpm,
+    );
+  }, [onStart, stagedSeed, stagedLevel, stagedBpm]);
 
   /** A link that plays this run's seed; resolves whether it was copied. */
   const copySeed = async () => {
@@ -271,7 +277,6 @@ export const App = () => {
   // A run that ends - dead, quit or won - keeps its score if it's the
   // best. A rigged one doesn't count.
   const ended = status === 'playing' && (hud?.status === 'dead' || won || quit);
-  const rigged = Boolean(run.rig);
   useEffect(() => {
     if (ended && hud && !rigged) saveBest(hud.score);
   }, [ended, hud, rigged]);
@@ -501,7 +506,7 @@ export const App = () => {
     }
     seen.current = [...chosen.recipes, ...chosen.bag];
     // A rigged run's weapons (raised a tier, or console loot) stay in it.
-    if (!run.rig) kept.keep(chosen.recipes);
+    if (!rigged) kept.keep(chosen.recipes);
     setMenu(null);
     setPreviewing(null);
     if (advancing) {

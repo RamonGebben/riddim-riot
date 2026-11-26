@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRng, deriveSeed } from '.';
+import { createRng, deriveSeed, pickWeighted } from '.';
 
 const take = (seed: number, count: number) => {
   const rng = createRng(seed);
@@ -48,5 +48,31 @@ describe('deriveSeed', () => {
       deriveSeed(42, 0, 1),
     ]);
     expect(seeds.size).toBe(4);
+  });
+});
+
+describe('pickWeighted', () => {
+  it('picks each item about as often as its weight', () => {
+    const rng = createRng(3);
+    const picks = Array.from({ length: 4000 }, () =>
+      pickWeighted(rng, [
+        ['a', 1],
+        ['b', 3],
+      ]),
+    );
+    const share = picks.filter(pick => pick === 'b').length / picks.length;
+    expect(share).toBeGreaterThan(0.7);
+    expect(share).toBeLessThan(0.8);
+  });
+
+  it('never picks an item of no weight', () => {
+    const rng = createRng(5);
+    const picks = Array.from({ length: 500 }, () =>
+      pickWeighted(rng, [
+        ['a', 0],
+        ['b', 1],
+      ]),
+    );
+    expect(picks).not.toContain('a');
   });
 });

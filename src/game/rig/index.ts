@@ -1,6 +1,6 @@
-import { SUBGENRES, type LevelStyle, type Subgenre } from '../genre';
+import { styleFor, SUBGENRES, type LevelStyle, type Subgenre } from '../genre';
 import { createRng, deriveSeed } from '../rng';
-import type { RunState } from '../run';
+import { levelSeed, type RunState } from '../run';
 import { MAX_TIER, tierOf } from '../tier';
 import type { OscillatorPart, WeaponRecipe } from '../weapons';
 
@@ -96,6 +96,10 @@ export const rigStyle = (rolled: LevelStyle, rig: Rig | undefined) => {
   return { subgenre, style, bpm: rig?.bpm ?? own };
 };
 
+/** A level's subgenre and tempo, from its seed (see `genre`) or the rig. */
+export const levelStyle = (run: Pick<RunState, 'seed' | 'level' | 'rig'>) =>
+  rigStyle(styleFor(levelSeed(run), run.level), run.rig);
+
 /** One line on what a rig changes, for the start screen and the console. */
 export const describeRig = (rig: Rig): string =>
   [
@@ -123,9 +127,7 @@ export const rigLoot = (
 ): Array<WeaponRecipe> => {
   const rng = createRng(deriveSeed(seed, LOOT_STREAM));
   // From the console, so anything: what isn't a number is the lowest tier.
-  const clamped = Number.isFinite(tier)
-    ? Math.min(Math.max(Math.round(tier), 1), MAX_TIER)
-    : 1;
+  const clamped = Number.isFinite(tier) ? tierOf(tier) : 1;
   return Array.from({ length: count }, (_, i) => ({
     seed: rng.int(0, 2 ** 31),
     oscillator: ENGINES[i % ENGINES.length],

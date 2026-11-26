@@ -115,7 +115,7 @@ export interface WaveRules {
   fill: boolean;
   /** Play-testing: nothing can hit the player. */
   invulnerable: boolean;
-  /** Play-testing: no circle, the song from the first bar (as `fill` does). */
+  /** No circle, the song from the first bar: play-testing, and `fill`. */
   skipCircle: boolean;
 }
 
@@ -163,7 +163,7 @@ export const rulesFor = ({
   chargerChance: Math.min(0.25 + 0.05 * (level - 1), 0.45),
   fill: stress,
   invulnerable: god,
-  skipCircle,
+  skipCircle: stress || skipCircle,
 });
 
 export const DEFAULT_RULES: WaveRules = rulesFor({ level: 1 });
@@ -213,14 +213,15 @@ export interface World {
  */
 export const INVULNERABLE_BEATS = 2;
 /**
- * A beat at 140 BPM. What the player is given in beats - invulnerability,
- * the dash's cooldown - never runs shorter than in these, so a drum & bass
- * tempo speeds up the enemies but not the player's breathing room.
+ * A beat at 140 BPM, the tempo a world steps at unless told otherwise.
+ * What the player is given in beats - invulnerability, the dash's
+ * cooldown - never runs shorter than in these, so a drum & bass tempo
+ * speeds up the enemies but not the player's breathing room.
  */
-const SLOWEST_BEAT_SECONDS = 60 / 140;
+const BASE_BEAT_SECONDS = 60 / 140;
 /** A beat for the player's own timings: the tempo's, or 140's if shorter. */
-export const playerBeatSeconds = (beatSeconds: number): number =>
-  Math.max(beatSeconds, SLOWEST_BEAT_SECONDS);
+const playerBeatSeconds = (beatSeconds: number): number =>
+  Math.max(beatSeconds, BASE_BEAT_SECONDS);
 /** How close to the pad's centre counts as standing in the circle. */
 export const PAD_RADIUS = 48;
 export const PLAYER_MAX_HP = 5;
@@ -279,7 +280,7 @@ export const createWorld = (
   kills,
   score,
   combo: NO_COMBO,
-  survival: rules.fill || rules.skipCircle ? songFrom(0) : INITIAL_SURVIVAL,
+  survival: rules.skipCircle ? songFrom(0) : INITIAL_SURVIVAL,
   enemies: [],
   pickups: [],
   bag,
@@ -763,7 +764,7 @@ export const stepWorld = (
     dt,
     now,
     beat = 0,
-    beatSeconds = 60 / 140,
+    beatSeconds = BASE_BEAT_SECONDS,
   }: {
     input: PlayerInput;
     dt: number;
