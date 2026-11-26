@@ -3,6 +3,7 @@ import {
   BAG_SIZE,
   cleanRig,
   describeRig,
+  isRigged,
   MAX_TIER,
   RIG_BPM,
   RIG_SUBGENRES,
@@ -24,7 +25,7 @@ Set before pressing Drop in (the rig is kept on this device):
   riot.seed(1234)        the run's seed
   riot.rig({ level: 5, god: true })  several at once
   riot.reset()           back to a normal run
-In a level:
+In a rigged level:
   riot.skip()            clear the level now
   riot.loot(5)           fill the bag with loot of a tier (the level's by default)
 riot.rig()               what's rigged`;
@@ -59,17 +60,20 @@ declare global {
 export const useRiotConsole = ({
   game,
   level,
+  rigged,
 }: {
   /** The game under way, if any. */
   game: { current: Game | null };
   /** The level being played, for loot of its tier. */
   level: number;
+  /** Whether the run under way is rigged: only then can it be skipped or looted. */
+  rigged: boolean;
 }): Rig => {
   const [rig, setRig] = useState(() => readRig());
-  const latest = useRef({ rig, level });
+  const latest = useRef({ rig, level, rigged });
   useEffect(() => {
-    latest.current = { rig, level };
-  }, [rig, level]);
+    latest.current = { rig, level, rigged };
+  }, [rig, level, rigged]);
 
   useEffect(() => {
     const apply = (next: Rig) => {
@@ -101,6 +105,13 @@ export const useRiotConsole = ({
         console.warn('riot: no level under way');
         return;
       }
+      // A skip or loot in a normal run would carry it onto the board.
+      if (!latest.current.rigged) {
+        console.warn(
+          'riot: this run is not rigged - rig one and Drop in (riot.help())',
+        );
+        return;
+      }
       run(current);
     };
     const riot: RiotConsole = {
@@ -127,7 +138,7 @@ export const useRiotConsole = ({
     };
     window.riot = riot;
     const { rig: saved } = latest.current;
-    if (Object.keys(saved).length > 0)
+    if (isRigged(saved))
       console.info(
         `riot: rigged, ${describeRig(saved)}. riot.reset() to stop.`,
       );

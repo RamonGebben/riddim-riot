@@ -529,7 +529,6 @@ export const placePickup = (
   nextId: world.nextId + 1,
 });
 
-/** The bag sorted in the loadout menu: what's left in it, in its order. */
 /**
  * Play-testing: the level done with - its enemies gone and the player on
  * a full exit - so the next frame takes the exit, clear bonus and all.
@@ -546,6 +545,7 @@ export const takeExit = (world: World): World =>
         pendingShots: [],
       };
 
+/** The bag sorted in the loadout menu: what's left in it, in its order. */
 export const setBag = (world: World, bag: Array<WeaponRecipe>): World => ({
   ...world,
   bag: bag.slice(0, BAG_SIZE),
