@@ -112,9 +112,9 @@ export interface Previewer {
    * Bake the track (whole bars at the game's tempo) under the menu's
    * low-pass and load it, so the next `startLoop` sounds at once. The
    * latest one prepared wins; one arriving while the loop sounds takes
-   * over the next time it starts.
+   * over the next time it starts. Rejects if the bake fails.
    */
-  prepareLoop: (track: AudioBuffer) => void;
+  prepareLoop: (track: AudioBuffer) => Promise<void>;
   /**
    * Loop the prepared track, fading in; with none ready yet, as soon as
    * one is. Already looping, it plays on.
@@ -291,19 +291,16 @@ export const createPreviewer = ({
     });
   };
 
-  const prepareLoop = (track: AudioBuffer) => {
+  const prepareLoop = async (track: AudioBuffer) => {
     const version = ++loop.version;
-    void filtered(track, patch)
-      .then(clip => {
-        if (version !== loop.version || disposed) return;
-        if (loop.next) URL.revokeObjectURL(loop.next);
-        loop.next = urlOf(clip);
-        // Sounding or fading out: it takes over once that's done.
-        if (loopSounding()) return;
-        takeNext();
-        if (loop.on) soundLoop();
-      })
-      .catch((error: unknown) => console.error(error));
+    const clip = await filtered(track, patch);
+    if (version !== loop.version || disposed) return;
+    if (loop.next) URL.revokeObjectURL(loop.next);
+    loop.next = urlOf(clip);
+    // Sounding or fading out: it takes over once that's done.
+    if (loopSounding()) return;
+    takeNext();
+    if (loop.on) soundLoop();
   };
 
   /**
@@ -410,20 +407,18 @@ export const createPreviewer = ({
         options,
       );
     },
-    alternate: (a, b, options) => {
-      const bar = barSeconds;
-      return sound(
+    alternate: (a, b, options) =>
+      sound(
         layClips(
           [
             { clip: clipOf(a), at: 0 },
-            { clip: clipOf(b), at: bar },
+            { clip: clipOf(b), at: barSeconds },
           ],
-          { seconds: bar * 2, gain: level, wrap: true },
+          { seconds: barSeconds * 2, gain: level, wrap: true },
         ),
-        { looping: true, bar },
+        { looping: true, bar: barSeconds },
         options,
-      );
-    },
+      ),
     stop,
     dispose: () => {
       stop();

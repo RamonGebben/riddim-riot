@@ -514,13 +514,16 @@ export const startGame = async ({
   /** The latest loop asked for while another rendered; older ones drop. */
   let nextLoop: TrackMoment | null = null;
   let renderingLoop = false;
+  /** Stopped: no more loops render, so none queue behind the next level. */
+  let stopped = false;
   const renderNextLoop = () => {
     const moment = nextLoop;
-    if (!moment || renderingLoop) return;
+    if (!moment || renderingLoop || stopped) return;
     nextLoop = null;
     renderingLoop = true;
     void renderMenuLoop(moment)
-      .then(previewer.prepareLoop, (error: unknown) => {
+      .then(previewer.prepareLoop)
+      .catch((error: unknown) => {
         // Tried again on the next bar, unless a newer one is on its way.
         if (!nextLoop) loopFor = '';
         console.error(error);
@@ -766,6 +769,8 @@ export const startGame = async ({
       return () => listeners.delete(listener);
     },
     stop: () => {
+      stopped = true;
+      nextLoop = null;
       offAudio();
       document.removeEventListener('visibilitychange', onVisibility);
       previewer.dispose();

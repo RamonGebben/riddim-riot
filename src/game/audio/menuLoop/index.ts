@@ -28,7 +28,7 @@ export interface TrackMoment {
   /** The drums are in (the slam has happened). */
   drums: boolean;
   /** How the level's subgenre plays the drums. */
-  drumStyle?: DrumStyle;
+  drumStyle: DrumStyle;
 }
 
 /**
