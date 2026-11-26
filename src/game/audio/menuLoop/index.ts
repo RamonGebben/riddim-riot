@@ -1,4 +1,5 @@
 import { getTransport, Offline } from 'tone';
+import type { DrumStyle } from '../../genre';
 import { STEPS_PER_BAR, toPosition } from '../../grid';
 import type { Progression } from '../../harmony';
 import type { Key } from '../../music';
@@ -26,14 +27,18 @@ export interface TrackMoment {
   part: SongPart | null;
   /** The drums are in (the slam has happened). */
   drums: boolean;
+  /** How the level's subgenre plays the drums. */
+  drumStyle: DrumStyle;
 }
 
 /**
- * One bar of the track as it stands - drums, pad, air and backing, in the
- * section and chord the level is in - rendered offline and ready to loop
- * seamlessly. A bar is played first to warm the voices up (pads glide in,
- * a drop hits on entering), and only the bar after it is kept. Queued
- * behind any other offline render.
+ * The track as it stands - drums, pad, air and backing, in the section the
+ * level is in - over the whole turn of the chord progression it's on (4 or
+ * 8 bars), rendered offline and ready to loop seamlessly. One bar looping
+ * was heard as a stuck record; a full turn of the chords sounds complete.
+ * The bar before the turn is played first to warm the voices up (pads
+ * glide in, a drop hits on entering), and only the turn after it is kept.
+ * Queued behind any other offline render.
  */
 export const renderMenuLoop = (
   moment: TrackMoment,
@@ -42,12 +47,18 @@ export const renderMenuLoop = (
   offlineTurn(async () => {
     const stepSeconds = 60 / moment.bpm / 4;
     const barSeconds = stepSeconds * STEPS_PER_BAR;
+    const bars = moment.progression.bars;
+    // The turn the current bar is in, from its first chord.
+    const into = ((moment.chordBar % bars) + bars) % bars;
+    const firstBar = moment.bar - into;
+    const firstChordBar = moment.chordBar - into;
     const rendered = await Offline(
       () => {
         getTransport().bpm.value = moment.bpm;
         const musicBus = createMusicBus();
         const drums = createDrums({
           seed: moment.seed,
+          style: moment.drumStyle,
           output: musicBus.input,
           kickHz: moment.rootHz,
           onHit: hit => {
@@ -70,11 +81,12 @@ export const renderMenuLoop = (
           progression: moment.progression,
           stepSeconds,
         });
-        // The warm-up bar plays the bar before, the loop the bar itself.
-        [0, 1, 2].forEach(offset => {
+        // The warm-up bar plays the bar before the turn, then the turn,
+        // then the bar after it, which the seam crossfades from.
+        Array.from({ length: bars + 2 }, (_, offset) => {
           const time = offset * barSeconds;
-          const bar = moment.bar - 1 + offset;
-          const chordBar = moment.chordBar - 1 + offset;
+          const bar = firstBar - 1 + offset;
+          const chordBar = firstChordBar - 1 + offset;
           arrangement.onBar(moment.section, { time, bar, chordBar });
           backing.onBar({ time, bar: chordBar, part: moment.part });
           if (!moment.drums) return;
@@ -90,13 +102,13 @@ export const renderMenuLoop = (
         getTransport().start(0);
       },
       // A seam's spare past the end: the offline length truncates, and the
-      // crossfade reads up to a sample past two rounded bars plus the seam.
-      barSeconds * 2 + design.menu.seam * 2,
+      // crossfade reads up to a sample past the rounded bars plus the seam.
+      barSeconds * (bars + 1) + design.menu.seam * 2,
     );
     const source = rendered.get();
     if (!source) throw new Error('The loop rendered nothing');
     const start = Math.round(barSeconds * source.sampleRate);
-    const length = Math.round(barSeconds * source.sampleRate);
+    const length = Math.round(barSeconds * bars * source.sampleRate);
     const seam = Math.round(design.menu.seam * source.sampleRate);
     const loop = new AudioBuffer({
       numberOfChannels: source.numberOfChannels,

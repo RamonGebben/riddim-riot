@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { gameAudioState, watchAudio } from '../support/audio';
-import { dropIn } from '../support/game';
+import { gameAudioState, sounding, watchAudio } from '../support/audio';
+import { dropIn, musical } from '../support/game';
 
 test('open the bag from the pause and close back to it', async ({
   page,
@@ -12,16 +12,21 @@ test('open the bag from the pause and close back to it', async ({
 
   await page.keyboard.press('KeyP');
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
+  // Every menu over the level loops the track under a low-pass.
+  await expect.poll(() => sounding(page), musical).toEqual(['loop']);
   await page.getByRole('button', { name: 'Loadout and bag' }).click();
   const menu = page.getByRole('dialog', { name: 'Loadout' });
   await expect(menu).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeHidden();
+  expect(await sounding(page)).toEqual(['loop']);
 
   // Closing it goes back to the pause, the game still frozen behind it.
   await menu.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(menu).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeVisible();
   await expect.poll(() => gameAudioState(page)).toBe('suspended');
+  // The loop plays on from the bag to the pause.
+  expect(await sounding(page)).toEqual(['loop']);
 
   // B opens it from the pause too, and only Resume starts the game again.
   await page.keyboard.press('KeyB');
@@ -40,6 +45,8 @@ test('open the bag from the pause and close back to it', async ({
   await page.getByRole('button', { name: 'Resume' }).click();
   await expect(page.getByRole('heading', { name: 'Paused' })).toBeHidden();
   await expect.poll(() => gameAudioState(page)).toBe('running');
+  // Fighting again, the loop fades out under the track.
+  await expect.poll(() => sounding(page), musical).toEqual([]);
 });
 
 test('a pause after a slow audio start stays frozen through the next press', async ({

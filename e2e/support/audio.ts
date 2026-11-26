@@ -55,3 +55,16 @@ export const sounding = (page: Page) =>
       .map(element => (element.loop ? 'loop' : 'preview'))
       .sort(),
   );
+
+/**
+ * How long the menu's looping file runs, in seconds: null with none, NaN
+ * before its metadata is in.
+ */
+export const loopSeconds = (page: Page) =>
+  page.evaluate(
+    () =>
+      (window as unknown as Watched).filesPlayed.find(
+        element =>
+          !element.paused && element.loop && element.src.startsWith('blob:'),
+      )?.duration ?? null,
+  );

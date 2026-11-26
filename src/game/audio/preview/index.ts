@@ -1,7 +1,7 @@
 import { SOUND_DESIGN, type MenuPatch } from '../../sound';
 import { clipOf, encodeWav, layClips, type Clip } from '../clip';
 
-/** Beats in the looped bar: previews start on the next one. */
+/** Beats in a bar: previews start on the loop's next one. */
 const LOOP_BEATS = 4;
 /**
  * How long a clip gets to load before a preview gives up on it. Only a
@@ -62,18 +62,21 @@ const empty = (element: HTMLAudioElement) => {
 };
 
 /**
- * A bar looping under the low-pass, baked: the bar plays twice through the
+ * The track looping under the low-pass, baked: it plays twice through the
  * filter and the second pass is kept, so the filter has settled across the
  * loop point.
  */
-const filtered = async (bar: AudioBuffer, patch: MenuPatch): Promise<Clip> => {
+const filtered = async (
+  track: AudioBuffer,
+  patch: MenuPatch,
+): Promise<Clip> => {
   const offline = new OfflineAudioContext(
-    bar.numberOfChannels,
-    bar.length * 2,
-    bar.sampleRate,
+    track.numberOfChannels,
+    track.length * 2,
+    track.sampleRate,
   );
   const source = offline.createBufferSource();
-  source.buffer = bar;
+  source.buffer = track;
   source.loop = true;
   const filter = offline.createBiquadFilter();
   filter.type = 'lowpass';
@@ -84,7 +87,7 @@ const filtered = async (bar: AudioBuffer, patch: MenuPatch): Promise<Clip> => {
   const rendered = clipOf(await offline.startRendering());
   return {
     ...rendered,
-    channels: rendered.channels.map(samples => samples.slice(bar.length)),
+    channels: rendered.channels.map(samples => samples.slice(track.length)),
   };
 };
 
@@ -105,9 +108,19 @@ export interface Previewer {
    * after it.
    */
   prime: () => void;
-  /** Loop a bar of the track under the menu's low-pass, fading in. */
-  startLoop: (bar: AudioBuffer) => void;
-  /** Fade the loop out. */
+  /**
+   * Bake the track (whole bars at the game's tempo) under the menu's
+   * low-pass and load it, so the next `startLoop` sounds at once. The
+   * latest one prepared wins; one arriving while the loop sounds takes
+   * over the next time it starts. Rejects if the bake fails.
+   */
+  prepareLoop: (track: AudioBuffer) => Promise<void>;
+  /**
+   * Loop the prepared track, fading in; with none ready yet, as soon as
+   * one is. Already looping, it plays on.
+   */
+  startLoop: () => void;
+  /** Fade the loop out; it starts from the top next time. */
   stopLoop: () => void;
   /**
    * Play a preview from the top, cutting off the one before. With the loop
@@ -142,35 +155,30 @@ export const createPreviewer = ({
   barSeconds,
   patch = SOUND_DESIGN.menu,
 }: {
-  /** A bar at the game's tempo: an A/B's turns, without a loop to go by. */
+  /** A bar at the game's tempo: the loop's beat and an A/B's turns. */
   barSeconds: number;
   patch?: MenuPatch;
 }): Previewer => {
   let elements: { loop: HTMLAudioElement; preview: HTMLAudioElement } | null =
     null;
-  let loop: {
+  /** The loop's file on its element, and one waiting to take over. */
+  const loop: {
     url: string | null;
-    beatSeconds: number;
+    next: string | null;
+    /** Bumped by each prepare, so a slow bake can't overtake a newer one. */
+    version: number;
+    /** Wanted sounding: between `startLoop` and `stopLoop`. */
+    on: boolean;
     fade: ReturnType<typeof setInterval> | null;
-  } | null = null;
-  /** The last loop's fade out and its file, until it's done. */
-  let fadingOut: {
-    timer: ReturnType<typeof setInterval>;
-    url: string | null;
-  } | null = null;
-  /** Cuts the last loop's fade out short, letting its file go. */
-  const endFadeOut = () => {
-    if (!fadingOut) return;
-    clearInterval(fadingOut.timer);
-    if (fadingOut.url) URL.revokeObjectURL(fadingOut.url);
-    fadingOut = null;
-  };
+  } = { url: null, next: null, version: 0, on: false, fade: null };
   /** What's sounding: its file, its timers, and who to tell it ended. */
   let playing: {
     url: string;
     timers: Array<ReturnType<typeof setTimeout>>;
     onEnd: () => void;
   } | null = null;
+
+  let disposed = false;
 
   const elementsOf = () => {
     elements ??= { loop: new Audio(), preview: new Audio() };
@@ -219,21 +227,80 @@ export const createPreviewer = ({
     onEnd();
   };
 
-  const stopLoop = () => {
-    if (!loop || !elements) return;
-    const { url, fade: fading } = loop;
-    loop = null;
-    if (fading) clearInterval(fading);
+  const endLoopFade = () => {
+    if (loop.fade) clearInterval(loop.fade);
+    loop.fade = null;
+  };
+
+  /**
+   * The loop's own file is playing (fading out included): not the moment
+   * of silence a press primes the element with.
+   */
+  const loopSounding = () =>
+    elements !== null &&
+    loop.url !== null &&
+    !elements.loop.paused &&
+    elements.loop.src === loop.url;
+
+  /** Puts the waiting file on the loop's element, loading it. */
+  const takeNext = () => {
+    if (!loop.next) return;
+    const element = elementsOf().loop;
+    if (loop.url) URL.revokeObjectURL(loop.url);
+    loop.url = loop.next;
+    loop.next = null;
+    element.src = loop.url;
+    element.loop = true;
+    element.preload = 'auto';
+    element.load();
+  };
+
+  /** Fades the loaded loop in, from the top unless it's still fading out. */
+  const soundLoop = () => {
+    if (!loop.url || !elements) return;
     const element = elements.loop;
-    endFadeOut();
-    fadingOut = {
-      url,
-      timer: fade(element, 0, () => {
-        fadingOut = null;
-        empty(element);
-        if (url) URL.revokeObjectURL(url);
-      }),
-    };
+    endLoopFade();
+    if (!loopSounding()) {
+      element.volume = 0;
+      element.currentTime = 0;
+      element.play().catch((error: unknown) => {
+        // Stopped meanwhile (paused under play()): not wanted.
+        if (loop.on) console.error(error);
+      });
+    }
+    loop.fade = fade(element, 1);
+  };
+
+  const startLoop = () => {
+    loop.on = true;
+    // Silent, so a newer file can take over without a jump.
+    if (!loopSounding()) takeNext();
+    soundLoop();
+  };
+
+  const stopLoop = () => {
+    if (!loop.on) return;
+    loop.on = false;
+    endLoopFade();
+    if (!elements) return;
+    const element = elements.loop;
+    loop.fade = fade(element, 0, () => {
+      loop.fade = null;
+      element.pause();
+      takeNext();
+    });
+  };
+
+  const prepareLoop = async (track: AudioBuffer) => {
+    const version = ++loop.version;
+    const clip = await filtered(track, patch);
+    if (version !== loop.version || disposed) return;
+    if (loop.next) URL.revokeObjectURL(loop.next);
+    loop.next = urlOf(clip);
+    // Sounding or fading out: it takes over once that's done.
+    if (loopSounding()) return;
+    takeNext();
+    if (loop.on) soundLoop();
   };
 
   /**
@@ -241,8 +308,8 @@ export const createPreviewer = ({
    * first shot, so the shot lands on the loop's next beat.
    */
   const untilBeat = (leadIn: number) => {
-    if (!loop?.url || !elements) return 0;
-    const { beatSeconds } = loop;
+    if (!loop.on || !elements || !loopSounding()) return 0;
+    const beatSeconds = barSeconds / LOOP_BEATS;
     const at = elements.loop.currentTime;
     const beat =
       Math.ceil((at + leadIn + patch.ahead) / beatSeconds) * beatSeconds;
@@ -329,38 +396,8 @@ export const createPreviewer = ({
           void element.play().catch(() => {});
         });
     },
-    startLoop: bar => {
-      stopLoop();
-      // The new loop takes the element over; the old one stops at once.
-      endFadeOut();
-      const current = {
-        url: null as string | null,
-        beatSeconds: bar.duration / LOOP_BEATS,
-        fade: null as ReturnType<typeof setInterval> | null,
-      };
-      loop = current;
-      void filtered(bar, patch)
-        .then(async clip => {
-          if (loop !== current) return;
-          const element = elementsOf().loop;
-          const url = urlOf(clip);
-          current.url = url;
-          element.src = url;
-          element.loop = true;
-          element.volume = 0;
-          element.load();
-          // No load wait: play() waits for the data itself, and nothing
-          // starts on the loop's start. A slow load gives a late loop, not
-          // none (Firefox on a CI runner went past the wait).
-          await element.play();
-          if (loop !== current) return;
-          current.fade = fade(element, 1);
-        })
-        .catch((error: unknown) => {
-          // Cut off meanwhile (the element emptied under play()): not wanted.
-          if (loop === current) console.error(error);
-        });
-    },
+    prepareLoop,
+    startLoop,
     stopLoop,
     play: (buffer, options) => {
       const clip = clipOf(buffer);
@@ -370,27 +407,27 @@ export const createPreviewer = ({
         options,
       );
     },
-    alternate: (a, b, options) => {
-      const bar = loop ? loop.beatSeconds * LOOP_BEATS : barSeconds;
-      return sound(
+    alternate: (a, b, options) =>
+      sound(
         layClips(
           [
             { clip: clipOf(a), at: 0 },
-            { clip: clipOf(b), at: bar },
+            { clip: clipOf(b), at: barSeconds },
           ],
-          { seconds: bar * 2, gain: level, wrap: true },
+          { seconds: barSeconds * 2, gain: level, wrap: true },
         ),
-        { looping: true, bar },
+        { looping: true, bar: barSeconds },
         options,
-      );
-    },
+      ),
     stop,
     dispose: () => {
       stop();
-      endFadeOut();
-      if (loop?.fade) clearInterval(loop.fade);
-      if (loop?.url) URL.revokeObjectURL(loop.url);
-      loop = null;
+      disposed = true;
+      loop.on = false;
+      endLoopFade();
+      [loop.url, loop.next].forEach(url => url && URL.revokeObjectURL(url));
+      loop.url = null;
+      loop.next = null;
       if (elements) [elements.loop, elements.preview].forEach(empty);
       elements = null;
     },
