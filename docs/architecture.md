@@ -397,12 +397,20 @@ level to level and empty at the start of every run.
   verdict is announced in one line, not the whole comparison. Done calls
   `Game.arrange`, which arms any new weapon while still frozen. The pure
   moves live in `rack.ts`.
-- **The loop and previews** (`audio/menuLoop`, `audio/preview`). Opening
-  the menu mid-level suspends the game's context as Pause does, so the
-  clock and the sim stay exact. The bar the track is on (drums, pad, air,
-  backing, in its section and chord) is rendered offline from the level's
-  own voices: a warm-up bar first, then one bar kept with a 30 ms seam
-  baked across its loop point. It plays through `<audio>` elements
+- **The loop and previews** (`audio/menuLoop`, `audio/preview`). Every
+  menu over the level (the pause and the loadout, which pauses too)
+  suspends the game's context, so the clock and the sim stay exact, and
+  loops the track under a low-pass until the last one closes (`holdLoop`;
+  a hidden tab plays nothing). The loop is rendered ahead while the level
+  plays (at the start, then again only when the section, song part or
+  drums change, latest wins) and handed to `previewer.prepareLoop`, which
+  bakes and loads it, so a menu opens straight onto it instead of after
+  a second or two of rendering. The turn of the chord progression the
+  track is on (4 or 8 bars of drums, pad, air and backing, in its section
+  and the level's drum style) is rendered offline from the level's own
+  voices: a warm-up bar first, then the whole turn kept with a 30 ms seam
+  baked across its loop point. One bar looping sounded like a stuck
+  record. It plays through `<audio>` elements
   (`createPreviewer`, unlocked inside the press), not a second
   AudioContext: on desktop Firefox a suspended context holds every other
   context on the page silent - running, clock advancing, no sound - at any

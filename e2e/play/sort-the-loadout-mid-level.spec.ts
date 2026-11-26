@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   contextCount,
   gameAudioState,
+  loopSeconds,
   sounding,
   watchAudio,
 } from '../support/audio';
@@ -32,11 +33,14 @@ test('open the loadout mid-level, hear a weapon, trade two slots and fight on', 
   const menu = page.getByRole('dialog', { name: 'Loadout' });
   await expect(menu).toBeVisible();
   await expect(menu.getByText('Bag 0/24')).toBeVisible();
-  // The level waits behind the menu while its bar loops on a media
+  // The level waits behind the menu while its track loops on a media
   // element, which sounds with every context on the page suspended.
   await expect.poll(() => gameAudioState(page)).toBe('suspended');
   await expect.poll(() => sounding(page), musical).toEqual(['loop']);
   expect(await contextCount(page)).toBe(contexts);
+  // A whole turn of the chords, not one bar on repeat: 4 bars are over
+  // 5 s at the fastest tempo (176), one bar under 2 s at the slowest.
+  await expect.poll(() => loopSeconds(page)).toBeGreaterThan(5);
 
   await menu.getByRole('button', { name: `Hear ${firstName}` }).click();
   await expect.poll(() => sounding(page), musical).toEqual(['loop', 'preview']);

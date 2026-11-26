@@ -18,6 +18,7 @@ import {
   PREVIEW_LEAD_IN,
   renderMenuLoop,
   renderWeaponPreview,
+  type TrackMoment,
 } from './audio';
 import { createBus } from './bus';
 import { createClock, type Tick } from './clock';
@@ -439,16 +440,24 @@ export const startGame = async ({
   const tellSound = () =>
     soundListeners.forEach(listener => listener(soundBlocked()));
   const offAudio = audio.onChange(tellSound);
+  /**
+   * Any menu over the level (the pause, the loadout) loops the track under
+   * a low-pass while the level waits; a hidden tab plays nothing. Set on
+   * once the previewer exists.
+   */
+  let holdLoop = () => {};
   const pause = () => {
     if (paused) return;
     paused = true;
     loadout.release();
     void audio.suspend();
+    holdLoop();
     tellSound();
   };
   const resume = () => {
     if (!paused) return;
     paused = false;
+    holdLoop();
     // Told once the resume settles, so a moment of starting up doesn't
     // flash "sound blocked"; a refused resume is told after the wait.
     void audio.resume().then(tellSound);
@@ -486,9 +495,68 @@ export const startGame = async ({
     part: null,
   };
   let trackIn = false;
-  let menuOpen = false;
   /** The menu was opened over the pause: closing it goes back there. */
   let menuOverPause = false;
+  holdLoop = () => {
+    if (!paused || hud.status !== 'playing' || document.hidden) {
+      previewer.stopLoop();
+      return;
+    }
+    // Most often inside the press that paused: Safari then lets the loop
+    // play even when its render lands after it.
+    previewer.prime();
+    previewer.startLoop();
+  };
+  const onVisibility = () => holdLoop();
+  document.addEventListener('visibilitychange', onVisibility);
+  /** What the latest loop asked for sounds like: a change renders again. */
+  let loopFor = '';
+  /** The latest loop asked for while another rendered; older ones drop. */
+  let nextLoop: TrackMoment | null = null;
+  let renderingLoop = false;
+  const renderNextLoop = () => {
+    const moment = nextLoop;
+    if (!moment || renderingLoop) return;
+    nextLoop = null;
+    renderingLoop = true;
+    void renderMenuLoop(moment)
+      .then(previewer.prepareLoop, (error: unknown) => {
+        // Tried again on the next bar, unless a newer one is on its way.
+        if (!nextLoop) loopFor = '';
+        console.error(error);
+      })
+      .finally(() => {
+        renderingLoop = false;
+        renderNextLoop();
+      });
+  };
+  /**
+   * Renders the menus' loop ahead, while the level plays, so a menu opens
+   * straight onto it: again only when the section, the song part or the
+   * drums coming in change what the track sounds like.
+   */
+  const prepareLoop = (bar: number) => {
+    const { section, part } = playingSection;
+    const sound = `${section}/${part ?? ''}/${trackIn}`;
+    if (sound === loopFor) return;
+    loopFor = sound;
+    nextLoop = {
+      seed,
+      key,
+      progression,
+      bpm,
+      rootHz: rootHz(1),
+      bar,
+      chordBar: chordBar(bar),
+      drums: trackIn,
+      drumStyle: style.drums,
+      section,
+      part,
+    };
+    renderNextLoop();
+  };
+  // Ready from the start: the circle, before any section, pauses too.
+  prepareLoop(0);
   /** The riff moved onto the chord being played, as a preview plays it. */
   const chordShift = () =>
     lastTick
@@ -556,6 +624,7 @@ export const startGame = async ({
             playingSection = { section, part: at.part };
             arrangement.onBar(section, { ...at, chordBar: bar });
             backing.onBar({ time: at.time, bar, part: at.part });
+            prepareLoop(at.bar);
           },
           charge: arrangement.charge,
           uncharge: arrangement.uncharge,
@@ -572,6 +641,7 @@ export const startGame = async ({
             // The slam's own tick has already gone by the drums: play it.
             if (!drumsIn) drums.onTick(tick);
             drumsIn = true;
+            // The section told on this same tick renders the loop with them.
             trackIn = true;
           },
         },
@@ -624,33 +694,14 @@ export const startGame = async ({
       previewer.prime();
       menuOverPause = paused;
       pause();
-      menuOpen = true;
-      if (!lastTick || hud.status !== 'playing') return;
-      const at = lastTick;
-      void renderMenuLoop({
-        seed,
-        key,
-        progression,
-        bpm,
-        rootHz: rootHz(1),
-        bar: at.bar,
-        chordBar: chordBar(at.bar),
-        drums: trackIn,
-        ...playingSection,
-      }).then(
-        bar => {
-          // Closed again while it rendered: nothing to loop under.
-          if (menuOpen) previewer.startLoop(bar);
-        },
-        (error: unknown) => console.error(error),
-      );
+      holdLoop();
     },
     closeMenu: () => {
-      menuOpen = false;
       previewTurn += 1;
       previewer.stop();
-      previewer.stopLoop();
       if (!menuOverPause) resume();
+      // Back to the pause, the loop plays on under it.
+      holdLoop();
     },
     preview: async (recipe, onStart) => {
       previewer.prime();
@@ -716,6 +767,7 @@ export const startGame = async ({
     },
     stop: () => {
       offAudio();
+      document.removeEventListener('visibilitychange', onVisibility);
       previewer.dispose();
       soundListeners.clear();
       unsubscribe.forEach(off => off());
