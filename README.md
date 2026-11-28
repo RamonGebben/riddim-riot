@@ -130,30 +130,38 @@ run.
 ## Sound playground
 
 Open <http://localhost:3000/playground> while `pnpm dev` runs, press
-**Start audio**, and tune by ear. Every value that shapes the sound has a
-control, and you hear it through the game's own voices, drums and
-arrangement at 140 BPM.
+**Start audio**, and tune by ear. The page is a bass synth's front panel:
+every value that shapes the sound is a knob or a curve, heard through the
+game's own voices, drums and arrangement at 140 BPM.
 
-1. **Listen.** Pick a key, switch the drums and the section (calm, groove,
-   build, drop), and fire one-shots: impact, kill + score (each press is
-   the next kill of a combo, so the pluck climbs), Crush blast, reload,
-   beam recharge, riser and drop hit.
-2. **Pick a weapon.** Roll seeds or step through them, and pin any part
-   (engine, manufacturer, LFO rate, FX) to hear just that kind. **Hold** or
-   **Mash** fires hands-free while you turn knobs. **Compare rolls** lines
-   up eight seeds from the current design.
-3. **Shape the sound.** The groups on the right are the engines and their
-   layers (sub, reese stack, growl, click), the weapon mix and loudness
-   target, the sidechain, the parts pool (the ranges rolls land in), drums,
-   kill impact, blast, score, recharge, reload, arrangement and the pad bed.
-   Changed values are marked and counted per group, and each group can be
-   reset.
-4. **Save to game.** This writes `src/game/sound/design.json`; reload the
+**Blue is the sound design, amber is the weapon you're auditioning.** A
+blue change goes into `design.json` for every weapon; an amber one only
+changes this roll, for listening.
+
+1. **Pick a weapon** in the preset bar: step through seeds, **Roll**, pin
+   any part (engine, maker, LFO rate, FX), or pick one of eight rolls
+   from the current design. Set the key, the section (calm, groove, build,
+   drop) and the drums under it.
+2. **Fire it on the range.** The window on the right is the game's own
+   stage: point at it to move (WASD, Space dashes), click to fire,
+   quantized as in a level. Shots knock down the dummies (impact, score
+   and Crush blasts sound as in play) and the magazine reloads. **Hold** or
+   **Mash** keeps firing while your hand is on a knob.
+3. **Shape it.** Pick an instrument from the rack strip: Wobble, Laser,
+   Beam, Drums, Hits or Track. Each section draws its curve - the filter,
+   the LFO sweep, the envelope, the pitch drop, the growl's band, the
+   sidechain - and its handles drag the values. On an engine's filter the
+   dashed box is where rolls land (its edges drag the ranges) and the amber
+   handle is this roll's cutoff and resonance. The riff row lights the
+   note playing. The output strip under the range holds what every weapon
+   shares: the makers, the FX rolls and the weapon mix.
+4. **Knobs:** drag up and down (Shift for fine), use the arrow keys (Shift
+   fine, Page coarse), click the readout to type a value, double-click or
+   Delete to reset. A grey tick marks the saved value; each section has a
+   Reset and the Hits and Track sections a Play.
+5. **Save to game.** This writes `src/game/sound/design.json`; reload the
    game to play with it. **Export** and **Import** move a design as a file,
    and drafts stay in the browser between reloads.
-
-"This roll's sound" changes only the weapon you're listening to. To change
-what every roll can sound like, change the parts pool ranges instead.
 
 ## How it's built
 

@@ -561,9 +561,22 @@ loads and the base fills any gap. Every voice takes its patch with the
 game's design as the default.
 
 `sound/schema` lists every value with its label, range, step and unit;
-tests keep it complete. The playground page (`/playground`,
-`src/playground`) renders a control per field and drives
-`game/playground`, which runs the real voices on the real clock. Saving
+tests keep it complete. `sound/racks` lays the schema out as a synth's
+panels - a rack per instrument, rows of sections, each a curve and its
+knobs - and its tests keep every schema value on exactly one knob.
+`sound/curves` is the pure maths the panels draw: biquad responses
+(cascaded per -12 dB as the voices are), Tone's envelope shape, the LFO's
+sweep, pitch drops and the sidechain pump.
+
+The playground page (`/playground`, `src/playground`, drawn by
+`templates/PlaygroundScreen`) drives `game/playground`, which runs the real
+voices on the real clock. Its firing range (`playground/range`, pure, and
+`playground/field`) is the game's own stage and world sim in a small
+room: the weapon slot's shots go on a `GameEvents` bus as in a level,
+three dummies stand still (they get no beat ticks, so never hop) and come
+back on the next bar, kills play impact and score. It takes the keyboard
+only while the pointer is over it, so the knobs keep the arrow keys.
+Blue marks the design, amber the auditioned weapon's own values. Saving
 goes through a dev-only route (`/api/sound-design`, in
 `src/app/api/sound-design`) that merges, Prettier-formats and writes `design.json`
 without reloading the page.
