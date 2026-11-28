@@ -106,6 +106,12 @@ export const BAG_ICON: Icon = [
 /** A chevron up: climbing the board. */
 export const CLIMB_ICON: Icon = [{ d: 'M5 15 L12 8 L19 15' }];
 
+/** Back a step: a seed, a page. */
+export const PREVIOUS_ICON: Icon = [{ d: 'M15 5 L8 12 L15 19' }];
+
+/** On a step. */
+export const NEXT_ICON: Icon = [{ d: 'M9 5 L16 12 L9 19' }];
+
 /** A box with an arrow leaving it: share. */
 export const SHARE_ICON: Icon = [
   { d: 'M12 3 V15' },

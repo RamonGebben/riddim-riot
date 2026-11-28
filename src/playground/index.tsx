@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { STEPS_PER_DIVISION } from '~/game/grid';
 import type { Key, ScaleName } from '~/game/music';
 import {
   auditionWeapon,
@@ -14,7 +15,7 @@ import {
   SOUND_DESIGN,
   type SoundDesign,
 } from '~/game/sound';
-import { DESIGN_SCHEMA, valueAt, withValue } from '~/game/sound/schema';
+import { withValue } from '~/game/sound/schema';
 import { rollWeapon } from '~/game/weapons';
 import { PlaygroundScreen } from '~/templates/PlaygroundScreen';
 
@@ -25,8 +26,6 @@ const APPLY_DELAY_MS = 200;
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const eightSeeds = () => Array.from({ length: 8 }, randomSeed);
-const same = (a: unknown, b: unknown) =>
-  JSON.stringify(a) === JSON.stringify(b);
 
 // Drafts are a convenience: if storage is blocked, tuning still works.
 const loadDraft = (): SoundDesign | null => {
@@ -159,26 +158,22 @@ export const Playground = () => {
     }
   };
 
-  const resetGroup = (groupId: string) => {
-    const group = DESIGN_SCHEMA.find(candidate => candidate.id === groupId);
-    if (!group) return;
-    setDesign(current =>
-      group.fields.reduce(
-        (next, field) =>
-          withValue(next, field.path, valueAt(saved, field.path)),
-        current,
-      ),
-    );
-  };
-
   const readLevel = useCallback(() => engine.current?.level() ?? -Infinity, []);
+  const readRiffNote = useCallback(
+    () => engine.current?.riffNote() ?? null,
+    [],
+  );
+  const mountRange = useCallback(
+    (element: HTMLElement) =>
+      engine.current?.attachRange(element) ?? (() => {}),
+    [],
+  );
 
   return (
     <PlaygroundScreen
       status={status}
       onStart={start}
       file={{
-        unsaved: !same(design, saved),
         message,
         onSave: save,
         onExport: exportDesign,
@@ -193,7 +188,6 @@ export const Playground = () => {
           setMessage(null);
           setDesign(current => withValue(current, path, value));
         },
-        onResetGroup: resetGroup,
       }}
       track={{
         root: key.root,
@@ -212,6 +206,7 @@ export const Playground = () => {
         onOneShot: sound => engine.current?.play(sound),
         readLevel,
       }}
+      mountRange={status === 'ready' ? mountRange : null}
       weapon={{
         name: weapon.name,
         seed: audition.seed,
@@ -227,15 +222,25 @@ export const Playground = () => {
             seed: randomSeed(),
             overrides: {},
           })),
+        sound: weapon.sound,
         rolled,
         overrides: audition.overrides,
         onOverride: (name, value) =>
           setAudition(current => ({
             ...current,
-            overrides: { ...current.overrides, [name]: value },
+            overrides: Object.fromEntries(
+              Object.entries({ ...current.overrides, [name]: value }).filter(
+                ([, kept]) => kept !== undefined,
+              ),
+            ),
           })),
-        onClearOverrides: () =>
-          setAudition(current => ({ ...current, overrides: {} })),
+        riff: {
+          notes: weapon.sound.riff,
+          every: STEPS_PER_DIVISION[weapon.timing.division],
+        },
+        readRiffNote,
+        rolls,
+        onRollMany: () => setSeeds(eightSeeds()),
         fire,
         onFire: mode => {
           setFire(mode);
@@ -243,7 +248,6 @@ export const Playground = () => {
         },
         onTap: () => engine.current?.tap(),
       }}
-      compare={{ rolls, onRollMany: () => setSeeds(eightSeeds()) }}
     />
   );
 };

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-20T11:17:43Z",
+  "generatedAt": "2026-11-26T15:18:37Z",
   "title": "Design System: Riddim Riot",
   "extensions": {
     "colorMeta": {
@@ -200,22 +200,30 @@
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Running text; card copy at 0.75rem in Smoke Grey."
+        "purpose": "Running text; card copy and booth notices at 0.75rem; the preset display weapon name in bold Hype Amber."
       },
       "label": {
         "displayName": "Panel label",
-        "purpose": "Mono uppercase UV Violet names for panels."
+        "purpose": "Mono uppercase UV Violet names for panels on the floor (0.2em tracking)."
       },
       "data": {
         "displayName": "Data",
         "purpose": "Keys, seeds, BPM, meta lines, status, stats."
+      },
+      "rack-label": {
+        "displayName": "Rack label",
+        "purpose": "Booth section names, latch-group names, rack tabs and the meter OUT: mono bold uppercase at 0.16em, UV Violet (Smoke Grey on unselected tabs)."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "Knob values, curve captions and axes, meter scale, riff notes: mono, tabular numbers."
       }
     },
     "shadows": [
       {
         "name": "modal",
         "value": "0 8px 24px rgba(0, 0, 0, 0.6)",
-        "purpose": "Overlay panel only."
+        "purpose": "Overlay panel, and the booth rolls dropdown."
       },
       {
         "name": "halo-strobe",
@@ -226,6 +234,11 @@
         "name": "halo-hype",
         "value": "0 0 14px color-mix(in srgb, #fbbf24 50%, transparent)",
         "purpose": "Dash button when ready."
+      },
+      {
+        "name": "armed-dot",
+        "value": "0 0 8px color-mix(in srgb, #fbbf24 55%, transparent)",
+        "purpose": "The 0.5rem amber dot on the armed engine rack tab."
       },
       {
         "name": "readout-glow",
@@ -263,6 +276,21 @@
         "name": "press",
         "value": "scale(0.96), 0.08s",
         "purpose": "Slot and Take press; dash uses 0.94."
+      },
+      {
+        "name": "riff-step",
+        "value": "background 60ms ease-out",
+        "purpose": "The sounding riff step lights to a 28% amber mix."
+      },
+      {
+        "name": "meter-peak-hold",
+        "value": "1.2s hold, redrawn per animation frame",
+        "purpose": "Output meter peak segment holds before falling."
+      },
+      {
+        "name": "toggle-slide",
+        "value": "150ms",
+        "purpose": "Toggle knob slides between off and on."
       }
     ],
     "breakpoints": [
@@ -289,6 +317,22 @@
       {
         "name": "side-by-side",
         "value": "(min-width: 720px) and (orientation: landscape)"
+      },
+      {
+        "name": "booth-preset-wrap",
+        "value": "(max-width: 700px)"
+      },
+      {
+        "name": "booth-row-side-by-side",
+        "value": "(min-width: 900px)"
+      },
+      {
+        "name": "booth-workbench-columns",
+        "value": "(min-width: 1100px)"
+      },
+      {
+        "name": "loadout-stack",
+        "value": "(max-width: 720px)"
       }
     ]
   },
@@ -305,7 +349,7 @@
       "name": "Quiet Button",
       "kind": "button",
       "refersTo": "button-quiet",
-      "description": "Compact outlined button for dense UI; a toggle with aria-pressed.",
+      "description": "Compact outlined button for dense UI on the floor (loadout placing, segmented controls, run standing); a toggle with aria-pressed.",
       "html": "<button class=\"ds-btn-quiet\">Roll</button> <button class=\"ds-btn-quiet\" aria-pressed=\"true\">Drop</button>",
       "css": ".ds-btn-quiet { min-height: var(--ds-target-min, 24px); padding: 0.4222rem 0.7502rem; border: 1px solid #2e2e2e; border-radius: 4px; background: transparent; color: #ededed; font-family: system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; cursor: pointer; } .ds-btn-quiet:hover { background: #1f1f1f; } .ds-btn-quiet:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; } .ds-btn-quiet[aria-pressed='true'] { border-color: #60a5fa; background: #60a5fa; color: #0b1220; }"
     },
@@ -398,27 +442,97 @@
       "description": "Round glass touch button; amber border and halo when ready.",
       "html": "<button class=\"ds-dash\" data-ready=\"true\">Dash<kbd>Space</kbd></button>",
       "css": ".ds-dash { display: grid; place-content: center; justify-items: center; width: 4.5em; height: 4.5em; padding: 0; border: 2px solid #2e2e2e; border-radius: 9999px; background: color-mix(in srgb, #111111 72%, transparent); backdrop-filter: blur(6px); color: #9ca3af; font: 700 0.75rem ui-monospace, monospace; text-transform: uppercase; cursor: pointer; } .ds-dash[data-ready='true'] { border-color: #fbbf24; box-shadow: 0 0 14px color-mix(in srgb, #fbbf24 50%, transparent); color: #ededed; } .ds-dash kbd { color: #fbbf24; font: inherit; font-size: 0.8em; } .ds-dash:active { transform: scale(0.94); }"
+    },
+    {
+      "name": "Latch",
+      "kind": "button",
+      "refersTo": "latch",
+      "description": "The booth push-button: small square key, pressed fills in its tone (blue design, amber weapon); the primary is filled, not bigger.",
+      "html": "<div class=\"ds-latch-row\"><button class=\"ds-latch\">Roll</button> <button class=\"ds-latch\" aria-pressed=\"true\">Groove</button> <button class=\"ds-latch ds-latch-weapon\" aria-pressed=\"true\">Saw</button> <button class=\"ds-latch ds-latch-primary\">Save to game</button> <button class=\"ds-latch\" disabled>Revert</button></div>",
+      "css": ".ds-latch-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px; background: #1f1f1f; } .ds-latch { display: inline-flex; align-items: center; justify-content: center; min-inline-size: 2.25rem; min-block-size: 1.75rem; padding: 0 0.4222rem; border: 1px solid #2e2e2e; border-radius: 4px; background: #111111; color: #ededed; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-weight: 700; line-height: 1; text-transform: uppercase; white-space: nowrap; cursor: pointer; } .ds-latch:hover { border-color: #9ca3af; } .ds-latch[aria-pressed='true'] { border-color: transparent; background: #60a5fa; color: #0b1220; } .ds-latch-weapon[aria-pressed='true'] { background: #fbbf24; color: #1a1a1a; } .ds-latch-primary { border-color: transparent; background: #60a5fa; color: #0b1220; } .ds-latch-primary:hover { border-color: transparent; background: #93c5fd; } .ds-latch:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; } .ds-latch:disabled { cursor: not-allowed; opacity: 0.4; }"
+    },
+    {
+      "name": "Latch Group",
+      "kind": "chip",
+      "refersTo": "latch-pressed",
+      "description": "A UV Violet rack label before latches 2px apart, exactly one pressed: pick one of a few.",
+      "html": "<div class=\"ds-lg\" role=\"group\" aria-label=\"Section\"><span class=\"ds-lg-name\">Section</span><button class=\"ds-lg-l\">Calm</button><button class=\"ds-lg-l\" aria-pressed=\"true\">Groove</button><button class=\"ds-lg-l\">Build</button><button class=\"ds-lg-l\">Drop</button></div>",
+      "css": ".ds-lg { display: flex; align-items: center; gap: 2px; padding: 10px; background: #1f1f1f; } .ds-lg-name { margin-inline-end: 0.4222rem; color: #a78bfa; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; } .ds-lg-l { min-inline-size: 2.25rem; min-block-size: 1.75rem; padding: 0 0.4222rem; border: 1px solid #2e2e2e; border-radius: 4px; background: #111111; color: #ededed; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; cursor: pointer; } .ds-lg-l:hover { border-color: #9ca3af; } .ds-lg-l[aria-pressed='true'] { border-color: transparent; background: #60a5fa; color: #0b1220; } .ds-lg-l:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }"
+    },
+    {
+      "name": "Arc Knob",
+      "kind": "custom",
+      "refersTo": "knob",
+      "description": "270-degree arc dial: Strobe Blue arc for a design value, Hype Amber for the weapon; Smoke Grey tick at the reference while moved; name and a typeable readout under it.",
+      "html": "<div class=\"ds-knobs\"><div class=\"ds-knob\"><div class=\"ds-dial\" tabindex=\"0\" role=\"slider\" aria-label=\"Cut max\" aria-valuenow=\"62\"><svg viewBox=\"0 0 44 44\" width=\"44\" height=\"44\"><path class=\"ds-track\" d=\"M 9.98 34.02 A 17 17 0 1 1 34.02 34.02\" fill=\"none\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M 9.98 34.02 A 17 17 0 1 1 36.6 13.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"4\" stroke-linecap=\"round\"/><circle class=\"ds-face\" cx=\"22\" cy=\"22\" r=\"12\"/><line class=\"ds-pointer\" x1=\"25.7\" y1=\"20.5\" x2=\"32.2\" y2=\"17.8\" stroke-width=\"2\" stroke-linecap=\"round\"/><line class=\"ds-ref\" x1=\"12.1\" y1=\"8.6\" x2=\"8.4\" y2=\"3.6\" stroke-width=\"2\"/></svg></div><span class=\"ds-knob-name\">Cut max</span><button class=\"ds-readout ds-readout-moved\">5.20k</button></div><div class=\"ds-knob ds-knob-weapon\"><div class=\"ds-dial\" tabindex=\"0\" role=\"slider\" aria-label=\"Cutoff\" aria-valuenow=\"40\"><svg viewBox=\"0 0 44 44\" width=\"44\" height=\"44\"><path class=\"ds-track\" d=\"M 9.98 34.02 A 17 17 0 1 1 34.02 34.02\" fill=\"none\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M 9.98 34.02 A 17 17 0 0 1 17.6 5.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"4\" stroke-linecap=\"round\"/><circle class=\"ds-face\" cx=\"22\" cy=\"22\" r=\"12\"/><line class=\"ds-pointer\" x1=\"21\" y1=\"18.1\" x2=\"19.1\" y2=\"10.3\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg></div><span class=\"ds-knob-name\">Cutoff</span><button class=\"ds-readout\">2.72k</button></div></div>",
+      "css": ".ds-knobs { display: flex; gap: 0.25rem; padding: 10px; background: #1f1f1f; } .ds-knob { display: grid; justify-items: center; gap: 0.125rem; inline-size: 4.25rem; } .ds-dial { inline-size: 44px; block-size: 44px; border-radius: 9999px; color: #60a5fa; cursor: ns-resize; } .ds-knob-weapon .ds-dial { color: #fbbf24; } .ds-dial:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; } .ds-track { stroke: #2e2e2e; } .ds-face { fill: #111111; stroke: color-mix(in srgb, #ededed 10%, transparent); } .ds-pointer { stroke: #ededed; } .ds-ref { stroke: #9ca3af; } .ds-knob-name { color: color-mix(in srgb, #ededed 78%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; line-height: 1.2; text-transform: uppercase; white-space: nowrap; } .ds-readout { inline-size: 4rem; min-block-size: 1.5rem; padding: 0 0.4222rem; border: none; border-radius: 4px; background: #111111; color: #ededed; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-variant-numeric: tabular-nums; cursor: text; } .ds-readout:hover { background: #2e2e2e; } .ds-readout-moved { color: #93c5fd; } .ds-readout:focus-visible { outline: 2px solid #93c5fd; }"
+    },
+    {
+      "name": "Curve Screen",
+      "kind": "custom",
+      "refersTo": "curve-screen",
+      "description": "Floor Black SVG display with a caption strip: blue trace and fill, the design range as a dashed blue band, the weapon value as an amber handle and dashed line.",
+      "html": "<figure class=\"ds-screen\"><figcaption class=\"ds-screen-cap\">LP -12 · 2.72k · Q 2.6</figcaption><svg width=\"320\" height=\"104\"><line class=\"ds-grid\" x1=\"80\" y1=\"0\" x2=\"80\" y2=\"86\"/><line class=\"ds-grid\" x1=\"160\" y1=\"0\" x2=\"160\" y2=\"86\"/><line class=\"ds-grid\" x1=\"240\" y1=\"0\" x2=\"240\" y2=\"86\"/><rect class=\"ds-band\" x=\"210\" y=\"10\" width=\"34\" height=\"76\"/><path class=\"ds-fill\" d=\"M 8 30 L 200 30 Q 225 24 232 22 L 300 86 L 8 86 Z\"/><path class=\"ds-trace\" d=\"M 8 30 L 200 30 Q 225 24 232 22 L 300 86\"/><line class=\"ds-weapon-line\" x1=\"228\" y1=\"0\" x2=\"228\" y2=\"86\"/><circle class=\"ds-handle\" cx=\"210\" cy=\"86\" r=\"5.5\"/><circle class=\"ds-handle\" cx=\"244\" cy=\"86\" r=\"5.5\"/><circle class=\"ds-handle ds-handle-weapon\" cx=\"228\" cy=\"22\" r=\"5.5\"/><text class=\"ds-axis\" x=\"60\" y=\"100\">100</text><text class=\"ds-axis\" x=\"145\" y=\"100\">1k</text><text class=\"ds-axis\" x=\"225\" y=\"100\">10k</text></svg></figure>",
+      "css": ".ds-screen { margin: 0; inline-size: 320px; border: 1px solid #2e2e2e; border-radius: 4px; background: #111111; overflow: hidden; } .ds-screen svg { display: block; } .ds-screen-cap { padding: 0.125rem 0.5628rem; border-block-end: 1px solid #1f1f1f; color: color-mix(in srgb, #ededed 80%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-variant-numeric: tabular-nums; text-align: end; } .ds-grid { stroke: color-mix(in srgb, #ededed 7%, transparent); } .ds-axis { fill: color-mix(in srgb, #ededed 45%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; } .ds-trace { fill: none; stroke: #60a5fa; stroke-width: 2; stroke-linejoin: round; } .ds-fill { fill: color-mix(in srgb, #60a5fa 16%, transparent); } .ds-band { fill: color-mix(in srgb, #60a5fa 22%, transparent); stroke: color-mix(in srgb, #60a5fa 55%, transparent); stroke-dasharray: 4 3; } .ds-weapon-line { stroke: #fbbf24; stroke-dasharray: 2 3; } .ds-handle { fill: #111111; stroke: #60a5fa; stroke-width: 2.5; cursor: grab; } .ds-handle:hover { fill: #60a5fa; } .ds-handle-weapon { stroke: #fbbf24; } .ds-handle-weapon:hover { fill: #fbbf24; }"
+    },
+    {
+      "name": "Panel Row",
+      "kind": "card",
+      "refersTo": "panel-row",
+      "description": "A rack row: one Console Grey frame, sections side by side split by Floor Black dividers, each headed by a violet rack label with Play and Reset latches.",
+      "html": "<div class=\"ds-row\"><section class=\"ds-well\"><header class=\"ds-well-head\"><h3 class=\"ds-rack-label\">Filter</h3><button class=\"ds-mini\">Play</button><button class=\"ds-mini\" disabled>Reset</button></header><div class=\"ds-well-body\">curve and knobs</div></section><section class=\"ds-well\"><header class=\"ds-well-head\"><h3 class=\"ds-rack-label\">Amp envelope</h3><button class=\"ds-mini\">Reset</button></header><div class=\"ds-well-body\">curve and knobs</div></section></div>",
+      "css": ".ds-row { display: grid; grid-template-columns: 3fr 2fr; border: 1px solid color-mix(in srgb, #ededed 9%, transparent); border-radius: 4px; background: #1f1f1f; } .ds-row > * + * { border-inline-start: 1px solid #111111; } .ds-well { display: grid; gap: 0.5628rem; padding: 0.5628rem; } .ds-well-head { display: flex; align-items: center; gap: 0.5628rem; min-block-size: 1.75rem; } .ds-rack-label { flex: 1; margin: 0; color: #a78bfa; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; } .ds-mini { min-block-size: 1.75rem; padding: 0 0.4222rem; border: 1px solid #2e2e2e; border-radius: 4px; background: #111111; color: #ededed; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; cursor: pointer; } .ds-mini:hover { border-color: #9ca3af; } .ds-mini:disabled { opacity: 0.4; cursor: not-allowed; } .ds-well-body { min-block-size: 6rem; border-radius: 4px; background: #111111; color: #9ca3af; font-size: 0.75rem; display: grid; place-items: center; }"
+    },
+    {
+      "name": "Rack Strip",
+      "kind": "nav",
+      "refersTo": "rack-tab",
+      "description": "Folder tabs for the instruments; the selected tab joins the panel in Console Grey, the armed engine carries a glowing amber dot.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Wobble</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\">Laser <span class=\"ds-armed\"></span></button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Beam</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Drums</button></div><div class=\"ds-tabpanel\"></div>",
+      "css": ".ds-tabs { display: flex; gap: 2px; border-block-end: 1px solid #2e2e2e; } .ds-tab { display: inline-flex; align-items: center; gap: 0.4222rem; min-block-size: 2.25rem; padding: 0 1rem; border: 1px solid transparent; border-block-end: none; border-radius: 4px 4px 0 0; background: transparent; color: #9ca3af; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; } .ds-tab:hover { color: #ededed; } .ds-tab[aria-selected='true'] { margin-block-end: -1px; border-color: #2e2e2e; background: #1f1f1f; color: #ededed; } .ds-tab:focus-visible { outline: 2px solid #93c5fd; outline-offset: -2px; } .ds-armed { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 9999px; background: #fbbf24; box-shadow: 0 0 8px color-mix(in srgb, #fbbf24 55%, transparent); } .ds-tabpanel { block-size: 3rem; background: #1f1f1f; }"
+    },
+    {
+      "name": "Output Meter",
+      "kind": "custom",
+      "description": "24 flat 2 dB segments from -48 to 0: blue, the top 6 dB bright blue, the last coral; violet OUT label, grey mono scale.",
+      "html": "<div class=\"ds-meter\" role=\"meter\" aria-label=\"Output level\" aria-valuemin=\"-48\" aria-valuemax=\"0\" aria-valuenow=\"-8\"><span class=\"ds-meter-name\">OUT</span><div class=\"ds-segs\"><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on></span><span data-on data-hot></span><span></span><span data-clip></span></div><div class=\"ds-meter-scale\"><span style=\"left:0\">-48</span><span style=\"left:50%\">-24</span><span style=\"left:75%\">-12</span><span style=\"left:87.5%\">-6</span><span style=\"left:100%\">0</span></div></div>",
+      "css": ".ds-meter { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0 0.4222rem; inline-size: 14rem; padding: 8px; background: #1f1f1f; } .ds-meter-name { grid-row: span 2; color: #a78bfa; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.16em; } .ds-segs { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; block-size: 0.625rem; } .ds-segs > span { border-radius: 1px; background: #111111; } .ds-segs > span[data-on] { background: #60a5fa; } .ds-segs > span[data-hot][data-on] { background: #93c5fd; } .ds-segs > span[data-clip][data-on] { background: #ff6369; } .ds-meter-scale { position: relative; block-size: 1em; color: #9ca3af; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-variant-numeric: tabular-nums; line-height: 1; } .ds-meter-scale > span { position: absolute; translate: -50% 0; } .ds-meter-scale > span:first-child { translate: 0 0; } .ds-meter-scale > span:last-child { translate: -100% 0; }"
+    },
+    {
+      "name": "Preset Display",
+      "kind": "custom",
+      "refersTo": "preset-display",
+      "description": "The weapon as a synth preset: a Floor Black screen with the name in bold Hype Amber and seed and gain in grey mono, stepped by chevron latches.",
+      "html": "<div class=\"ds-preset\"><button class=\"ds-step\" aria-label=\"Previous seed\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 18l-6-6 6-6\"/></svg></button><output class=\"ds-display\"><span class=\"ds-preset-name\">Lumen Laser 1/16</span><span class=\"ds-preset-detail\">#42 · -10.8dB</span></output><button class=\"ds-step\" aria-label=\"Next seed\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 18l6-6-6-6\"/></svg></button></div>",
+      "css": ".ds-preset { display: flex; align-items: center; gap: 0.4222rem; padding: 0.4222rem 0.5628rem; background: #1f1f1f; } .ds-display { display: flex; align-items: baseline; gap: 0.5628rem; min-inline-size: 20rem; min-block-size: 1.75rem; padding: 0 0.5628rem; border-radius: 4px; background: #111111; line-height: 1.75rem; white-space: nowrap; } .ds-preset-name { color: #fbbf24; font-family: system-ui, sans-serif; font-weight: 700; } .ds-preset-detail { color: #9ca3af; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace; font-size: 0.75rem; font-variant-numeric: tabular-nums; } .ds-step { display: inline-flex; align-items: center; justify-content: center; min-inline-size: 2.25rem; min-block-size: 1.75rem; border: 1px solid #2e2e2e; border-radius: 4px; background: #111111; color: #ededed; cursor: pointer; } .ds-step:hover { border-color: #9ca3af; } .ds-step:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }"
     }
   ],
   "narrative": {
     "northStar": "The Club Under Glass",
-    "overview": "The game is the dancefloor: a PixiJS arena whose shader pulses, shakes and changes palette with the music. Every React screen is a pane of smoked glass laid over that floor and lit by it. Panels are translucent floor black with a faint white hairline and a backdrop blur, so the level keeps moving through them. Even the landing page plays a live level behind its copy, with a silent demo of shots landing on the kick.\n\nThe chrome recedes and the game leads. Color and glow are not decoration. They mark state: the slot you're holding, a magazine that's loaded, a combo, dash being ready, a heart you just got back. The one deliberate performance is the wordmark: heavy italic caps in a violet-to-blue gradient, RIDDIM stacked over RIOT, whose O is the level's circle filling a quarter on each beat at 140 BPM. Density runs high in the HUD (small mono readouts, segment bars, key caps) and loose on the landing and level cards, where a single headline holds the screen.\n\nThe system rejects two neighbours. It is not generic SaaS, so no bland blue-pill-on-white app feel, even though it starts from a stock token set. And it is not cyberpunk cliché: no glitch text, scanlines or magenta/cyan hacker styling. It is dark only; light surfaces never appear.",
+    "overview": "The game is the dancefloor: a PixiJS arena whose shader pulses, shakes and changes palette with the music. Every React screen the player meets is a pane of smoked glass laid over that floor and lit by it. Panels are translucent floor black with a faint white hairline and a backdrop blur, so the level keeps moving through them. Even the landing page plays a live level behind its copy, with a silent demo of shots landing on the kick.\n\nBehind the glass is the booth, where the sound is made. The sound playground (`/playground`) is a bass synth's front panel in the same palette: opaque Console Grey slabs framed in rows, Floor Black wells and screens set into them, arc knobs, small square latches and curve screens whose handles you drag. It is dense, flat and labelled like gear. The floor and the booth share one palette, one type pair and one rule for light; they differ in material (glass over a live game, opaque panel around a tool) and in shape (pills on the floor, square latches in the booth).\n\nThe chrome recedes and the game leads. Color and glow are not decoration. They mark state: the slot you're holding, a magazine that's loaded, a combo, dash being ready, a heart you just got back, the engine that's armed. The one deliberate performance is the wordmark: heavy italic caps in a violet-to-blue gradient, RIDDIM stacked over RIOT, whose O is the level's circle filling a quarter on each beat at 140 BPM. Density runs high in the HUD and the booth (small mono readouts, segment bars, key caps, knobs) and loose on the landing and level cards, where a single headline holds the screen.\n\nThe system rejects two neighbours. It is not generic SaaS, so no bland blue-pill-on-white app feel and no settings-form arrangement of a tool, even though it starts from a stock token set. And it is not cyberpunk cliché: no glitch text, scanlines or magenta/cyan hacker styling. It is dark only; light surfaces never appear.",
     "keyCharacteristics": [
       "Smoked glass panels (70-75% floor black, 12% white hairline, 6-8px blur) over the live game",
-      "Glow means state: an active, ready or rewarded element gets a soft colored halo; resting elements get none",
-      "Mono uppercase, widely tracked labels in UV Violet name each panel",
+      "Opaque synth-panel slabs in the booth: Console Grey rows with Floor Black wells, screens and latches set into them",
+      "Glow means state: an active, ready, armed or rewarded element gets a soft colored halo; resting elements get none",
+      "Mono uppercase, widely tracked labels in UV Violet name each panel and section",
+      "In the booth, Strobe Blue is the sound design and Hype Amber is the auditioned weapon's own values, never the other way round",
       "One loud moment per screen: the wordmark, a level heading or the combo",
       "Motion keyed to the tempo, and switched off when flashing is reduced"
     ],
     "rules": [
       {
         "name": "The Glow Is State Rule",
-        "body": "A colored halo (`0 0 14px` at 50-55% of the color) or a `currentColor` drop-shadow appears only on an element that is active, ready or rewarded. A resting element never glows.",
+        "body": "A colored halo (`0 0 14px` at 50-55% of the color, or `0 0 8px` at 55% on a small dot) or a `currentColor` drop-shadow appears only on an element that is active, ready, armed or rewarded. A resting element never glows.",
         "section": "colors"
       },
       {
         "name": "The One Job Per Light Rule",
         "body": "Each accent keeps its meaning across every screen: blue is yours and ready, violet names things and marks drops, amber is reward, coral is health and danger. Don't borrow an accent for decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Design Blue, Weapon Amber Rule",
+        "body": "Wherever the sound design and one rolled weapon are edited side by side, Strobe Blue is the design (the values every weapon shares, and the page's own state) and Hype Amber is only the weapon being auditioned (its roll and its overrides). A control that edits the design is never amber; a control that edits only this weapon is never blue. Test: cover the labels, and the colour alone still tells you whether a change will be saved to the game.",
         "section": "colors"
       },
       {
@@ -428,38 +542,49 @@
       },
       {
         "name": "The Gear Voice Rule",
-        "body": "Anything technical (a key, a BPM, a seed, a count, a key binding) is set in mono. Prose is never set in mono.",
+        "body": "Anything technical (a key, a BPM, a seed, a count, a key binding, a parameter and its value) is set in mono. Prose is never set in mono.",
         "section": "typography"
       },
       {
         "name": "The Tabular Numbers Rule",
-        "body": "Live numbers (score, combo, stats) use `font-variant-numeric: tabular-nums` so they don't jitter as they change.",
+        "body": "Live numbers (score, combo, stats, knob readouts, curve captions, meter scale) use `font-variant-numeric: tabular-nums` so they don't jitter as they change.",
         "section": "typography"
       },
       {
         "name": "The Glass Not Paper Rule",
-        "body": "Panels over the game are translucent and blurred, never opaque cards with drop shadows. The only opaque surface is the overlay panel, which freezes play.",
+        "body": "Panels over the game are translucent and blurred, never opaque cards with drop shadows. The only opaque surface over play is the overlay panel, which freezes it. (The booth is not over the game; its opaque slabs hold the game in a window instead.)",
+        "section": "elevation"
+      },
+      {
+        "name": "The Recess Rule",
+        "body": "In the booth, a panel is lighter than the page and everything you read or touch inside it is darker than the panel. Nothing in the booth is raised above its slab except the dropdown.",
         "section": "elevation"
       }
     ],
     "dos": [
       "Do build every in-game panel as glass: Floor Black at 70-75%, a 1px Haze White hairline at 12%, a 6-8px backdrop blur.",
-      "Do spend glow only on state (active, ready, reward), with the 14px halo or a `currentColor` drop-shadow.",
+      "Do build booth tools as opaque Console Grey slabs with Floor Black screens, wells and latches set into them, framed rows split by 1px Floor Black dividers.",
+      "Do spend glow only on state (active, ready, armed, reward), with the 14px halo, the 8px dot halo or a `currentColor` drop-shadow.",
       "Do keep each accent to its one job: Strobe Blue yours/ready, UV Violet labels/drops, Hype Amber reward, Alarm Coral health/danger.",
-      "Do name panels with a mono uppercase UV Violet label (0.75rem, 0.2em tracking).",
-      "Do set keys, numbers, seeds and BPM in mono, with tabular numbers for anything live.",
+      "Do colour every booth control by what it edits: Strobe Blue for the sound design and page state, Hype Amber for the auditioned weapon's roll and overrides.",
+      "Do mark a moved value against its reference: the Smoke Grey tick on the knob ring, a Strobe Blue Bright readout, and a Reset that only enables once something moved.",
+      "Do name panels and sections with a mono uppercase UV Violet label (0.75rem; 0.2em tracking on the floor, 0.16em in the booth).",
+      "Do set keys, numbers, seeds, BPM and parameter values in mono, with tabular numbers for anything live.",
+      "Do draw what a value does (a curve screen with draggable handles) where a slider list would hide it, and give every handle a knob for the keyboard.",
       "Do time looping motion to the tempo (a beat at 140 BPM is ~0.43s).",
-      "Do stop every looping or popping animation under `:root[data-flashing='reduced']`, and keep new canvas flashes and shake inside the stage's `calmFrame`. The player's Reduce flashing choice (or the system's reduced motion) sets both.",
+      "Do stop every looping or popping animation under `:root[data-flashing='reduced']`, and keep new canvas flashes and shake inside the stage's `calmFrame`.",
       "Do add `env(safe-area-inset-*)` to fixed edge controls, and give touch targets at least the design system's minimum target (44px on touch)."
     ],
     "donts": [
       "Don't introduce light surfaces or light-mode variants; the color mode is forced dark.",
       "Don't use glitch text, scanlines, RGB-split type or magenta/cyan hacker styling.",
-      "Don't let a screen read like a SaaS app: no opaque white-ish cards, no stock dashboard chrome, no more than one primary pill per screen.",
+      "Don't let a screen read like a SaaS app: no opaque white-ish cards, no stock dashboard chrome, no settings-form stack of slider lists, no more than one primary pill per screen.",
       "Don't put opaque, shadowed cards over the live game; only the pause/end overlay is opaque.",
+      "Don't colour a design control amber or a weapon-only control blue.",
       "Don't put a kicker or eyebrow label above a heading; the heading speaks for itself.",
       "Don't add a second loud moment to a screen that already has the wordmark, a level heading or the combo.",
       "Don't lay out a page as a row of equal cards; group by meaning on one surface instead.",
+      "Don't re-render React per frame for a meter or playhead; draw onto the elements from an animation frame.",
       "Don't hard-code a color or size outside the theme; use `theme.color()`, `theme.spacing()` and `theme.fontSize()` so the scale and modes stay one source."
     ]
   }
