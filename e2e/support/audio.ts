@@ -58,13 +58,34 @@ export const sounding = (page: Page) =>
 
 /**
  * How long the menu's looping file runs, in seconds: null with none, NaN
- * before its metadata is in.
+ * while it can't be told. Read from the element, or - when the browser
+ * won't say (Linux WebKit's media backend leaves a blob's duration NaN
+ * long after it plays) - from the WAV's own header: its byte rate and data
+ * size.
  */
 export const loopSeconds = (page: Page) =>
-  page.evaluate(
-    () =>
-      (window as unknown as Watched).filesPlayed.find(
-        element =>
-          !element.paused && element.loop && element.src.startsWith('blob:'),
-      )?.duration ?? null,
-  );
+  page.evaluate(async () => {
+    const element = (window as unknown as Watched).filesPlayed.find(
+      candidate =>
+        !candidate.paused &&
+        candidate.loop &&
+        candidate.src.startsWith('blob:'),
+    );
+    if (!element) return null;
+    if (Number.isFinite(element.duration)) return element.duration;
+    try {
+      const header = new DataView(
+        await (
+          await (await fetch(element.src)).blob()
+        )
+          .slice(0, 44)
+          .arrayBuffer(),
+      );
+      const byteRate = header.getUint32(28, true);
+      const bytes = header.getUint32(40, true);
+      return byteRate > 0 ? bytes / byteRate : Number.NaN;
+    } catch {
+      // Revoked as a newer loop took its place: ask again on the next poll.
+      return Number.NaN;
+    }
+  });
